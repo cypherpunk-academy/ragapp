@@ -1,6 +1,6 @@
 # Figma-Import: Aktueller Stand
 
-**Stand:** 2026-05-10
+**Stand:** 2026-05-12
 **Vorgängerdokument:** [`figma-ragapp-guide.md`](./figma-ragapp-guide.md)
 **Zweck:** Fortschritt und Entscheidungen während der Übertragung Figma Make → Figma Design-File → ragapp.
 
@@ -18,10 +18,14 @@
 | Tokens Variables | ✅ Spacing (9) + Radius (4) + Typography (20) | Collection `Tokens` |
 | Fonts | ✅ Cinzel/Cormorant Garamond/Special Elite (Google Fonts) | Familie geladen in Figma |
 | **TabBar Component-Set** | ✅ 5 Variants (`active=Suche/…/KI-Chat`), 393×80px | Node `37:86` auf `Design System` |
-| **AppBar Component** | ✅ 1 Component + 2 Properties (`Title:TEXT`, `Offline:BOOLEAN`), 393×64px | Node `43:2` auf `Design System` |
+| **AppBar Component-Set** | ✅ 2 Variants (`nav=default | back`) + 2 Properties (`Title:TEXT`, `Offline:BOOLEAN`), 393×64px | Set auf `Design System`, Variants `43:2` / `110:24` |
 | **SearchBar Component** | ✅ 1 Component + 3 Properties, Pill 393×56px, Special-Elite-Placeholder | Node `51:24` auf `Design System` |
 | **ResultCard Component-Set** | ✅ **5 Type-Variants** (`type=buch/vortrag/gespräch/zitat/zusammenfassung`) + 7 Properties + DropShadow | Set `76:80` auf `Design System` |
 | **Suche / Default Screen** | ✅ Demo mit gemischten Type-Variants (Buch + Vortrag + Zitat) | Node `57:2` auf `Tab / Suche` |
+| **Übersicht / Default Screen** | ✅ 2×4 Grid mit 8 echten Steiner-Covern (SVGs aus `ragkeep/assets/covers`) | Node `94:2` auf `Tab / Übersicht` |
+| **Werk / Detail Screen** | ✅ Drill-Down innerhalb Übersicht-Tab: Cover groß + 18 echte Kapitel aus `toc.json` + Back-Pfeil + Beitrags-Streifen + AI-Summary-Demo | Node `99:3` auf `Tab / Übersicht` (Zweitframe) |
+| **Lesen / Default Screen** | ✅ Justified Cormorant 18 / 155%, Inline-Marker `1\| `, Beitrags-Streifen pro Absatz, farbige Kursive (rust) + Guillemet-Quotes (mauve) | Node `3:10` auf `Tab / Lesen` |
+| **Lesen / Beiträge Screen** | ✅ Drill-Down: kompakter Breadcrumb-Header + 3 Filter-Tabs (Notizen / Gespräche / **RAG-Treffer**, Material-3-Underline-Style) + sortierte Card-Liste | Node `137:2` auf `Tab / Lesen` (Zweitframe) |
 
 ---
 
@@ -432,9 +436,10 @@ Badge bleibt bei Marcellus 9px (UI-Element, strukturell).
 
 ```
 ResultCard (Component, Page: Design System, ID: 53:24, 361×Auto)
-  Auto-Layout Vertical, padding 16/16, gap 8, CornerRadius 16
+  Auto-Layout Vertical, padding 16/16, gap **16** (zwischen Header/Excerpt/Footer), CornerRadius 16
   Fill: Schemes/Surface Container Low    Stroke: Schemes/Outline Variant (1px)
   DropShadow: y=2, blur=8, color=rgba(0,0,0,0.08)  ← "library card" Elevation
+  Excerpt-Lineheight: **160%** (statt 175%) — Buchsatz-Look für Cormorant Garamond
   ├── Header (Frame, Auto-Layout Horizontal, gap 8, align MIN top)
   │     ├── TitleBlock (Auto-Layout Vertical, gap 4, FILL horizontal)
   │     │     ├── Title (Cinzel 18px, fill Schemes/On Surface)
@@ -568,15 +573,188 @@ Beim Klonen einer Component bekommen die Property-Definitions neue Keys (mit neu
 
 ---
 
-## 15. Nächste Schritte (Stand: 2026-05-11)
+## 15. Übersicht-Screen (gebaut 2026-05-11)
 
-1. **Tab / Übersicht Screen** — Buch-Grid mit Cover-Komponenten
-2. **Tab / Lesen Screen** — Hauptfläche für Cormorant Garamond als Buchtext
+### 15.1 Komposition
+
+```
+Tab / Übersicht (94:2, 393×852)
+├── AppBar (Title="Übersicht")
+├── BookGrid (393 wide, Auto-Layout HORIZONTAL+WRAP, 4×2 = 8 covers)
+│   ├── Book: Die Philosophie der Freiheit (4b8e4c2a)
+│   ├── Book: Wahrheit und Wissenschaft (e58f6369)
+│   ├── Book: Die Rätsel der Philosophie (d64fa532)
+│   ├── Book: Methodische Grundlagen (c2a4e407)
+│   ├── Book: Die Kernpunkte der sozialen Frage (f8e6c475)
+│   ├── Book: Aufsätze über die Dreigliederung (3b38df84)
+│   ├── Book: Lucifer-Gnosis (f78a79d5)
+│   └── Book: Goethes Weltanschauung (64e881df)
+└── TabBar (active=Übersicht)
+```
+
+Jedes Book-Item:
+- Cover-Frame 172×271 (SVG aus `ragkeep/assets/covers/<book-id>.svg`, via `figma.createNodeFromSvg` + `rescale(0.43)`)
+- Drop-Shadow für Elevation
+- Title-Text in Cinzel 14px zentriert
+
+### 15.2 Daten-Quelle
+
+- Cover-SVGs: `/Users/michael/Reniets/Ai/ragrun/ragkeep/assets/covers/<book-id>.svg`
+- Buch-Metadata: `/Users/michael/Reniets/Ai/ragrun/ragkeep/books/<book-folder>/book-manifest.yaml`
+- Mapping: `book-id` in Manifest ↔ Filename des SVG
+
+### 15.3 Erkenntnisse
+
+| Pattern | Regel |
+|---|---|
+| **Auto-Layout WRAP** | `primaryAxisSizingMode = 'FIXED'` zwingen, sonst expandiert das Frame zur Content-Breite (1520px) statt zu wrappen. |
+| **SVG-Rescaling** | `createNodeFromSvg(svg)` ergibt Frame mit Original-Größe (400×630). `frame.rescale(scale)` skaliert Children UND Frame proportional. |
+| **clipsContent=true** | Auf dem iPhone-Screen-Frame, damit Inhalte unter der TabBar oder über 852px nicht überfließen. |
+
+---
+
+## 16. Werk-Detail Screen (gebaut 2026-05-11)
+
+### 16.1 Konzept: Drill-Down innerhalb Übersicht-Tab
+
+Wichtig: **Detail-Page ist KEIN eigener Tab.** Sie liegt als zweiter Frame auf der `Tab / Übersicht` Page neben dem Buch-Grid. Beide Screens gehören zum selben Übersicht-Tab.
+
+**Navigations-Modell:**
+- Swipe horizontal (links/rechts) → wechselt zwischen den 5 Tabs (Suche ↔ Übersicht ↔ Lesen ↔ ...)
+- Tap auf Buch-Cover (im Grid) oder Back-Pfeil (in Detail) → wechselt innerhalb des Übersicht-Tabs zwischen Grid und Detail
+- TabBar zeigt durchgängig `active=Übersicht` (auch auf Detail)
+
+### 16.2 Komposition
+
+```
+Werk / Die Philosophie der Freiheit (99:3, 393×852)
+├── BackArrow (chevron-left, x=16/y=20, überlagert AppBar links)
+├── AppBar (Title="" leer — Hero trägt den Titel; Avatar rechts)
+├── Content
+│   ├── Hero (cover + title + meta + CTA)
+│   │   ├── Cover 110×173 (SVG aus ragkeep, mit Drop-Shadow)
+│   │   ├── Title (Cinzel 22) — "Die Philosophie der Freiheit"
+│   │   ├── Author/Edition (Marcellus 12) — "RUDOLF STEINER · GA 4 · 1918"
+│   │   ├── Meta-Strip (282 Seiten · 18 Kapitel · 69.664 Wörter)
+│   │   └── CTA-Button "WEITERLESEN · KAPITEL IX" (Primary, Pill)
+│   ├── Section-Label "KAPITEL" (Marcellus uppercase)
+│   └── ChapterList (Auto-Layout, 18 rows mit Roman/Title/Page)
+│       └── Aktive Kapitel IX hat Surface-Container-Background als Highlight
+└── TabBar (active=Übersicht)
+```
+
+### 16.3 Daten-Quelle für Kapitel
+
+`ragkeep/books/<book>/results/toc.json` enthält strukturierte Headers:
+```json
+{ "headers": [{ "level": 1, "text": "I DAS BEWUSSTE ...", "page": 15 }, ...] }
+```
+
+Diese Daten sind 1:1 in den Detail-Screen geflossen — alle 18 Kapitel sind echt.
+
+### 16.4 Paradigm Shift: Absätze statt Seiten (2026-05-11)
+
+Wir verlassen das **Print-Paradigma**. Im digitalen Lesen sind Absätze (paragraphs) die atomare Einheit, nicht Seiten — Pagination hängt von Viewport, Schriftgröße und Device ab. Konsequenzen für die UI:
+
+| Aspekt | Vorher (print) | Nachher (digital) |
+|---|---|---|
+| Meta-Strip | 282 Seiten · 18 Kapitel · 69.664 Wörter | **381 Absätze · 18 Kapitel** |
+| Chapter-Row | Title + "S. 15" | Title (rein) |
+| Continue-Reading | "Seite 145" | "Kapitel IX" (semantische Einheit) |
+| RAG-Chunks | abgeleitet aus Seiten | abgeleitet aus Absätzen (= entspricht ragprep-Architektur) |
+
+Das passt zur RAG-Architektur in `ragkeep`: Chunks sind Absatz-basiert, nicht Seiten-basiert. UI und Daten-Layer sprechen dieselbe Sprache.
+
+Auch konzeptionell sinnvoll bei Steiner: Vorträge haben gar keine "Seiten" — nur Vortragsdauer und Absätze (transkribiert). Schriften und Vorträge teilen sich so dieselbe Referenz-Einheit.
+
+### 16.5 Glossar-Entscheidung: „RAG-Treffer" + „Beitrag" (2026-05-12)
+
+**Sammelbegriff „Beitrag":** Alle drei Dinge (Notizen, Gespräche, RAG-Treffer), die mit einem Absatz verknüpft sind, werden im UI und in der Doku als **Beiträge zu diesem Absatz** bezeichnet. Damit:
+- Die emoji-Reihe unter jedem Absatz heißt **„Beitrags-Streifen"** (nicht „Activity-Strip")
+- Die Drill-Down-Seite heißt **`Lesen / Beiträge`** (nicht „Details")
+- Die Indikatoren selbst sind **Beitrags-Indikatoren** (nicht „Aktivitäts-Indikatoren")
+
+Begründung: „Activity" beschreibt nur das, was passiert ist; „Beitrag" beschreibt, was dadurch *entstanden* ist — eine Notiz, ein Gespräch, ein Verweis. Das ist konsistenter mit der Lese-Metapher (jeder Absatz sammelt im Lauf der Zeit Beiträge an, wie ein Diskussionsthread). Außerdem schließt „Beitrag" den RAG-Treffer mit ein, der nicht vom Nutzer „aktiv" gemacht wurde, sondern vom System beigetragen wird.
+
+Die drei Beitrags-Indikatoren werden einheitlich so benannt:
+
+| Emoji | Begriff | Bedeutung |
+|---|---|---|
+| ✏️ | **Notizen** | Eigene Anmerkungen, die der Nutzer zu diesem Absatz angelegt hat |
+| 💬 | **Gespräche** | KI-Gespräche (`rag_talks`), in denen dieser Absatz im Kontext stand |
+| 🎯 | **RAG-Treffer** | Wie oft Qdrant diesen Absatz auf andere Fragen/Konzepte als relevante Antwort zurückgegeben hat — Maß für semantische Zentralität im Korpus |
+
+**Begründung der Wahl (Begriff):**
+- Verworfen: „Resonanzen", „Anklänge", „Echo", „Querverweise", „Bezüge" — poetisch, aber unscharf
+- Verworfen: „Quellenverweis" (Vorgängerbegriff aus `ragapp-gesamtplan.md` §3 Tab 3) — klingt nach klassischer Fußnote, nicht nach semantischer Suche
+- Gewählt: **RAG-Treffer** — radikal ehrlich, technisch akkurat, passt zur App-Identität (`ragapp`). Der Nutzer versteht beim Antippen sofort, dass es um die Vektor-DB geht, nicht um vom Autor gesetzte Verweise
+
+**Begründung der Wahl (Emoji):**
+- Verworfen: 🔗 (Kettenglieder) — passt zu „Verweis/Link", aber nicht zu „Treffer". Klingt nach Hyperlink, nicht nach semantischer Trefferquote
+- Gewählt: 🎯 — „Treffer" wörtlich genommen. Ein Absatz mit hohem 🎯-Wert ist ein semantischer Magnet, eine Stelle, auf die der RAG immer wieder zielt. Visuell prägnant, eindeutig
+
+**Icon-Konvention:** Das TypeIcon im `ResultCard type=buch` (= RAG-Treffer als Card) wurde von Material `link` auf Material `my_location` (Bullseye) umgestellt — damit Emoji und Card-Icon dieselbe visuelle Sprache sprechen.
+
+**Verwendung in der UI:**
+- `Lesen / Default` Beitrags-Streifen: nur Emoji + Zahl unter jedem Absatz (kein Text — Daumen-Touch-Target, kompakt)
+- `Lesen / Beiträge`: die drei Indikatoren sind **interaktive Filter-Tabs** (Material-3-Underline-Style). Aktives Tab in `primary`, 3px Underline; inaktive Tabs in `onSurfaceVariant`, 1px Underline. Die Card-Liste darunter wird auf den aktiven Tab gefiltert.
+- `Werk / Detail` Beitrags-Streifen: nur Emoji + Zahl (Gesamtwerk-Summe — alle Beiträge zu allen Absätzen dieses Werks)
+- `Übersicht / LastRead`-Card: derzeit ohne Beitrags-Streifen — falls später reaktiviert, gleiche Konvention
+
+**Header-Konvention auf `Lesen / Beiträge`:** Kompakter einzeiliger Breadcrumb (`KAPITEL IX · DIE IDEE DER FREIHEIT · ¶3`, Marcellus 11/8%), kein prominentes ¶3 und kein Excerpt — der Nutzer kommt aus `Lesen / Default` und kennt den Kontext bereits. Die Tabs übernehmen die visuelle Hauptrolle.
+
+**Quellen, die diese Konvention referenzieren:**
+- `ragapp-gesamtplan.md` §3 Tab 3 (Lesen → „Beitrags-Indikatoren am Ende jedes Absatzes")
+- Figma: `Lesen / Default` (Node `3:10`), `Lesen / Beiträge` (Node `137:2`), `Werk / Detail` (Node `99:3`)
+- Figma-Frame-Namen: `Beitrags-Streifen` (Werk/Detail), `¶1 Beitrags-Streifen` / `¶2 Beitrags-Streifen` / `¶3 Beitrags-Streifen` (Lesen/Default)
+
+### 16.6 Offene Polish-Punkte
+
+| Punkt | Idee |
+|---|---|
+| **CTA-Button-Größe** | Aktuell groß und prominent. Alternativen: kleiner Pill, FAB rechts unten, inline mit Section-Label, oder ganz weg (current Chapter-Row hat schon Highlight) |
+| ~~AppBar-Component erweitern~~ | ✅ **Erledigt (2026-05-11):** AppBar ist jetzt Component-Set mit `nav=default | back` Variants. Detail-Screen nutzt `nav=back`, kein Sibling-Hack mehr nötig |
+| **Vortragsband-Detail** | GA 293 (Allgemeine Menschenkunde) als 2. Detail-Beispiel mit Vortrags-Liste statt Kapiteln (Datum/Ort/Dauer pro Eintrag) |
+| **Mehr Kapitel sichtbar** | Hero noch kompakter (z.B. horizontal mit Cover links statt vertikal) |
+
+---
+
+## 17. AppBar Component-Set (gebaut 2026-05-11)
+
+Refactor: AppBar Component → Component-Set mit 2 Variants.
+
+**Struktur:**
+```
+AppBar (Component-Set)
+├── nav=default   Title + OfflineIcon + Avatar
+└── nav=back      BackArrow + Title + OfflineIcon + Avatar
+```
+
+**Properties** (Set-Level, automatisch konsolidiert nach combineAsVariants):
+- `Title#110:0` (TEXT)
+- `Offline#110:1` (BOOLEAN)
+- `nav` (VARIANT, default | back)
+
+**Verwendung:**
+- `nav=default`: Suche-Screen, Übersicht-Screen — Root-Views der Tabs
+- `nav=back`: Werk-Detail-Screen — Drill-Down innerhalb eines Tabs
+
+Existing instances bleiben durch Property-Name-Matching kompatibel — die Suche-Page und Übersicht-Page rendern unverändert.
+
+---
+
+## 18. Nächste Schritte (Stand: 2026-05-12)
+
+1. ~~**CTA-Button-Entscheidung** auf Detail-Page~~ ✅ Card-Style „Weiterlesen" + Text-Link „Von vorne lesen"
+2. ~~**Tab / Lesen Screen**~~ ✅ Default + Beiträge fertig, inkl. Beitrags-Streifen mit RAG-Treffer-Konvention
 3. **Tab / KI-Chat Screen** — Special Elite für KI-Antworten
-4. **Tab / Notizen Screen** — User-eigene Notizen, ggf. Marcellus-basiert
+4. **Tab / Notizen Screen** — User-eigene Notizen (✏️-Aggregat-View)
 5. **Konto + Einstellungen Screens** — Material-3-Settings-Pattern
-6. **Active-Indicator Pill** in TabBar (optional Polish)
-7. **Style Dictionary Pipeline** für `theme.ts`-Generierung (siehe `figma-ragapp-guide.md` Phase 6)
+6. **Vortragsband-Detail-Page** als 2. Beispiel (GA 293 mit Vortrags-Liste statt Kapiteln)
+7. **BookCover als wiederverwendbare Component** (refactor)
+8. **Active-Indicator Pill** in TabBar (optional Polish)
+9. **Style Dictionary Pipeline** für `theme.ts`-Generierung
+10. **Bedingte Trennzeichen (`&shy;`)** im Lesen-Default für sauberen Block-Satz bei langen deutschen Komposita
 
 ---
 

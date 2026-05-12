@@ -152,7 +152,10 @@ Node-Typen: `paragraph`, `italic`, `quote`, `heading`, `footnote_ref`
 - Zitate: `quote`-Node → eingerückt mit Anführungszeichen-Stil
 - Kursive Passagen: `italic`-Node → italic rendering
 - Absatznummer am Anfang jedes Absatzes (aus `source_index` im chunk-Metadata)
-- Fußnoten/Links **am Ende jedes Absatzes** (falls vorhanden): Notizen-Badge, Gespräche-Badge, Quellenverweis-Badge als kleine Chips
+- Beitrags-Streifen **am Ende jedes Absatzes** (Emoji + Zahl als kleine Chips, rechtsbündig). Jeder Eintrag ist ein **Beitrag zu diesem Absatz**:
+  - ✏️ Notizen — eigene Anmerkungen zu diesem Absatz
+  - 💬 Gespräche — KI-Gespräche, die diesen Absatz im Kontext hatten
+  - 🎯 RAG-Treffer — wie oft der Absatz von der Vektor-DB (Qdrant) als relevante Antwort auf andere Fragen oder Konzepte zurückgegeben wurde (semantische Zentralität im Korpus)
 - Schriftgröße einstellbar
 
 **Lesezeichen:**
