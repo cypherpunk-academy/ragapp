@@ -26,6 +26,15 @@
 | **Werk / Detail Screen** | ✅ Drill-Down innerhalb Übersicht-Tab: Cover groß + 18 echte Kapitel aus `toc.json` + Back-Pfeil + Beitrags-Streifen + AI-Summary-Demo | Node `99:3` auf `Tab / Übersicht` (Zweitframe) |
 | **Lesen / Default Screen** | ✅ Justified Cormorant 18 / 155%, Inline-Marker `1\| `, Beitrags-Streifen pro Absatz, farbige Kursive (rust) + Guillemet-Quotes (mauve) | Node `3:10` auf `Tab / Lesen` |
 | **Lesen / Beiträge Screen** | ✅ Drill-Down: kompakter Breadcrumb-Header + 3 Filter-Tabs (Notizen / Gespräche / **RAG-Treffer**, Material-3-Underline-Style) + sortierte Card-Liste | Node `137:2` auf `Tab / Lesen` (Zweitframe) |
+| **Notizen / Default Screen** | ✅ Outlined Neue-Notiz-Button + Pinned/Unpinned-Sections + NoteCards mit **Special-Elite-Text** (Schreibmaschine = User-Eingabe), Datum · Autor (ICH oder Freundname), Source-Line in Primary-Smallcaps, Outline-Tag-Chips | Tab / Notizen (Page `3:2`) |
+| **ContextMenu / Note Component-Set** | ✅ 2×2 Variants (`shared` × `pinned`), 3 Sektionen (Sichtbarkeit / Vertiefen / Verwalten), 7 Items mit Material-3-Icons + Marcellus-Labels, „Löschen" in Error-Rot | Node `180:168` auf `Design System` |
+| **Notizen / Menü offen Screen** | ✅ Demo-State: zweiter Frame neben Default, `ContextMenu / Note` (`shared=false, pinned=true`) am MoreVert der angepinnten Karte angekert — zeigt „Lösen" in VERWALTEN | Node `185:2` auf `Tab / Notizen` (Zweitframe) |
+| **KI-Chat / Default Screen** | ✅ AppBar + zweizeiliger ContextHeader (Gespräch + Kontext-Pills) + **Full-Width-Bubbles** in Special Elite, Meta-Zeile mit Philo-Avatar + Persona-Name + **`· RAG-Treffer`-Link** + Pill-Input + Send-Button. „Freiheit°"-Begriffsmarker und `[1]`–`[4]`-Inline-Referenzen direkt im Text gestylt | Node `3:12` auf `Tab / KI-Chat` |
+| **KI-Chat / Default — Scroll Screen** | ✅ Zweitframe für scroll-down-State: nur die lange Philo-Antwort sichtbar mit voll ausgeschriebener Meta-Zeile darunter — macht das Pattern `[Avatar]  14:32 · PHILO · RAG-Treffer (4)` explizit lesbar (Anzahl `(N)` = unique `[N]`-Marker im Antwort-Text). User-Frage am oberen Rand als gefadeter Scroll-Indikator | Node `209:2` auf `Tab / KI-Chat` (Zweitframe) |
+| **KI-Chat / Kontext offen Screen** | ✅ Demo-State: `ContextPicker / Open`-Instance liegt als Overlay genau auf der Kontext-Pill (Row 2 des ContextHeaders); 28%-Scrim dimmt den restlichen Screen — Material-3-Modal-Menu-Pattern. Item `¶4` als Selected-State im `secondaryContainer`-Highlight, vier weitere Optionen (Notiz/Kapitel/Werk/Allgemein) zur Auswahl sichtbar | Node `222:2` auf `Tab / KI-Chat` (Drittframe) |
+| **KI-Chat / RAG-Treffer Screen** | ✅ Drill-Down vom `RAG-Treffer`-Link: AppBar `nav=back` + Kontext-Box mit Philo-Avatar + Antwort-Snippet + Token-Usage-Zeile + 4 Quellen-Cards (`[N]`-Index + farbige Typ-Badge mit Material-Icon + Cinzel-Titel + Marcellus-Subtitle) für Vortrag/Begriff/Begriff/Buch | Node `206:2` auf `Tab / KI-Chat` (Viertframe) |
+| **Konto / Default Screen** | ✅ AppBar (`Offline=true`) + Profile (JM-Avatar 96px, Marcellus-Name, Email) + **Token-Guthaben-Card** in `primary` (Sparkles + „0,00 €" Cormorant Light 48pt + DeepSeek-Chat-Preis-Subline + Beschreibung + weißer „Guthaben aufladen"-Pill + Footnote „Google Play · App Store") + **Statistiken** (2×2 Grid: 12 KI-Gespräche, 47 Notizen, 23h 42min Lesezeit, 0 Freunde + `primaryContainer`-Pill „Hinzufügen") + **Mehr** (Lesezeichen + Synchronisierung) — kein Pro-Tier, kein Speicher, keine Bibliothek-Verwaltung (alles via Token-Wallet bzw. GitHub Pages) | Node `256:8` auf `Konto` |
+| **Einstellungen / Default Screen** | ✅ AppBar (`Offline=true`) + 4 Sections in `surfaceContainerLowest`-Cards mit M3-Listenitems: **Darstellung** (Dunkelmodus mit Toggle + Schriftgröße mit Slider+Ticks), **Sprache** (Sprache + outline-Pill „Deutsch ▾"), **Datenschutz & Sicherheit** (Datenschutzeinstellungen + Chevron), **Über** (Über ragapp · Version 1.0.0 + Chevron) + Footer „Nutzungsbedingungen · Datenschutz · Impressum". Ohne Lesen/Vorleselautstärke, Benachrichtigungen, Automatische Synchronisation — letztere Funktionen entfallen für die ragapp-Lese-Identität (kein TTS, keine Push-Reminders, manueller Sync nach Bedarf) | Node `262:2` auf `Einstellungen` |
 
 ---
 
@@ -676,29 +685,27 @@ Auch konzeptionell sinnvoll bei Steiner: Vorträge haben gar keine "Seiten" — 
 
 Begründung: „Activity" beschreibt nur das, was passiert ist; „Beitrag" beschreibt, was dadurch *entstanden* ist — eine Notiz, ein Gespräch, ein Verweis. Das ist konsistenter mit der Lese-Metapher (jeder Absatz sammelt im Lauf der Zeit Beiträge an, wie ein Diskussionsthread). Außerdem schließt „Beitrag" den RAG-Treffer mit ein, der nicht vom Nutzer „aktiv" gemacht wurde, sondern vom System beigetragen wird.
 
-Die drei Beitrags-Indikatoren werden einheitlich so benannt:
+Die drei Beitrags-Indikatoren werden einheitlich so benannt und visuell als Material-Symbols-Outlined-Icons dargestellt (siehe globale Konvention 16.8 — keine Emojis mehr):
 
-| Emoji | Begriff | Bedeutung |
+| Icon (Material Symbols) | Begriff | Bedeutung |
 |---|---|---|
-| ✏️ | **Notizen** | Eigene Anmerkungen, die der Nutzer zu diesem Absatz angelegt hat |
-| 💬 | **Gespräche** | KI-Gespräche (`rag_talks`), in denen dieser Absatz im Kontext stand |
-| 🎯 | **RAG-Treffer** | Wie oft Qdrant diesen Absatz auf andere Fragen/Konzepte als relevante Antwort zurückgegeben hat — Maß für semantische Zentralität im Korpus |
+| `edit` (Pencil-Outline) | **Notizen** | Eigene Anmerkungen, die der Nutzer zu diesem Absatz angelegt hat |
+| `chat_bubble_outline` | **Gespräche** | KI-Gespräche (`rag_talks`), in denen dieser Absatz im Kontext stand |
+| `my_location` (Bullseye) | **RAG-Treffer** | Wie oft Qdrant diesen Absatz auf andere Fragen/Konzepte als relevante Antwort zurückgegeben hat — Maß für semantische Zentralität im Korpus |
 
 **Begründung der Wahl (Begriff):**
 - Verworfen: „Resonanzen", „Anklänge", „Echo", „Querverweise", „Bezüge" — poetisch, aber unscharf
 - Verworfen: „Quellenverweis" (Vorgängerbegriff aus `ragapp-gesamtplan.md` §3 Tab 3) — klingt nach klassischer Fußnote, nicht nach semantischer Suche
 - Gewählt: **RAG-Treffer** — radikal ehrlich, technisch akkurat, passt zur App-Identität (`ragapp`). Der Nutzer versteht beim Antippen sofort, dass es um die Vektor-DB geht, nicht um vom Autor gesetzte Verweise
 
-**Begründung der Wahl (Emoji):**
-- Verworfen: 🔗 (Kettenglieder) — passt zu „Verweis/Link", aber nicht zu „Treffer". Klingt nach Hyperlink, nicht nach semantischer Trefferquote
-- Gewählt: 🎯 — „Treffer" wörtlich genommen. Ein Absatz mit hohem 🎯-Wert ist ein semantischer Magnet, eine Stelle, auf die der RAG immer wieder zielt. Visuell prägnant, eindeutig
-
-**Icon-Konvention:** Das TypeIcon im `ResultCard type=buch` (= RAG-Treffer als Card) wurde von Material `link` auf Material `my_location` (Bullseye) umgestellt — damit Emoji und Card-Icon dieselbe visuelle Sprache sprechen.
+**Begründung der Wahl (Icon):**
+- Historie: zuerst 🔗 (Hyperlink-Kettenglieder), dann 🎯 (Bullseye-Emoji), schließlich `my_location`-SVG — alle drei sprechen dieselbe Bedeutung „Treffer/Magnet", aber das SVG rendert deterministisch und nimmt Theme-Farben an
+- Gewählt: **`my_location`** — visuell ein konzentrisches Fadenkreuz, das „Trefferquote" wörtlich nimmt. Ein Absatz mit hohem RAG-Treffer-Wert ist ein semantischer Magnet, eine Stelle, auf die der RAG immer wieder zielt
 
 **Verwendung in der UI:**
-- `Lesen / Default` Beitrags-Streifen: nur Emoji + Zahl unter jedem Absatz (kein Text — Daumen-Touch-Target, kompakt)
-- `Lesen / Beiträge`: die drei Indikatoren sind **interaktive Filter-Tabs** (Material-3-Underline-Style). Aktives Tab in `primary`, 3px Underline; inaktive Tabs in `onSurfaceVariant`, 1px Underline. Die Card-Liste darunter wird auf den aktiven Tab gefiltert.
-- `Werk / Detail` Beitrags-Streifen: nur Emoji + Zahl (Gesamtwerk-Summe — alle Beiträge zu allen Absätzen dieses Werks)
+- `Lesen / Default` Beitrags-Streifen: nur Icon (16px, `onSurfaceVariant`) + Zahl unter jedem Absatz (kein Text — Daumen-Touch-Target, kompakt)
+- `Lesen / Beiträge`: die drei Indikatoren sind **interaktive Filter-Tabs** (Material-3-Underline-Style), 20px-Icons + Label + Zahl. Aktives Tab in `primary`, 3px Underline; inaktive Tabs in `onSurfaceVariant`, 1px Underline. Die Card-Liste darunter wird auf den aktiven Tab gefiltert.
+- `Werk / Detail` Beitrags-Streifen: nur Icon + Zahl (Gesamtwerk-Summe — alle Beiträge zu allen Absätzen dieses Werks)
 - `Übersicht / LastRead`-Card: derzeit ohne Beitrags-Streifen — falls später reaktiviert, gleiche Konvention
 
 **Header-Konvention auf `Lesen / Beiträge`:** Kompakter einzeiliger Breadcrumb (`KAPITEL IX · DIE IDEE DER FREIHEIT · ¶3`, Marcellus 11/8%), kein prominentes ¶3 und kein Excerpt — der Nutzer kommt aus `Lesen / Default` und kennt den Kontext bereits. Die Tabs übernehmen die visuelle Hauptrolle.
@@ -708,7 +715,221 @@ Die drei Beitrags-Indikatoren werden einheitlich so benannt:
 - Figma: `Lesen / Default` (Node `3:10`), `Lesen / Beiträge` (Node `137:2`), `Werk / Detail` (Node `99:3`)
 - Figma-Frame-Namen: `Beitrags-Streifen` (Werk/Detail), `¶1 Beitrags-Streifen` / `¶2 Beitrags-Streifen` / `¶3 Beitrags-Streifen` (Lesen/Default)
 
-### 16.6 Offene Polish-Punkte
+### 16.6 KI-Chat / Default — Bubble-Konvention (2026-05-12, überarbeitet)
+
+**Typografie:** Sowohl User-Frage als auch KI-Antwort verwenden **Special Elite** (Schreibmaschine). Begründung: Der Chat ist ein getippter Austausch zwischen Mensch und KI — beide Seiten „tippen" Text. Die Schreibmaschinen-Typografie macht das materiell sichtbar und unterscheidet den Chat klar vom Lese-Tab (wo Cormorant für die Original-Quelle steht).
+
+**Bubble-Form:** **Full-Width** — beide Bubbles spannen die volle Bildschirmbreite (minus 16px Padding links/rechts). Border-Radius gleichmäßig 16px. Begründung: Der Chat füllt den ganzen Daumenbereich; rechts-/linksbündige Bubbles mit Avatar-Bereich daneben waren zu viel Whitespace. Identifikation Sender ↔ Empfänger erfolgt über Hintergrund-Farbe und über die Meta-Zeile unter der Bubble.
+
+**Meta-Zeile** (direkt unter jeder Bubble, 6px Abstand):
+- **AI-Bubble mit Quellen** (linksbündig): `[Avatar 24×24]  14:32 · PHILO · RAG-Treffer (4)`
+  - Avatar = Foto-Image-Fill (kreisförmig), aus `ragrun/ragkeep/assistants/<persona>/assets/avatar.png` geladen
+  - Zeitstempel + Persona-Name in Marcellus 11pt, `onSurfaceVariant`
+  - Trennzeichen einheitlich `·` (Middot, Marcellus, `onSurfaceVariant`) — kein Sonder-Emoji, dadurch ruhiger Rhythmus
+  - **`RAG-Treffer (N)`** ist der Link (Marcellus 11pt, `primary` color — gleiche Sprache wie die `[N]`-Inline-Marker im Text). `N` entspricht der Anzahl unterschiedlicher `[…]`-Marker im Antwort-Text. Tap öffnet `KI-Chat / RAG-Treffer`
+- **AI-Bubble ohne Quellen** (z. B. Greeting, Smalltalk): `[Avatar 24×24]  14:30 · PHILO` — das `RAG-Treffer (N)`-Label wird weggelassen, sobald `N=0`. Macht semantisch klar: ohne Marker im Text gibt es keine Quellen-Detailseite
+- **User-Bubble** (rechtsbündig): `14:32 · ICH` (kein Avatar, kein RAG-Treffer — der User „ist" das Telefon und stellt selbst keine Quellen)
+
+**Farb-Konvention:**
+- AI-Bubble: `surfaceContainerLow` Hintergrund, `onSurface` Text → ruhig, sekundär
+- User-Bubble: `primary` Hintergrund, `onPrimary` (weiß) Text → aktiv, eindeutig vom User
+
+**Inline-Rich-Text:**
+- **Begriffs-Marker „Freiheit°"** (gilt für ALLE Bubbles, User und AI): Jedes Vorkommen des Wortes „Freiheit" bekommt ein nachgestelltes graues `°` (Special Elite 11pt, `onSurfaceVariant`). Tap auf „Freiheit°" öffnet später eine Begriffserklärung. Erweiterbar auf alle Konzepte mit Glossar-Eintrag. Konvention: Marker erscheint nur bei substantivischer Verwendung — nicht bei „freien Verträgen" o.ä.
+- **Quellen-Referenzen `[1]`, `[2]`, …** (nur AI-Bubbles): Inline-Marker im Antwort-Text, gestylt als Special Elite **10pt** in `primary`-Farbe. Tap führt auf `KI-Chat / RAG-Treffer` und scrollt zum entsprechenden Eintrag. Visuelle Sprache identisch zum `RAG-Treffer (N)`-Link in der Meta-Zeile.
+
+**Persona-Avatare (Image-Asset-Konvention):**
+- Speicherort: `ragrun/ragkeep/assistants/<persona-slug>/assets/avatar.png`
+- Beispiel: `ragrun/ragkeep/assistants/philo-von-freisinn/assets/avatar.png` (Philo)
+- In Figma als Image-Fill auf einem Kreis-Frame (24×24 oder 28×28 mit `cornerRadius` = halbe Größe, `clipsContent=true`)
+- Image-Hash wird einmal via `figma.createImage(bytes)` importiert und über `figma.root.setSharedPluginData('ragapp','<persona>Hash', hash)` für Wiederverwendung gesichert
+- Spätere App-Implementierung: Avatar wird über `personality_slug` aus dem `assistants/`-Verzeichnis geladen
+
+**ContextHeader** (zwischen AppBar und ChatStream):
+- Zeile 1 „SessionControls":
+  - Links **`+ Neuer Chat`**-Button (M3 Filled Tonal, Pill 20px Radius, `surfaceContainerHigh` Hintergrund, Plus-Icon + Marcellus 13pt in `primary`) — startet ein frisches Gespräch
+  - Rechts **Hamburger-Icon-Button** (M3 `menu`-Icon in `onSurfaceVariant`, 40×40 Tap-Target) — öffnet die History-Liste mit den letzten Chats zur Auswahl/Wiederaufnahme
+- Zeile 2 „Kontext": Pin-Icon + Pill mit Kontext-Referenz `¶3 · DIE IDEE DER FREIHEIT` (`onSurfaceVariant`-Text, subdued) + Chevron — touch-fähig, öffnet `ContextPicker / Open`
+
+**ContextPicker / Open** (`Design System`, Node `220:28`): Dropdown-Komponente, die beim Tap auf die Kontext-Pill aufpoppt. Aufbau:
+- **Trigger-Pill** (oben, identisch zur Closed-Variante in der ContextHeader-Zeile 2, aber mit Chevron-Up)
+- **Menu-Panel** (darunter, weißer `surfaceContainerLowest`-Hintergrund, 12px Radius, `outlineVariant`-1px-Border, weicher Drop-Shadow): vertikale Liste typisierter Kontext-Optionen, jedes Item ist ein 8px-Radius-Row mit Marker-Icon (18×18, Material Symbols Outlined, gefärbt in `onSurfaceVariant`) + Marcellus-13pt-Label
+- **Item-Typen** (Auswahl von Kontext-Bezugsobjekten für die KI-Frage) — alle Marker als Material-Symbols-Outlined-SVG-Icons (siehe globale Konvention 16.8):
+  - `format_paragraph` **Absatz** — aktueller Absatz aus dem Lese-Tab (z. B. `¶4 in »Das Denken im Dienste der Weltauffassung«`)
+  - `edit` **Notiz** — eine eigene Notiz als Diskussions-Anker
+  - `menu_book` **Kapitel** — ein ganzes Kapitel
+  - `auto_stories` **Werk** — ein ganzes Buch
+  - `chat_bubble_outline` **Allgemein** — frei, ohne spezifischen Kontext (Default-Fallback)
+- **Selected-State**: das aktuell aktive Item hat `secondaryContainer`-Hintergrund — visuell als „du bist hier" markiert (Material-3-State-Layer-Convention)
+
+**Input-Bar:** Pill 24px Radius, `surfaceContainerHigh`, Placeholder in Special Elite, Send-Icon rechts in `primary`. Top-Border `outlineVariant` 1px trennt von ChatStream.
+
+**Scroll-Verhalten (Default — Scroll Frame):** Der ChatStream ist vertikal scrollbar. Lange Antworten überlaufen den Viewport, der User scrollt nach unten um Meta-Zeile + `RAG-Treffer (N)`-Link zu erreichen. Der `KI-Chat / Default — Scroll`-Frame visualisiert diesen Zustand: nur die lange Philo-Antwort + Meta darunter sichtbar, oben drüber als 45%-opacity-Hint die letzten Worte der vorhergehenden User-Frage. So bleibt das `PHILO · RAG-Treffer (N)`-Pattern bei jeder noch so langen Antwort als verlässlicher Anker am Bubble-Fuß.
+
+### 16.7 KI-Chat / RAG-Treffer — Drill-Down (2026-05-12)
+
+Detail-Seite, die per Tap auf den `RAG-Treffer (N)`-Link in einer AI-Bubble erreicht wird. Zeigt die Quellen, die Qdrant für die jeweilige AI-Antwort herangezogen hat.
+
+**Header:** AppBar `nav=back`, Titel „RAG-Treffer" (Cinzel).
+
+**Kontext-Box** (`surfaceContainerLow`, 12px Radius): Welche AI-Antwort referenziert wird.
+- Links: 28px Philo-Avatar
+- Rechts: `PHILO · 14:32` (Marcellus 10pt smallcaps, primary) + zitiertes Antwort-Snippet (Special Elite 12pt) in Guillemets `»…«`. Auch hier wird das Freiheit°-Marker-Pattern angewendet
+
+**Usage-Zeile** (Marcellus 10pt, `onSurfaceVariant`): `GESAMT 12.065 TOKENS · DEEPSEEK-CHAT · EUR 0,00365`. Macht die Kostenbilanz pro Antwort sichtbar — entscheidend für Pro-Tier-Transparenz.
+
+**Quellen-Liste** (Cards, weiß-on-outline, 12px Radius, 10px Abstand). Pro Eintrag:
+- Links: `[N]` als Marcellus 14pt primary — derselbe Marker wie im Antwort-Text
+- 36×36 farbige Type-Badge mit Material-Icon:
+  - **Vortrag** → `mic`-Icon, Badge in `tertiary` (mauve) — verbale/auditive Quelle
+  - **Begriff** → `local_offer`/Tag-Icon, Badge in `primary` (steiner-blau) — Glossar-Konzept
+  - **Buch** → `book`-Icon, Badge in `onSurfaceVariant` (grau) — gedrucktes Werk
+  - (Künftig denkbar: **Zitat** mit `format_quote`, **Gespräch** mit `chat`)
+- Rechts (Spalte):
+  - Type-Label (Marcellus 10pt smallcaps, `onSurfaceVariant`)
+  - Titel (Cinzel Bold 15pt, `onSurface`)
+  - Subtitle / Kontext (Marcellus 11pt, `onSurfaceVariant`)
+
+**Pending für KI-Chat:**
+- Persönlichkeits-Picker (horizontal Scroll als Bottom-Sheet) — der Slot im ContextHeader öffnet ihn
+- Pro-Gate Dialog (Variant State, wenn User auf gesperrte Kontext-Modi tippt)
+- Long-Press Context-Menu auf User-Bubbles (Bearbeiten / Kopieren) — kann das `ContextMenu / Note`-Pattern wiederverwenden
+- Begriffserklärungs-Bottom-Sheet (Tap auf „Freiheit°")
+- Avatare für weitere Personalities aus `ragrun-personalities/` importieren (Sokrates, Machtarchitekt, Cypherpunk, …)
+
+
+
+### 16.8 Globale Icon-Konvention (2026-05-12)
+
+**Entscheidung:** Alle ikonisch genutzten Marker in der App sind **Material-Symbols-Outlined-SVG-Icons** — keine Unicode-Emojis. Begründung:
+
+- **Render-Determinismus**: Figmas Server-Renderer kann Supplementary-Multilingual-Plane-Emojis (📖 U+1F4D6, 📚 U+1F4DA, 💭 U+1F4AD, …) nicht zuverlässig darstellen, und `Noto Color Emoji` produziert in der Export-Pipeline weiße Lücken. SVG rendert immer pixel-genau identisch
+- **M3-Sprachvereinheitlichung**: Die App nutzt schon Material-Icons in TabBar, AppBar, Buttons, ContextHeader-Trigger — Emojis wären fremde Inseln in einem ansonsten geschlossenen Vokabular
+- **Theme-Tauglichkeit**: Icon-Fills binden an Variablen (`onSurfaceVariant`, `primary`, `error`, …) und folgen dem Light/Dark-Switch automatisch. Emojis sind fest gefärbt und ignorieren das Theme
+- **State-Layering**: Active/disabled/error-States lassen sich über Fill-Wechsel trivial darstellen. Bei Emojis braucht man Tint-Overlays oder unterschiedliche Codepoints
+- **Accessibility**: SVG-Frames können `aria-label` / Component-Property `accessibilityLabel` bekommen, Screenreader-Verhalten ist deterministisch. Emoji-Vorlesung schwankt zwischen Plattformen
+
+**Konkrete Mappings:**
+
+| Bisheriges Emoji | Material Symbol | Verwendungsorte |
+|---|---|---|
+| ✏️ | `edit` | Beitrags-Streifen Notizen, Beiträge-Tab Notizen, ContextPicker Notiz |
+| 💬 | `chat_bubble_outline` | Beitrags-Streifen Gespräche, Beiträge-Tab Gespräche, ContextPicker Allgemein |
+| 🎯 | `my_location` | Beitrags-Streifen RAG-Treffer, Beiträge-Tab RAG-Treffer, ResultCard `type=buch` |
+| 🔗 (historisch) | `my_location` (über Zwischenschritt 🎯) | ResultCard `type=buch` |
+| ¶ (als Marker) | `format_paragraph` | ContextPicker Absatz |
+| 📖 | `menu_book` | ContextPicker Kapitel |
+| 📚 | `auto_stories` | ContextPicker Werk |
+
+**Ausnahmen — wo Text-Glyphen bleiben:**
+- **Inline `¶` im Fließtext** (z. B. „¶3 · DIE IDEE DER FREIHEIT" als Header-Breadcrumb): bleibt als typographisches Zeichen, nicht als Icon. Ist Teil des Satzes, kein Marker
+- **Avatar-Bilder** (Philo-Foto, künftige Persönlichkeiten): bleiben PNG-Bilder, nicht Icons. Sie sind Identitäten, keine Symbol-Marker
+
+**Convention-Setting:**
+- Icon-Größe richtet sich nach Kontext: 16px (kompakte Strips), 18px (Menu-Items), 20px (Tab-Header), 24px (AppBar/IconButton)
+- Default-Fill: `onSurfaceVariant` (subtile Sekundär-Information). Aktive States: `primary`. Error-Variants: `error`
+- Quelle: `https://fonts.google.com/icons` (Material Symbols Outlined, 24px Outlined Style, Weight 400, Fill 0)
+
+### 16.9 Variable-ID-Convention für Plugin-Scripts (Lessons Learned 2026-05-12)
+
+**Problem:** `figma.variables.getVariableByIdAsync('19:1054')` gibt `null` zurück — die kurze Form `19:1054` ist KEINE gültige Variable-ID. Die korrekte Form ist `'VariableID:19:1054'` (mit Prefix). Wenn die Variable null zurückkommt, akzeptiert `setBoundVariableForPaint(paint, 'color', null)` das stillschweigend und liefert das Paint **ohne** Binding zurück — die Fill-Color bleibt dann auf dem hartcodierten Fallback hängen.
+
+**Symptom:** Der Konto-Screen wurde mit `{r:0.5,g:0.5,b:0.5}`-Fallback gerendert → komplett grauer Inhalt unter der AppBar. Vorherige Scripts (ContextPicker-Icon-Migration, Beitrags-Streifen-SVG-Umstellung) hatten dasselbe Problem latent, aber dort waren die Fallback-Colors zufällig die resolvierten Theme-Werte → kein sichtbarer Schaden, aber **die Bindings folgten nicht dem Theme-Switch**.
+
+**Fix-Pattern für alle künftigen Scripts:**
+
+```js
+// 1. Volle Variable-ID inkl. 'VariableID:'-Präfix
+const VID={primary:'VariableID:19:1035',surface:'VariableID:19:1054', ...};
+const V={};
+for(const k in VID){
+  V[k]=await figma.variables.getVariableByIdAsync(VID[k]);
+  if(!V[k])throw new Error('Missing variable '+VID[k]);
+}
+
+// 2. Fallback-Color aus der Variable resolvieren, statt hartcodiert 0.5/0.5/0.5
+function resolveColor(v){
+  const m=Object.keys(v.valuesByMode)[0];
+  const val=v.valuesByMode[m];
+  return val && 'r' in val ? {r:val.r,g:val.g,b:val.b} : {r:0.5,g:0.5,b:0.5};
+}
+
+// 3. Paint-Helper, der Variable bindet UND Fallback setzt
+function paint(v){
+  return figma.variables.setBoundVariableForPaint(
+    {type:'SOLID',color:resolveColor(v)},
+    'color',
+    v
+  );
+}
+```
+
+**Wirkung:** Die Fill ist sowohl an die Variable gebunden (folgt Theme) als auch hat eine sinnvolle Fallback-Color, falls die Binding aus irgendeinem Grund nicht greift.
+
+**Konsequenz für Bestandsscripts:** Die ContextPicker-Items + Beitrags-Streifen-Icons + Lesen/Beiträge-Tab-Icons haben aktuell ihre Fills ohne Binding (resolved Color hartcodiert). Wenn das Theme später umgestellt wird (z. B. Dark Mode), folgen sie nicht. Sweep ist möglich, aber niedrig priorisiert solange Light-Mode aktiv ist.
+
+### 16.10 Konto / Default — Token-Wallet statt Pro-Abo (2026-05-12)
+
+**Entscheidung:** Das `ragapp Pro`-Abo-Modell aus dem Figma-Make-Prototyp entfällt. Stattdessen wird ein **Token-Guthaben-System** etabliert — die Userin kauft Token-Pakete über die Plattform-Stores (Google Play / iOS App Store), und KI-Anfragen verbrauchen Token. Lesen, Notizen, Bibliothek sind weiterhin kostenlos.
+
+**Konsequenzen für den Konto-Screen:**
+
+- **Token-Guthaben-Card** ersetzt die Pro-Card. Layout: `primary`-Hintergrund, Sparkles-Icon + „Token-Guthaben"-Header (Marcellus 17pt, `onPrimary`), darunter die Balance als **„0,00 €"** (Cormorant Garamond Light 48pt) — das Guthaben wird **monetär in Euro** ausgewiesen, nicht als abstrakte Token-Zahl (Begründung weiter unten). Direkt darunter eine **Preis-Subline** (Inter 11pt, `onPrimary` mit 72% opacity), die transparent macht, wie sich Tokens in Euro übersetzen: „DeepSeek-Chat: 0,25 € pro Mio. Eingabe-Token · 1,00 € pro Mio. Ausgabe-Token" (Werte spiegeln den aktuellen DeepSeek-Chat-Listenpreis stand 2026, in Klammern: $0,27/M in · $1,10/M out → grob 0,92 € pro USD). Darunter eine Beschreibung, die kostenpflichtige von kostenfreien Modi trennt: „Tokens werden für KI-Anfragen im KI-Chat verbraucht. Semantische (bedeutungsbezogene) Suche, eingebettete Notizen und Lesen sind kostenfrei." — der Klammer-Einschub macht den Suche-Begriff laienverständlich. Darunter ein voll-breiter weißer Pill-Button (`surfaceContainerLowest`-Hintergrund, 24px Radius) mit „Guthaben aufladen" in `primary`. Footnote „Verfügbar über Google Play · App Store" (Inter 11pt, `onPrimary` mit 70% opacity, zentriert)
+
+  **Begründung Euro-Anzeige statt Token-Zahl:** Tokens sind eine technische Verbrauchseinheit, die die meisten Nutzer:innen nicht intuitiv einschätzen können (was sind 500.000 Tokens?). Eine Euro-Anzeige plus Preis-Subline ist sofort verständlich („wie viel kostet mich eine Frage an Philo ungefähr?") und schafft Vertrauen durch radikale Transparenz über den eigentlichen Anbieter (DeepSeek) und dessen Preisstaffel. Die App selbst macht keinen Aufpreis — der Euro-Wert ist 1:1 das Token-Budget
+
+- **„Kostenlos"-Chip** unter der Email entfällt — es gibt kein Tier-Modell mehr, also nichts zu kennzeichnen
+
+- **Statistiken-Stats:** „Bücher gelesen" → **„KI-Gespräche geführt"** (das Werk wird über Lesezeichen statt Lese-Streaks getrackt); „Tage Streak" → **„Freunde"** + `primaryContainer`-Pill mit `person_add`-Icon und „Hinzufügen"-Label (M3-State-Layer-Pattern, hebt die Action hervor)
+
+- **Speicher-Block** komplett entfernt — Speicher wird intransparent über Plattform-Quotas geregelt, nicht in der App sichtbar
+
+- **„Konto"-Sektion → in „Mehr" umbenannt** (Konflikt: Page-Titel war schon „Konto", die Subsection-Bezeichnung wäre redundant gewesen). Enthält jetzt nur noch **Lesezeichen** (statt „Lesefortschritt" — passt zu dem digitalen Wegpunkt-Paradigma, nicht zum print-affinen Prozent-Tracking) und **Synchronisierung** (Datums-Info + Check-Badge). „Bibliothek verwalten" entfällt, weil die Werks-Verwaltung über die GitHub-Pages-Seite des Projekts läuft, nicht über die App
+
+**Begründung „Lesezeichen" statt „Lesefortschritt":** Lesefortschritt ist eine print-tradierte Metrik („du bist auf Seite 184 von 412"). Lesezeichen ist eine bewusst gesetzte Marke, die im RAG-Korpus auch als Anker fungieren kann. Konsistent mit der Absätze-statt-Seiten-Konvention (16.4)
+
+**Offen:**
+- Klassische Settings-Punkte (Einstellungen, Datenschutz, Impressum, Abmelden) — müssten in der „Mehr"-Sektion ergänzt werden. **Update:** Einstellungen-Screen ist mittlerweile gebaut (siehe §16.11) und wäre als verlinkter Mehr-Eintrag denkbar
+- Token-Kauf-Flow (Sheet von unten mit Paket-Auswahl: z. B. 5 € / 25 € / 100 €)
+- Token-Verbrauchs-Historie (per Tap auf die Balance? Würde Token-Bewegungen + Restguthaben als Zeitleiste zeigen)
+- Pro-Tier vs. Token-Only-Modell: bleibt es bei reinem Verbrauch oder gibt es zusätzlich Abo-Optionen mit monatlichem Token-Refill?
+- Mehrere Modelle anzeigen? Bisher nur DeepSeek-Chat in der Preis-Subline. Wenn künftig Sokrates auf DeepSeek-Reasoner läuft oder andere Personalities andere Modelle nutzen, müsste die Subline entweder das gewählte Modell zeigen oder zu einer Auflistung werden
+
+### 16.11 Einstellungen / Default — Screen (2026-05-12)
+
+Vierter Tab-übergreifender System-Screen (neben Konto). Aufgebaut nach dem Material-3-Settings-Pattern: gestapelte Cards je Section, jeder Section voraus eine kleine `onSurfaceVariant`-Label-Zeile.
+
+**Sections (nach Streichungen ggü. Make-Prototyp):**
+
+| Section | Items | Control |
+|---|---|---|
+| **Darstellung** | Dunkelmodus (Subline „Automatisch basierend auf Systemeinstellung") · Schriftgröße | M3-Switch (off) · Slider mit 9 Tick-Marks |
+| **Sprache** | Sprache | Outline-Pill „Deutsch ▾" |
+| **Datenschutz & Sicherheit** | Datenschutzeinstellungen (Subline „Daten und Berechtigungen verwalten") | Chevron-Right |
+| **Über** | Über ragapp (Subline „Version 1.0.0") | Chevron-Right |
+| **Footer** | „Nutzungsbedingungen · Datenschutz · Impressum" (Inter 11pt, `onSurfaceVariant`, zentriert, 80% opacity) | – |
+
+**Gestrichen ggü. Make-Prototyp:**
+- **Lesen / Vorleselautstärke** — die ragapp ist eine Lese-App, nicht eine Vorlese-App. TTS ist (zunächst) kein Feature
+- **Benachrichtigungen** — keine Push-Reminders. Die App will ein ruhiger Lese-Raum sein, kein Aufmerksamkeits-Konkurrent
+- **Automatische Synchronisation** — Sync läuft manuell über das „Synchronisierung"-Item im Konto-Screen, nicht im Hintergrund. Macht Datenfluss bewusst und nachvollziehbar (passt zur RAG-Treffer-Transparenz)
+
+Damit fallen die zwei Items der „Benachrichtigungen & Synchronisation"-Section komplett weg → diese Section existiert auf dem fertigen Screen gar nicht mehr.
+
+**M3-Switch-Konvention:** Track 38×22, Radius 11; ON-State `primary`-Track + 18px-Thumb (`onPrimary`, rechts mit 2px Inset); OFF-State `surfaceContainerHigh`-Track + 1px-`onSurfaceVariant`-Outline + 14px-Thumb (`onSurfaceVariant`, links mit 4px Inset). Wenn sich später echte Switches als wiederverwendbare Components lohnen, können sie als `Switch / on | off`-Variants aus diesen Frames extrahiert werden
+
+**Slider-Konvention:** 200px breit, 4px-Track, 9 Tick-Marks (`primary` 50% opacity, 3px Durchmesser), Filled-Bereich in `primary`, Background-Track in `primaryContainer`, 16px-Thumb (`primary`). Absolute Positionierung innerhalb des Sliders, weil Auto-Layout für Track+Fill+Thumb-Overlay nicht sinnvoll ist
+
+**Dropdown-Pill-Konvention:** Padding 14/8/8/8, 22px Radius, 1px-Outline (`onSurfaceVariant`), Inter-13pt-Text + `arrow_drop_down`-Icon. Analog zur M3-`menu`-Dropdown-Anchor-Convention — der eigentliche Picker (Sheet von unten oder Inline-Menu) ist ein Folge-Asset
+
+**Offen:**
+- Tatsächliche `Switch`- und `Slider`-Components als Component-Sets extrahieren (aktuell nur Frames)
+- Dropdown-Sprach-Picker als eigenes Asset analog zu `ContextPicker / Open` (Bottom-Sheet mit Sprach-Liste DE / EN / FR / ES / …)
+- „Datenschutzeinstellungen"-Drill-Down: Daten-Export, Account-Löschung, Anonymisierung
+- „Über ragapp"-Drill-Down: Version, Lizenzen, Mitwirkende, Quelle (GitHub-Link)
+- Footer-Links als echte Targets (Nutzungsbedingungen / Datenschutz / Impressum-Screens)
+
+### 16.12 Offene Polish-Punkte
 
 | Punkt | Idee |
 |---|---|
@@ -747,14 +968,15 @@ Existing instances bleiben durch Property-Name-Matching kompatibel — die Suche
 
 1. ~~**CTA-Button-Entscheidung** auf Detail-Page~~ ✅ Card-Style „Weiterlesen" + Text-Link „Von vorne lesen"
 2. ~~**Tab / Lesen Screen**~~ ✅ Default + Beiträge fertig, inkl. Beitrags-Streifen mit RAG-Treffer-Konvention
-3. **Tab / KI-Chat Screen** — Special Elite für KI-Antworten
-4. **Tab / Notizen Screen** — User-eigene Notizen (✏️-Aggregat-View)
-5. **Konto + Einstellungen Screens** — Material-3-Settings-Pattern
-6. **Vortragsband-Detail-Page** als 2. Beispiel (GA 293 mit Vortrags-Liste statt Kapiteln)
-7. **BookCover als wiederverwendbare Component** (refactor)
-8. **Active-Indicator Pill** in TabBar (optional Polish)
-9. **Style Dictionary Pipeline** für `theme.ts`-Generierung
-10. **Bedingte Trennzeichen (`&shy;`)** im Lesen-Default für sauberen Block-Satz bei langen deutschen Komposita
+3. ~~**Tab / KI-Chat Screen**~~ ✅ AppBar + ContextHeader (Gespräch + Kontext) + ChatStream (AI/User-Bubbles in Special Elite, asymmetrischer Bubble-Tail, ✨-Avatar, Persona-Subline) + Pill-Input + Send-Button
+4. ~~**Tab / Notizen Screen**~~ ✅ NoteCards mit Special-Elite-Body (Schreibmaschine), Pinned/Unpinned-Sections, Source-Line zu Buch · Kapitel · Absatz
+5. ~~**ContextMenu / Note** Component-Set + Demo-State~~ ✅ 4 Variants (shared × pinned), Demo-Frame `Notizen / Menü offen` mit Menü am MoreVert der pinned-Karte angekert
+6. **Konto + Einstellungen Screens** — Material-3-Settings-Pattern
+7. **Vortragsband-Detail-Page** als 2. Beispiel (GA 293 mit Vortrags-Liste statt Kapiteln)
+8. **BookCover als wiederverwendbare Component** (refactor)
+9. **Active-Indicator Pill** in TabBar (optional Polish)
+10. **Style Dictionary Pipeline** für `theme.ts`-Generierung
+11. **Bedingte Trennzeichen (`&shy;`)** im Lesen-Default für sauberen Block-Satz bei langen deutschen Komposita
 
 ---
 

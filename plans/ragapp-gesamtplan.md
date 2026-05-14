@@ -1,17 +1,16 @@
 # ragapp — Gesamtplan
 
-**Stand:** 2026-05-07 (Rev. 2 — Anmerkungen eingearbeitet)
-**Stack:** Expo (React Native) + Supabase + WatermelonDB + expo-sqlite + ragrun Backend
+**Stand:** 2026-05-14 (Rev. 7 — Verweis auf `ragapp-react-native-architecture.md`)
+**Stack:** Expo (React Native) + Supabase + WatermelonDB + expo-sqlite + ragrun Backend  
+**App-Architektur (Expo/RN):** [ragapp-react-native-architecture.md](./ragapp-react-native-architecture.md)
 
 ---
 
 ## 1. Zielbild
 
-ragapp ist die mobile und Web-Benutzeroberfläche für das ragrun-Wissenssystem. Sie ermöglicht das Durchsuchen, Lesen, Notieren und KI-gestützte Gespräche über den Textkorpus (Rudolf Steiner u.a.), den ragrun indexiert und bereitstellt.
+ragapp ist die mobile Benutzeroberfläche für das ragrun-Wissenssystem. Sie ermöglicht das Durchsuchen, Lesen, Notieren und KI-gestützte Gespräche über den Textkorpus (Rudolf Steiner u.a.), den ragrun indexiert und bereitstellt.
 
 Die App arbeitet **offline-first**: Inhalte sind lokal auf dem Gerät verfügbar und werden über WatermelonDB mit Supabase synchronisiert. Der ragrun-Server wird nur für aktive KI-Abfragen (Semantische Suche, Chat) benötigt.
-
-**Web (PWA):** Nur Lesen und Suche (wenn online). Kein Offline-Sync für Web.
 
 ---
 
@@ -20,7 +19,7 @@ Die App arbeitet **offline-first**: Inhalte sind lokal auf dem Gerät verfügbar
 ```
 ┌─────────────────────────────────────┐
 │            ragapp (Expo)            │
-│  iOS  │  Android  │  Web (PWA)      │
+│         iOS  │  Android            │
 │                                     │
 │  expo-sqlite  ◄──── WatermelonDB ──►│
 └─────────┬───────────────────────────┘
@@ -44,7 +43,7 @@ Die App arbeitet **offline-first**: Inhalte sind lokal auf dem Gerät verfügbar
 |---|---|
 | **ragrun** | Backend: Qdrant Hybrid-Suche (sparse + dense), KI-Chat mit Persönlichkeiten |
 | **Supabase Auth** | Magic Link, Apple Sign-In (später Google), JWT |
-| **Supabase DB** | Quelltexte, Notizen, Gespräche (rag_talks/rag_turns), Nutzerdaten, Freundschaften |
+| **Supabase DB** | Gemeinsame Postgres für ragapp **und** ragrun: Korpus-Quelltexte in **`rag_paragraphs`**, Notizen, App-Gespräche (`rag_talks`/`rag_turns`), Nutzerdaten, Freundschaften; ragrun-spezifische Tabellen wie **`vector_chunks`** (Qdrant-Spiegel) liegen ebenfalls hier, werden aber **nicht** über WatermelonDB synchronisiert (nur serverseitig / ragrun) |
 | **WatermelonDB** | Lokale SQLite-Datenbank + Sync-Layer gegen Supabase (MIT-Lizenz); Sync via 2 Postgres-Funktionen (push/pull RPC); kein eigener Server nötig |
 | **expo-sqlite** | Lokale Datenbank auf dem Gerät (Offline-Zugriff) |
 
@@ -54,7 +53,7 @@ Die App arbeitet **offline-first**: Inhalte sind lokal auf dem Gerät verfügbar
 
 ```
 [ Suche ] [ Übersicht ] [ Lesen ] [ Notizen ] [ KI-Chat* ]
-                                                  * Pro
+                                                  * Anmeldung + Guthaben
 ```
 
 Implementierung: `expo-router` mit Tab-Layout + horizontales Wischen via `react-native-pager-view` oder `@react-navigation/material-top-tabs`.
@@ -97,7 +96,7 @@ Ebene 1: Bücher / Zyklen / GA-Bände / Einzelvorträge
 
 Beispiele:
 ```
-Die Philosophie der Freiheit (GA 4)          ← Buch, Ebene 1
+Die Philosophie der Freiheit                 ← Buch, Ebene 1
   └── I. Das bewusste menschliche Handeln    ← Kapitel, Ebene 2
   └── II. Der Grundtrieb der Wissenschaft    ← Kapitel, Ebene 2
 
@@ -146,28 +145,29 @@ Node-Typen: `paragraph`, `italic`, `quote`, `heading`, `footnote_ref`
 **Trennung in ragrun (bleibt unverändert):**
 - `chunk.text` (mit `<i>`, `<q>`) → `_strip_markup()` → Embedding (reiner Text) ✓
 - `chunk.rendered_content` → App-Rendering (neue JSONB-Spalte)
-- `ingestion_service.py` braucht **keine Änderung**
+- `ingestion_service.py` schreibt Embeddings nach **Qdrant** und den SQL-Spiegel **`vector_chunks`** (nicht nach `rag_chunks`); `ingestion_service.py` braucht **keine Änderung** für dieses Splitting
 
 **Textaufbereitung (analog ragkeep statische Seiten):**
 - Zitate: `quote`-Node → eingerückt mit Anführungszeichen-Stil
 - Kursive Passagen: `italic`-Node → italic rendering
-- Absatznummer am Anfang jedes Absatzes (aus `source_index` im chunk-Metadata)
+- Absatznummer am Anfang jedes Absatzes (aus `rag_paragraphs.paragraph_number`)
 - Beitrags-Streifen **am Ende jedes Absatzes** (Emoji + Zahl als kleine Chips, rechtsbündig). Jeder Eintrag ist ein **Beitrag zu diesem Absatz**:
   - ✏️ Notizen — eigene Anmerkungen zu diesem Absatz
   - 💬 Gespräche — KI-Gespräche, die diesen Absatz im Kontext hatten
-  - 🎯 RAG-Treffer — wie oft der Absatz von der Vektor-DB (Qdrant) als relevante Antwort auf andere Fragen oder Konzepte zurückgegeben wurde (semantische Zentralität im Korpus)
+  - 🎯 RAG-Treffer — aus `rag_references` aggregiert: wie oft Chunks, die diesen Absatz enthalten, von anderen Chunks/Antworten/Konzepten referenziert werden (semantische Zentralität im Korpus)
 - Schriftgröße einstellbar
 
 **Lesezeichen:**
-- Pro Nutzer, pro Absatz (`paragraph_id` als Anker, siehe Abschnitt 6)
+- pro Nutzer, pro Absatz (`paragraph_id` als Anker, siehe Abschnitt 6)
 - Letzter gelesener Absatz automatisch gespeichert
 - Manuelles Lesezeichen via Absatz-Kontextmenü (Long-Press)
 
 **Absatz-Kontextmenü (Long-Press):**
 - Lesezeichen setzen/entfernen
 - Notiz zu diesem Absatz schreiben
-- KI-Chat zu diesem Absatz starten (Pro)
+- KI-Chat zu diesem Absatz starten (Anmeldung + Guthaben erforderlich)
 - Absatz kopieren / teilen
+- Beiträge anzeigen (öffnet `Lesen / Beiträge` für den aktuellen `paragraph_id`)
 
 **Daten:** Texte aus expo-sqlite (via WatermelonDB aus Supabase synchronisiert). Lesezeichen lokal + Sync.
 
@@ -176,6 +176,8 @@ Node-Typen: `paragraph`, `italic`, `quote`, `heading`, `footnote_ref`
 ### Tab 4: Notizen
 
 **Zweck:** Persönliche Annotationen zu Absätzen und Kapiteln.
+
+**Auth:** Notizen erfordern Anmeldung. Ohne `currentUser` zeigt Tab 4 einen Anmelde-Hinweis; Lesen und Suche bleiben ohne Anmeldung verfügbar.
 
 **UI:**
 - **Edit-Box** oben: Neue Notiz zum aktuell gelesenen Absatz/Kapitel (Kontext aus Tab 3 wird übernommen)
@@ -203,18 +205,22 @@ app_notes (
 
 ---
 
-### Tab 5: KI-Chat (Pro)
+### Tab 5: KI-Chat (Anmeldung + Guthaben)
 
 **Zweck:** Gesprächsbasiertes Erkunden des Textes mit KI-Persönlichkeiten.
 
-**Datenmodell:** Orientiert sich an den bestehenden ragrun-Tabellen `rag_talks` und `rag_turns`, die nach Supabase migriert werden (siehe Abschnitt 7.2).
+**Datenmodell:** Orientiert sich an den bestehenden ragrun-Tabellen `rag_talks` und `rag_turns`, die in **Supabase** (gemeinsam mit ragrun) für die App angelegt werden (siehe Abschnitt 7.2).
+
+**Chunk-Referenzen:** Verweise auf Korpus-Chunks (z. B. in `chunk_index_map` / Kontext-Metadaten) zeigen auf **`rag_chunks.chunk_id`** — nicht auf `vector_chunks`. So bleiben Gespräche nach Neu-Chunking lesbar; betroffene Zeilen können `deprecated_at` gesetzt haben (siehe Abschnitt 6.1a).
 
 **rag_talks** (Gespräch-Kopf):
 ```
-talk_id, collection, mensch_id, mensch_name, slug, title,
-action_id, summary, usage, kontext_meta,
+talk_id, collection, user_id, user_display_name, slug, title,
+action_id, summary, usage, context_mode, context_ids, kontext_meta,
 publishing_status, kontext_source_id, kontext_segment_id, kontext_paragraph
 ```
+
+Hinweis zur Migration: In ragrun heißen die alten Talk-Felder noch `mensch_id` / `mensch_name`. Für ragapp in Supabase verwenden wir konsequent `user_id` / `user_display_name`; historische ragrun-Gespräche mit dem alten Feldschema werden nicht übernommen.
 
 **rag_turns** (Einzelne Gesprächsrunden):
 ```
@@ -228,14 +234,18 @@ Sokrates, Der Machtarchitekt, Der Kapitalverwalter, Der Technikvisionär,
 Der Open-Source-Handwerker, Der Free-Software-Aktivist, Der Cypherpunk,
 Die Menschheitsaktivistin, Assistant Host, Assistant Host Deep, Mit Kontext
 
-**Kontext-Modi** (gespeichert in `kontext_paragraph` / `kontext_segment_id`):
-- "Aktueller Absatz" — `kontext_paragraph = paragraph_id`
-- "Aktuelles Kapitel" — `kontext_segment_id`
-- "Frei" — beide null
+**Kontext-Picker** (`{{chat.context_picker}}` / `{{chat.context_options}}`):
+- Modi: "Frei", "Aktueller Absatz", "Aktuelles Segment"
+- Speichert `context_mode` + `context_ids` in `rag_talks`
+- `context_mode = "free"` — keine Kontext-IDs, Anzeige: "Allgemein"
+- `context_mode = "paragraph"` — `context_ids.paragraph_id`, Anzeige: aktueller Absatz selektiert
+- `context_mode = "segment"` — `context_ids.source_id` + `context_ids.segment_id`, Anzeige: aktuelles Segment selektiert
+- Aufruf aus einer Notiz: `context_ids.note_id` wird zusätzlich gesetzt, Anzeige: Notiz selektiert; falls die Notiz an einen Absatz gebunden ist, wird `context_ids.paragraph_id` ebenfalls mitgegeben
+- Alte ragrun-Felder (`kontext_source_id`, `kontext_segment_id`, `kontext_paragraph`, `kontext_meta`) bleiben als Migrations-/Kompatibilitätsschicht erhalten, bis der App-Endpunkt vollständig auf `context_mode` / `context_ids` umgestellt ist
 
 **UI:**
 - Persönlichkeits-Picker (horizontal scrollbar, Avatar + Slug)
-- Kontext-Anzeige: "Gespräch bezieht sich auf: [Kapitel/Absatz]"
+- Kontext-Anzeige: "Gespräch bezieht sich auf: [Allgemein/Absatz/Segment/Notiz]"
 - Chat-Verlauf (Blasen-Layout, Flash List)
 - Aktionsmenü pro Gespräch:
   - Zusammenfassung generieren
@@ -263,13 +273,44 @@ Die Menschheitsaktivistin, Assistant Host, Assistant Host Deep, Mit Kontext
 | Apple Sign-In | Supabase OAuth: Apple (Pflicht für App Store) |
 | Google Sign-In | Später: Supabase OAuth: Google |
 | Name ändern | Supabase `app_profiles`-Tabelle |
-| Pro freischalten | In-App Purchase via RevenueCat |
-| Pro zurücknehmen | Store-Abo-Verwaltung; RevenueCat Webhook → Supabase |
+| Guthaben aufladen | In-App Purchase via RevenueCat |
+| Guthaben verwalten | RevenueCat Webhook → Supabase-Kontostand |
 | Zahlung | Apple IAP / Google Play Billing via RevenueCat |
 | Verbrauchsübersicht | KI-Anfragen + Token-Verbrauch via `rag_usage` |
 | Nutzungsstatistik | Gelesene Seiten, Notizen, Gespräche |
 | Konto löschen | Pflicht (App Store + Play Store): löscht `auth.user` + alle Daten (Cascade) |
 | Datenexport | JSON-Export aller Nutzerdaten (DSGVO Auskunftsrecht) |
+
+**Datenbindings Konto (`Konto / Default`):**
+- Profil im UI: `{{user.current}}` mit `{{user.display_name}}`, `{{user.email}}`, `{{user.avatar_initials}}` bzw. später `{{user.avatar_url}}`
+- Datenquellen dafür: `auth.users` für Login/E-Mail, `app_profiles` für app-spezifische Profildaten wie Anzeigename und Avatar
+- Guthabenkarte: `{{app_wallets.balance_cents}}` als `computed.balance_eur`; Aufladen via `{{action.purchase_credit}}` / RevenueCat
+- Preisinfo: `{{llm_pricing.current}}`; Anzeige zeigt das aktuell serverseitig gültige Chat-Modell und Input-/Output-Preise
+- Verbrauch: Chat-Kosten werden in `rag_usage` geschrieben und als Wallet-Transaktion vom Guthaben abgezogen
+- Statistiken: `{{computed.account_stats}}` aus `rag_talks`, `app_notes`, Leseereignissen und `app_friendships`
+- Mehr-Bereich: Käufe & Guthaben (`{{wallet.transactions}}`, `{{action.restore_purchases}}`), Daten & Datenschutz (`{{action.export_user_data}}`, `{{action.delete_account}}`, `{{privacy.consents}}`) und Sync-Status (`{{sync.status}}`, `{{sync.last_synced_at}}`)
+
+**Wallet / Guthaben:**
+```
+app_wallets (
+  user_id        uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  balance_cents  int NOT NULL DEFAULT 0,
+  currency       text NOT NULL DEFAULT 'EUR',
+  updated_at     timestamptz DEFAULT now()
+)
+
+app_wallet_transactions (
+  id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                  uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  type                     text NOT NULL, -- 'purchase' | 'chat_debit' | 'refund' | 'adjustment'
+  amount_cents             int NOT NULL,
+  currency                 text NOT NULL DEFAULT 'EUR',
+  provider                 text, -- 'revenuecat' | 'internal'
+  provider_transaction_id  text,
+  usage_id                 uuid, -- gesetzt bei Abbuchung für rag_usage
+  created_at               timestamptz DEFAULT now()
+)
+```
 
 ### 5.2 Freunde (V2)
 
@@ -289,39 +330,142 @@ Funktionen: Einladung via Deep-Link, Push-Notification bei Anfragen, Freundeslis
 
 ---
 
-## 6. Verknüpfungstabelle: paragraph_id ↔ rag_chunk
+## 6. Absatzdaten & Verknüpfungstabelle
+
+### 6.1 `rag_paragraphs` als fachliche Quelltext-Tabelle
+
+Noch vor der Supabase-Umsetzung wird das Ziel-Schema für Absätze definiert. `rag_paragraphs` ist die fachliche Grundlage für Lesen, Notizen, Figma-Datenbindungen und spätere Sync-Tabellen.
+
+**Ziel:**
+- Quelltexte auf Absatzebene speichern, nicht nur als RAG-Chunks.
+- Absatz-IDs stabil halten, damit Notizen, Lesezeichen, Gespräche und Figma-Designs auf dieselben Daten zeigen.
+- Annotationen aus ragprep (`<i>`, `<q>`, interne Verweise, Absatzmarker) strukturiert speichern.
+
+```sql
+-- Ziel-Schema für Supabase; in Phase 0 fachlich definieren, in Phase 3 deployen
+rag_paragraphs (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  paragraph_id      text NOT NULL UNIQUE, -- '{source_id}:{segment_index}:{paragraph_number}'
+
+  source_id         text NOT NULL,
+  book_id           text,
+  language          text,
+
+  segment_type      text NOT NULL, -- 'chapter' | 'lecture' | 'preface' | 'appendix' | ...
+  segment_index     int  NOT NULL,
+  segment_title     text NOT NULL,
+  paragraph_number  int  NOT NULL,
+
+  text_raw          text NOT NULL,
+  annotations       jsonb, -- foreign_quotes, italics, page_refs, anchors
+
+  created_at        timestamptz DEFAULT now(),
+  updated_at        timestamptz DEFAULT now(),
+
+  UNIQUE (source_id, segment_index, paragraph_number)
+)
+CREATE INDEX ON rag_paragraphs (source_id);
+CREATE INDEX ON rag_paragraphs (book_id, segment_index, paragraph_number);
+CREATE INDEX ON rag_paragraphs USING GIN (annotations);
+```
+
+**Annotationen in `annotations`:**
+```json
+{
+  "foreign_quotes": [
+    { "start": 42, "end": 89, "quoted_author": "Johann Wolfgang von Goethe", "quoted_work": "Faust", "part": 1 }
+  ],
+  "italics": [
+    { "start": 12, "end": 18 }
+  ],
+  "page_refs": [
+    { "start": 100, "end": 108, "anchor_id": "p-segment-23", "target_paragraph_id": "source:0:23" }
+  ]
+}
+```
+
+**Entscheidung:** `text_raw` ist die interne kanonische Textquelle für sauberes Kopieren, Teilen, Debugging und spätere AST-Erzeugung; `annotations` ist die strukturierte Quelle für Rendering. User sehen nicht `text_raw`, sondern gerenderten Text aus Absatzmarker (`paragraph_number`) + `text_raw` + `annotations`. Die semantische/hybride Suche läuft über ragrun/**Qdrant**; der relationale Spiegel der Qdrant-Payloads ist **`vector_chunks`** (in Supabase mitgeführt, siehe Abschnitt 7). Suchtreffer zeigen den Trefferkontext aus dem eingespielten Chunk-Text (wie in Qdrant/`vector_chunks`); Navigation zur Lesestelle läuft über **`app_paragraph_chunk`** auf stabile `paragraph_id`s. **Verweise in Gesprächen, Begriffen und Zitaten** zeigen immer auf **`rag_chunks`** (`chunk_id`): dort bleiben alle Chunk-Versionen erhalten (siehe unten), damit Links nicht brechen. Eine zusätzliche Spalte `text_annotated` wird nur ergänzt, wenn sich später zeigt, dass vorgerendertes HTML/Markup für Performance nötig ist.
+
+### 6.1a `rag_chunks` vs. `vector_chunks` (Supabase)
+
+| Tabelle | Rolle |
+|---|---|
+| **`rag_chunks`** | Kanonischer **Chunk-Archiv** in Postgres: jede Version eines Chunks bleibt als Zeile erhalten. Bei Neu-Chunking werden alte Zeilen nicht gelöscht, sondern mit **`deprecated_at`** markiert; neue Zeilen erhalten neue `chunk_id`s. So bleiben **Referenzen aus `rag_talks` / `rag_turns`, Begriffen, Quotes und `rag_references`** gültig — sie verweisen immer auf `rag_chunks`. |
+| **`vector_chunks`** | **SQL-Spiegel** der aktuell in **Qdrant** indexierten Payloads (nur die für die Suche relevante „lebende“ Menge). Wird von ragrun-`IngestionService` zusammen mit Qdrant aktualisiert; dient Admin-, Zähl- und SQL-Hilfsabfragen parallel zur Vektorsuche. |
+
+**Ablauf:** ragprep schreibt/aktualisiert **`rag_chunks`** (und Deprecation) in Supabase; Embedding läuft über ragrun (`/rag/embed-chunks` o.ä.) und füllt **Qdrant + `vector_chunks`**. Die App synct **`rag_chunks`** (inkl. deprecated) für Offline-Lesen und stabile IDs; **`vector_chunks`** bleibt serverseitig (kein WatermelonDB-Pull nötig).
+
+**Abgrenzung: Primärtext vs. extrahierte Chunk-Typen (`rag_chunks`):**
+- `rag_paragraphs.annotations.foreign_quotes` beschreibt `<q>`-Stellen im Primärtext, an denen der Quellautor einen Fremdautor zitiert.
+- `rag_chunks` mit `chunk_type = 'quote'` enthält dagegen ausgewählte, zitierfähige Aussagen des Quellautors selbst.
+- Andere bewusst ein-Chunk-lange Inhalte wie `chapter_summary`, `begriff` und `typology` bleiben ebenfalls in `rag_chunks` und werden in der App als Content-Objekte geladen.
+
+### 6.2 Verknüpfungstabelle: paragraph_id ↔ rag_chunk
 
 ### Problem
 - Notizen und Gespräche referenzieren Absätze über einen `paragraph_id`.
-- Rag-Chunks haben eine `chunk_id` (UUID) und einen `source_index` (globale Absatznummer im Text, sichtbar als `"1| text..."` im Chunk-Text).
-- Bei Neu-Chunking in ragprep ändern sich `chunk_id`-Werte — `paragraph_id` muss davon unabhängig stabil sein.
+- Rag-Chunks haben eine `chunk_id` (UUID), können aber mehrere Absätze enthalten.
+- Umgekehrt kann ein sehr langer Absatz über mehrere Chunks verteilt sein (z.B. lange philosophiegeschichtliche Absätze).
+- Bei Neu-Chunking entstehen **neue** `chunk_id`s für die aktuelle Indexierung; **alte** `chunk_id`s bleiben in **`rag_chunks`** mit gesetztem **`deprecated_at`** erhalten, damit Verweise (Talks, Begriffe, Quotes, `rag_references`) nicht brechen. Für die Lesen-Navigation von der aktuellen Suche zum Text braucht es zusätzlich stabile **`paragraph_id`**s und ein aktuelles Mapping.
 
 ### Lösung
-Stabiler `paragraph_id` = `{source_id}:{source_index}` — basiert auf dem Quelldokument und der globalen Absatznummer, die sich nur ändert wenn der Text selbst neu nummeriert wird.
+Stabiler `paragraph_id` = identisch mit `rag_paragraphs.paragraph_id`; `app_paragraph_chunk` ist eine echte Many-to-Many-Tabelle zwischen Absätzen und **aktuellen** RAG-Chunks (die in Qdrant/`vector_chunks` stehen). Verweise auf historische Chunk-Inhalte bleiben über **`rag_chunks.chunk_id`** (auch `deprecated_at IS NOT NULL`) auflösbar.
 
 ```sql
--- In Supabase, wird von ragprep gepflegt
+-- Ziel-Schema für Supabase, wird später von ragprep gepflegt
 app_paragraph_chunk (
-  paragraph_id   text PRIMARY KEY,  -- '{source_id}:{source_index}'
-  collection     text NOT NULL,
-  chunk_id       text NOT NULL,     -- aktueller chunk_id in rag_chunks
-  source_id      text NOT NULL,
-  source_index   int  NOT NULL,     -- globale Absatznummer
-  segment_id     text,              -- Kapitel-Slug
-  segment_index  int,               -- Position im Kapitel
-  deprecated_at  timestamptz,       -- gesetzt wenn chunk sich ändert (nicht gelöscht!)
-  created_at     timestamptz DEFAULT now()
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  paragraph_id      text NOT NULL REFERENCES rag_paragraphs(paragraph_id),
+  collection        text NOT NULL,
+  chunk_id          text NOT NULL,     -- aktueller chunk_id (lebend in Qdrant/vector_chunks; Zeile auch in rag_chunks)
+  source_id         text NOT NULL,
+
+  chunk_index       int  NOT NULL,     -- Reihenfolge des Chunks innerhalb der Quelle
+  paragraph_order   int  NOT NULL,     -- Reihenfolge dieses Absatzes innerhalb des Chunks
+
+  -- gesetzt, wenn ein langer Absatz in mehrere Chunk-Seiten / Satzbereiche zerlegt wird
+  paragraph_page    int,
+  sentence_start    int,
+  sentence_end      int,
+
+  deprecated_at     timestamptz,       -- gesetzt wenn Mapping durch Neu-Chunking ersetzt wird
+  created_at        timestamptz DEFAULT now()
 )
 CREATE INDEX ON app_paragraph_chunk (source_id);
+CREATE INDEX ON app_paragraph_chunk (paragraph_id);
 CREATE INDEX ON app_paragraph_chunk (chunk_id);
 CREATE INDEX ON app_paragraph_chunk (collection, source_id);
+CREATE UNIQUE INDEX app_paragraph_chunk_unique_range
+  ON app_paragraph_chunk (
+    paragraph_id,
+    chunk_id,
+    COALESCE(paragraph_page, 0),
+    COALESCE(sentence_start, 0),
+    COALESCE(sentence_end, 0)
+  );
 ```
 
 ### Abhängigkeit von ragprep
-**Diese Tabelle muss bei jedem ragprep-Chunking aktualisiert werden:**
-- Neuer Chunk → neuer Eintrag oder UPDATE `chunk_id`
-- Gelöschter/geänderter Chunk → `deprecated_at` setzen (NICHT löschen, da Notizen und Gespräche weiterhin auf `paragraph_id` zeigen)
-- ragprep-Skript muss einen Sync-Schritt nach Supabase enthalten
+**Diese Tabelle muss später bei jedem ragprep-Chunking aktualisiert werden:**
+- Ein Chunk mit mehreren Absätzen → mehrere Rows mit gleichem `chunk_id`, unterschiedlichem `paragraph_id`.
+- Ein langer Absatz über mehrere Chunks → mehrere Rows mit gleichem `paragraph_id`, unterschiedlichem `chunk_id` und gesetzten `paragraph_page` / `sentence_start` / `sentence_end`.
+- Gelöschte/geänderte Chunk-Zuordnungen → `deprecated_at` setzen (NICHT löschen, da Notizen und Gespräche weiterhin auf `paragraph_id` zeigen).
+- ragprep-Skript muss einen Sync-Schritt nach Supabase enthalten.
+
+### Validierung nach dem Chunking
+
+Am Ende jedes ragprep-Chunking-Laufs folgt ein Validierungsdurchgang für `app_paragraph_chunk`. Grundlage sind die erzeugten Chunks und die Chunk-Boundary-Daten (`paragraph_numbers`, `paragraph_page`, `sentence_ranges`, `chunk_index`).
+
+Der Validator prüft:
+- Jeder Absatz aus `rag_paragraphs` für die Quelle ist mindestens einem aktiven Chunk zugeordnet.
+- Jeder aktive Chunk mit Primärtext hat mindestens eine Mapping-Row.
+- Multi-Absatz-Chunks erzeugen mehrere Rows mit gleichem `chunk_id` und korrektem `paragraph_order`.
+- Lange Absätze über mehrere Chunks erzeugen mehrere Rows mit gleichem `paragraph_id` und passenden `paragraph_page` / Satzbereichen.
+- Mapping-Rows verweisen nur auf existierende `paragraph_id`s und aktuelle `chunk_id`s.
+- Alte Zuordnungen, die im neuen Chunking nicht mehr vorkommen, werden auf `deprecated_at` gesetzt.
+
+Bei Fehlern bricht der Supabase-Sync ab; ragprep gibt einen Report aus, welche Paragraphen oder Chunks nicht stimmig gemappt wurden.
 
 In der App: Beim Anzeigen einer Notiz mit `deprecated_at != null` → Hinweis "Textstelle möglicherweise verändert".
 
@@ -333,28 +477,37 @@ In der App: Beim Anzeigen einer Notiz mit `deprecated_at != null` → Hinweis "T
 
 | Daten | Supabase DB | expo-sqlite (WatermelonDB) | Sync via Supabase RPC |
 |---|---|---|---|
-| Texte (Chunks via rag_chunks) | Ja | Ja | Ja (initial + Updates) |
+| Texte (Absätze via `rag_paragraphs`) | Ja | Ja | Ja (initial + Updates) |
+| RAG-Chunks (`rag_chunks`, Archiv inkl. `deprecated_at`) | Ja | Ja | Ja (initial + Updates) |
+| Qdrant-Spiegel (`vector_chunks`, nur aktuell indexiert) | Ja | Nein | Nein (nur ragrun/serverseitig) |
+| RAG-Referenzen (`rag_references`) | Ja | Ja | Ja (read-only) |
 | Paragraph-Chunk-Mapping | Ja | Ja | Ja (read-only) |
 | Notizen (app_notes) | Ja | Ja | Ja (bidirektional) |
 | Gespräche (rag_talks, rag_turns) | Ja | Ja | Ja (bidirektional) |
 | Lesezeichen | Ja | Ja | Ja (bidirektional) |
 | Nutzerprofil / Freundschaften | Ja | Nein | Nein (immer online) |
 | KI-Anfragen (live) | Log in rag_usage | Nein | Nein |
+| LLM-Preise (`llm_pricing`) | Ja | Nein | Nein (serverseitig) |
 
-### 7.2 Datenmigration: Textkorpus → neue Supabase-Instanz
+### 7.2 Datenmigration: Textkorpus → Supabase (gemeinsam ragapp + ragrun)
 
 **Ausgangslage:**
-- ragrun läuft gegen eine eigene Postgres-Instanz (bleibt unverändert — ragrun, Facebook-Bot etc. nutzen sie weiterhin).
-- Supabase ist eine **neue, separate Instanz** ausschließlich für ragapp.
-- Quelltexte liegen als `.md`-Dateien unter `ragrun/ragkeep/books/` und `ragrun/ragkeep/lectures/`, verarbeitet von ragprep zu Chunks (JSONL).
+- **Supabase Postgres** ist die gemeinsame Datenbank für **ragapp** und **ragrun**. ragrun verbindet sich mit derselben Instanz (Einspielung, Embedding, `vector_chunks` u.ä.); die App synchronisiert darüber nur den in Abschnitt 7.3 definierten Tabellen-Scope — Tabellen, die **ausschließlich ragrun** nutzt (z. B. **`vector_chunks`**), **nicht** über WatermelonDB.
+- **Kanonische Quelltexte** liegen in **`rag_paragraphs`** (Supabase): absatzweise `text_raw` und `annotations` (siehe Abschnitt 6). Als **Eingabe** für ragprep dienen weiterhin `.md`-Dateien unter `ragrun/ragkeep/books/` und `ragrun/ragkeep/lectures/` sowie die phase5-Artefakte; ragprep importiert nach `rag_paragraphs` und erzeugt daraus u. a. **`rag_chunks`** (JSONL/Archiv) für RAG und Embedding.
 
-**Was kommt in die neue Supabase-Instanz:**
+**Was in Supabase liegt (Auszug):**
 
 | Daten | Herkunft | Migration |
 |---|---|---|
-| `rag_chunks` (Textkorpus) | ragrun-Postgres | Einmalig kopieren, dann ragprep zusätzlich in Supabase schreiben |
-| `app_paragraph_chunk` | neu | ragprep befüllt beim Chunking |
-| `rag_talks` / `rag_turns` | **nur App-Gespräche** — nicht die ragrun/FB-Gespräche | Neue leere Tabellen |
+| `rag_chunks` (Textkorpus, Archiv) | ggf. Legacy-Postgres (ragrun) bis Cutover | Einmalig kopieren, falls noch vorhanden; künftig ragprep direkt in Supabase (inkl. `deprecated_at` bei Neu-Chunking) |
+| `vector_chunks` (Qdrant-SQL-Spiegel) | ggf. Legacy-Postgres (ragrun) bis Cutover | Einmalig kopieren, falls noch vorhanden; künftig ragrun-`IngestionService` schreibt in Supabase-`vector_chunks` parallel zu Qdrant |
+| `rag_references` | ggf. Legacy-Postgres / ragprep-Augmentierung | Einmalig kopieren, falls noch vorhanden; künftig von Chat/RAG-Prozessen in Supabase geschrieben |
+| `rag_paragraphs` | phase5-Markdown aus `ragrun/ragkeep/*/results/phase5/` | ragprep-Import parst Absätze, `text_raw` und `annotations` |
+| `app_paragraph_chunk` | neu | ragprep befüllt beim Chunking als Many-to-Many-Mapping inkl. `paragraph_page` / Satzbereichen |
+| `rag_talks` / `rag_turns` | **nur App-Gespräche** — nicht historische ragrun-Gespräche | Neue leere Tabellen |
+| `rag_usage` | neu für ragapp | Neue leere Tabelle; Chat/API-Nutzung schreibt hier hinein |
+| `llm_pricing` | ggf. Legacy-Postgres / Konfiguration | Einmalig kopieren, falls noch vorhanden; serverseitige Preisberechnung für `rag_usage` |
+| `app_wallets`, `app_wallet_transactions` | neu für ragapp | Neue leere Tabellen; RevenueCat-Aufladungen und Chat-Abbuchungen |
 | `app_notes`, Lesezeichen, Freundschaften | neu | Neue leere Tabellen |
 | Auth (`auth.users`) | neu | Supabase Auth |
 
@@ -362,12 +515,15 @@ In der App: Beim Anzeigen einer Notiz mit `deprecated_at != null` → Hinweis "T
 
 1. **Supabase-Projekt anlegen** (Region: eu-central-1 Frankfurt).
 2. **Schema deployen:** Alle Tabellen via Supabase Migrations anlegen.
-3. **rag_chunks einmalig kopieren:** `pg_dump` aus ragrun-Postgres → `psql` in Supabase. Nur die Chunk-Daten (kein `rag_talks`, kein `rag_turns` aus ragrun).
-4. **`app_paragraph_chunk` befüllen:** Einmalig aus den vorhandenen JSONL-Dateien (`ragkeep/*/results/rag-chunks/book-chunks.jsonl`) per Migrations-Skript befüllen.
-5. **ragprep auf Supabase umstellen:** ragprep schreibt künftig direkt in Supabase-Postgres (Connection String in ragprep-Config). `app_paragraph_chunk` wird dabei ebenfalls befüllt. ragrun-Postgres erhält keine Chunk-Updates mehr — ragrun liest Chunks nur noch aus Supabase.
-6. **ragprep: AST-Parse-Schritt hinzufügen:** Nach dem Chunking parst ragprep `chunk.text` → AST-Nodes und schreibt das Ergebnis in `rag_chunks.rendered_content` (JSONB). Erkennt: Paragraph-Prefix (`"1| "`), `<i>`-Tags, `<q>`-Tags, Blockzitat-Muster, Überschriften. `ingestion_service.py` bleibt **unverändert** — Embedding läuft weiterhin über `_strip_markup(chunk.text)`.
-7. **Supabase-Migration:** `ALTER TABLE rag_chunks ADD COLUMN rendered_content jsonb` — neue Spalte, bestehende Rows werden bei nächstem ragprep-Lauf befüllt.
-8. **Qdrant bleibt unverändert:** Nur ragrun greift auf Qdrant zu. ragapp ruft ragrun an, nicht Qdrant direkt.
+3. **`rag_chunks` / `vector_chunks` / `rag_references` / `llm_pricing` einmalig kopieren (falls Legacy):** `pg_dump` aus bisheriger ragrun-Postgres → `psql` in Supabase. Keine alten `rag_talks` / `rag_turns` aus ragrun übernehmen.
+4. **`rag_paragraphs` importieren:** Einmalig aus phase5-Markdown; `N|`-Absätze, `<i>`, `<q>`, `<a>` und `<span id>` in `text_raw` + `annotations` überführen.
+5. **`app_paragraph_chunk` befüllen:** Einmalig aus den vorhandenen JSONL-Dateien (`ragkeep/*/results/rag-chunks/book-chunks.jsonl`) per Migrations-Skript befüllen; dabei Multi-Absatz-Chunks und lange Absätze über mehrere Chunks abbilden.
+6. **Mapping validieren:** Am Ende des Imports/Chunkings prüfen, ob `app_paragraph_chunk` anhand der erzeugten Chunks und Boundary-Daten vollständig und widerspruchsfrei ist.
+7. **ragprep auf Supabase umstellen:** ragprep schreibt künftig direkt in Supabase-Postgres (Connection String in ragprep-Config): **`rag_chunks`** (neue Versionen + `deprecated_at` für obsolet), `rag_paragraphs`, `app_paragraph_chunk`. **ragrun** liest **`rag_chunks`** für Embed-Läufe aus **derselben** Supabase-DB und schreibt **Qdrant + `vector_chunks`** dorthin (kein zweites Postgres für den Korpus nach Cutover).
+8. **ragapp-Chat/RAG-Prozesse auf Supabase schreiben lassen:** neue App-Gespräche schreiben `rag_talks`, `rag_turns`, `rag_references` und `rag_usage` in Supabase; Preisberechnung nutzt `llm_pricing`.
+9. **ragprep: AST-Parse-Schritt hinzufügen:** Nach dem Chunking parst ragprep `chunk.text` → AST-Nodes und schreibt das Ergebnis in `rag_chunks.rendered_content` (JSONB). Erkennt: Paragraph-Prefix (`"1| "`), `<i>`-Tags, `<q>`-Tags, Blockzitat-Muster, Überschriften. `ingestion_service.py` bleibt **unverändert** — Embedding läuft weiterhin über `_strip_markup(chunk.text)`.
+10. **Supabase-Migration:** `ALTER TABLE rag_chunks ADD COLUMN rendered_content jsonb` — neue Spalte, bestehende Rows werden bei nächstem ragprep-Lauf befüllt.
+11. **Qdrant unverändert betrieben; Spiegel in Supabase:** Nur ragrun greift auf Qdrant zu. **`vector_chunks`** in Supabase bleibt mit Qdrant konsistent (gemeinsamer Schreibpfad via `IngestionService`). ragapp ruft ragrun an, nicht Qdrant direkt.
 
 ### 7.3 WatermelonDB Sync-Konfiguration
 
@@ -384,9 +540,11 @@ Der Server kann damit:
 - Logging und Debugging nach Version aufschlüsseln
 
 **Sync-Scope pro Tabelle:**
-- `rag_chunks`, `app_paragraph_chunk`: global read-only (nur pull, kein push)
+- `rag_paragraphs`, `rag_chunks`, `rag_references`, `app_paragraph_chunk`: global read-only (nur pull, kein push)
+- `vector_chunks` (und andere **nur ragrun** genutzte Tabellen): in Supabase gepflegt, aber **nicht** im WatermelonDB-Schema / kein Pull-Push — ragrun allein
 - `app_notes`, `rag_talks`, `rag_turns`: gefiltert nach `user_id` (bidirektional)
 - `app_friendships`: gefiltert nach `user_id` (bidirektional)
+- `llm_pricing`, `rag_usage`: nicht in WatermelonDB; serverseitig bzw. online abrufbar
 
 Die Postgres-Funktionen werden in Supabase als Database Functions deployed und via `supabase-js` aufgerufen.
 
@@ -415,7 +573,7 @@ Kein neuer Container — WatermelonDB läuft komplett client-seitig und synct di
 |---|---|---|
 | **Supabase** | Supabase Cloud | $25/mo — Auth, Postgres, RLS; self-hosting zu aufwändig |
 | **Railway** (alle Container) | Railway | nach Verbrauch — aktuell 0.71% CPU / 2.42 GB RAM |
-| **ragapp** | App Store / Play Store / Web | — |
+| **ragapp** | App Store / Play Store | — |
 
 ---
 
@@ -481,6 +639,8 @@ Kein neuer Container — WatermelonDB läuft komplett client-seitig und synct di
 
 ## 13. Figma Professional → Code-Workflow
 
+**Aktuelle Design-Datei:** [ragapp-Layout (Figma)](https://www.figma.com/design/T6s2FocVkibx6pUG9A4uvw/ragapp-Layout?node-id=1-3&p=f&t=WcjtFybfBfHGKSU1-0)
+
 **Empfohlener Workflow:**
 
 ### Design Tokens (Farben, Typografie, Abstände)
@@ -494,15 +654,95 @@ Kein neuer Container — WatermelonDB läuft komplett client-seitig und synct di
 - Komponenten manuell in React Native/Expo umsetzen (kein Auto-Converter zuverlässig genug)
 - **Figma MCP Plugin** (Cursor/Claude Code Integration): ermöglicht es, Figma-Designs direkt als Kontext in Code-Assistenten zu laden
 
+### Datenbindungen im Design
+
+Mit dem verlinkten Layout können datenführende Layer in Figma annotiert werden (parallel zum Festlegen bzw. Feinschliff des Ziel-Schemas für `rag_paragraphs`). So ist beim Implementieren klar, welche UI-Stelle welches Feld aus welcher Tabelle braucht. **Operative Checklisten pro Tab:** §13.1.
+
+**Layer-Namen für einfache Bindings:**
+```
+{{computed.paragraph_rendered}}
+{{search_result.snippet}}
+{{rag_chunks.text}}
+{{rag_paragraphs.annotations.foreign_quotes}}
+{{rag_paragraphs.segment_title}}
+{{rag_paragraphs.paragraph_number}}
+{{app_notes.count_for_paragraph}}
+```
+
+**Dev-Mode-Annotationen für komplexe Fälle:**
+```
+Datenquelle: rag_paragraphs
+Felder: text_raw, annotations
+Filter: source_id = currentSource AND segment_index = currentSegment
+Anzeige: computed.paragraph_rendered
+Absatzmarker: rag_paragraphs.paragraph_number
+
+Tab 1 — Live-Suche (Hybrid über ragrun/Qdrant):
+Anzeige Snippet: Text aus der Suchantwort (Payload aus Qdrant, inhaltlich identisch zur aktuellen Zeile in vector_chunks / dem aktuellen rag_chunks zum selben chunk_id).
+Datenbindung im Code: meist `searchResult.snippet` o.ä., nicht direkt eine Supabase-Tabelle.
+
+Tab 1 — optional / Referenz-Kontext (z. B. alter Chat, chunk_id aus Verweis):
+Datenquelle: rag_chunks
+Filter: chunk_id = referenzierter chunk_id (Zeile kann deprecated_at haben)
+Anzeige: rag_chunks.text (historischer Trefferkontext bleibt lesbar)
+
+Hinweis: rag_chunks.text ist annotierter Chunk-Kontext; text_raw in rag_paragraphs bleibt die kanonische Absatzquelle für Tab 3.
+```
+
+Das Figma MCP liest Layer-Namen und Dev-Mode-Annotationen beim Implementieren mit aus. Dadurch kann der Code-Assistent die passenden Repository-Methoden und späteren Supabase/WatermelonDB-Felder direkt zuordnen.
+
 ### Änderungs-Workflow
 1. Design-Änderung in Figma
 2. Tokens-Export aktualisieren → `theme.ts` anpassen (automatisch via CI möglich)
-3. Betroffene Komponenten manuell anpassen (Dev Mode als Referenz)
+3. Datenbinding-Annotationen prüfen (`{{table.field}}` oder Dev-Mode-Annotation)
+4. Betroffene Komponenten manuell anpassen (Dev Mode als Referenz)
 
 ### Empfohlene Figma-Plugins
 - **Tokens Studio** — Design Token Management
 - **Anima** — React-Komponenten-Export (eingeschränkt, als Referenz nützlich)
 - **Figma MCP** — AI-Code-Assistent-Integration
+
+### 13.1 Feinschliff — Checklisten pro Tab (Schema ↔ Figma)
+
+Ziel: Jede sichtbare Text- oder Zahl-Information im Layout hat eine **klare Datenquelle** (`rag_paragraphs`, `rag_chunks`, `app_notes`, API-Antwort, berechnet). Abhaken in Figma (Layer-Namen / Dev-Mode) und ggf. im Plan (Schema-Lücke dokumentieren).
+
+**Gemeinsam (alle Tabs)**
+- [ ] Navigations-Leiste / Tab-Labels: rein UI oder aus `theme.ts` (keine DB)
+- [ ] Globale Zustände (offline, kein Login): nur UI-Copy oder Bindings an `computed.*` / leere States explizit annotieren
+
+**Tab 1 — Suche**
+- [ ] Suchfeld: kein Tabellenfeld; ggf. `{{search.query}}` als transienter UI-State
+- [ ] Online/Offline-Indikator: `{{computed.network_status}}` o.ä. (kein DB-Feld)
+- [ ] Filter-Chips: Mapping zu `POST /app/search`-Param `types[]` in Dev-Mode festhalten
+- [ ] Ergebniszeile — **Snippet / Hervorhebung / Quellenzeile:** Antwort aus ragrun (Payload Qdrant / Snippet-String); Binding `{{search_result.snippet}}`, `{{search_result.source_label}}` …; **nicht** `rag_paragraphs.text_raw` für den Snippet-Text
+- [ ] Tap → Tab 3: Navigationsziel = `paragraph_id` (über `app_paragraph_chunk` / Suchantwort-Metadaten); in Figma Notiz: „Sprungziel = `paragraph_id`“
+
+**Tab 2 — Übersicht (TreeView)**
+- [ ] Ebene 1 (Buch / Band / Vortrag): Felder klären — typ. `source_id`, Anzeigename (fest in Quellen-Tabelle, aus `rag_paragraphs` aggregiert `segment_title`+`book_id`, oder API `/app/sources`); pro Zeile `{{source.display_name}}` + Filter `source_id`
+- [ ] Ebene 2 (Kapitel / Einzelvortrag): `rag_paragraphs.segment_title` + `segment_index` + `segment_type` (einheitliche Zeile pro Segment, z. B. distinct `(source_id, segment_index)`)
+- [ ] Ebene 3 (Zusammenfassung): aus `rag_chunks` mit `chunk_type = chapter_summary` (o.ä.) oder eigenes Metadaten-Feld — explizit annotieren, **nicht** mit Absatztext verwechseln
+- [ ] Lazy-Expand: notieren, ob Unterknoten aus lokalem SQLite (WatermelonDB) oder optional `/app/sources/.../segments` kommen (Plan: primär offline)
+
+**Tab 3 — Lesen**
+- [ ] **Absatznummer:** `{{rag_paragraphs.paragraph_number}}`
+- [ ] **Fließtext / Zitat / Kursiv:** `{{computed.paragraph_rendered}}` aus `text_raw` + `annotations` **oder** (falls Chunk-AST genutzt) Join über `app_paragraph_chunk` → `rag_chunks.rendered_content` — **eine** Variante im Design festlegen und im Dev-Mode beschreiben (Plan: kanonisch Absatz = `rag_paragraphs`; AST in `rag_chunks` für Rendering-Performance)
+- [ ] **Überschrift im Lesestrom:** falls `heading`-Nodes aus `rendered_content`: Binding dokumentieren; falls aus Segment: `rag_paragraphs.segment_title` nur am Segmentanfang
+- [ ] **Beitrags-Streifen** (✏️ 💬 🎯): `{{app_notes.count_for_paragraph}}`, Anzahl Gespräche mit Kontext dieses `paragraph_id`, Aggregation `rag_references` — pro Chip Feld oder `computed.*` benennen
+- [ ] **Lesezeichen-Icon:** lokaler State / Lesezeichen-Tabelle (`paragraph_id`)
+- [ ] **Long-Press-Menü:** Aktionen ohne extra DB-Felder; Kontext = aktuelles `paragraph_id`
+
+**Tab 4 — Notizen**
+- [ ] **Edit-Box:** `{{app_notes.draft}}` (transient) + Kontext `paragraph_id` / `segment_id` aus Tab 3
+- [ ] **Listen-Gruppen:** Filter in Dev-Mode (`paragraph_id IS NOT NULL` usw.)
+- [ ] **Notiz-Karte:** `{{app_notes.content}}`, `{{app_notes.created_at}}`, Anzeige Sprungziel: Snippet aus `rag_paragraphs` per `paragraph_id` oder `{{rag_paragraphs.segment_title}}`
+
+**Tab 5 — KI-Chat**
+- [ ] **Persönlichkeiten:** `GET /app/personalities` oder statische Liste im UI — annotieren
+- [ ] **Kontext-Zeile:** `{{rag_talks.context_mode}}` / `context_ids` → lesbare Labels („Allgemein“, Absatzpreview aus `rag_paragraphs`, …)
+- [ ] **Chat-Blasen:** `{{rag_turns.user_message}}`, `{{rag_turns.assistant_message}}`; Chunk-Referenzen in UI = `rag_chunks.chunk_id` (nicht `vector_chunks`)
+
+**Tokens (übergreifend)**
+- [ ] Farben, Typo, Spacing als Variables; Export-Pfad zu `theme.ts` im Plan/Repo-README einmal festhalten
 
 ---
 
@@ -520,6 +760,8 @@ Jede Phase liefert etwas Lauffähiges. Kein Backend nötig bis Phase 3.
 - [ ] Tab-Navigation (5 Tabs, horizontal wischbar)
 - [ ] WatermelonDB + expo-sqlite einrichten, Schema-Grundgerüst anlegen
 - [ ] Repository-Layer aufsetzen (Abstraktionsschicht über WatermelonDB)
+- [ ] `rag_paragraphs` als Ziel-Schema definieren (`text_raw`, `annotations`, stabile `paragraph_id`) und mit dem Figma-Layout **ragapp-Layout** (Link §13) sowie **§13.1** (Tab-Checklisten) abgleichen
+- [ ] Figma **ragapp-Layout** (§13): datenführende Layer mit `{{table.field}}` oder Dev-Mode-Annotationen versehen — **§13.1** pro Tab abarbeiten
 - [ ] Figma: Variables + Tokens Studio exportieren → `theme.ts`
 - [ ] Ein Testbuch als lokales JSON einbetten (kein Backend nötig)
 
@@ -547,7 +789,7 @@ Nur lokale Daten. Kein Supabase, kein Sync.
 Weiterhin lokal. Datenmodell stabilisiert sich hier.
 
 - [ ] Tab 4: Notizen — Edit-Box + Liste, gruppiert nach Absatz / Kapitel / frei
-- [ ] `paragraph_id`-Referenzen (`{source_id}:{source_index}`) durchgehend einsetzen
+- [ ] `paragraph_id`-Referenzen (`{source_id}:{segment_index}:{paragraph_number}`) durchgehend einsetzen
 - [ ] Kontext-Übergabe: Long-Press → Notiz vorausgefüllt mit Absatz-Kontext
 - [ ] Notiz-Badges am Absatz (Tab 3) zeigen vorhandene Notizen an
 
@@ -561,9 +803,11 @@ Erst hier kommt Supabase ins Spiel. Das Datenmodell ist jetzt stabil.
 
 - [ ] Supabase-Projekt anlegen (Region: eu-central-1)
 - [ ] Auth: Magic Link + Apple Sign-In
-- [ ] Datenmigration: ragrun-Postgres → Supabase (`rag_chunks`, etc.)
-- [ ] ragprep auf Supabase umstellen + AST-Parse-Schritt (`rendered_content`) + `app_paragraph_chunk`
+- [ ] Datenmigration: ggf. Legacy ragrun-Postgres + phase5-Dateien → Supabase (`rag_chunks`, `vector_chunks`, `rag_references`, `llm_pricing`, `rag_paragraphs`, etc.)
+- [ ] ragprep auf Supabase umstellen + AST-Parse-Schritt (`rendered_content`) + `rag_paragraphs` + `app_paragraph_chunk`
+- [ ] ragprep-Validator: `app_paragraph_chunk` gegen Chunks und Boundary-Daten prüfen
 - [ ] Supabase-Migration: `rendered_content jsonb` zu `rag_chunks`
+- [ ] Supabase-Schema: `vector_chunks` deployen; ragrun-DB-URL auf **Supabase Postgres** umstellen (Embed: lesen `rag_chunks`, schreiben `vector_chunks` + Qdrant); WatermelonDB-Sync wie in §7.3 — **ohne** ragrun-exklusive Tabellen (`vector_chunks` u.ä.)
 - [ ] WatermelonDB Sync-Funktionen: `pull_changes` / `push_changes` mit `schema_version`, `client_version`
 - [ ] Erstsync: Textkorpus auf Gerät
 - [ ] Konto-Verwaltung: Profil, Konto-Löschung (App Store Pflicht), Datenexport
@@ -584,17 +828,17 @@ Erfordert Online-Verbindung zu ragrun.
 
 ---
 
-### Phase 5 — Chat (Pro)
+### Phase 5 — Chat (Anmeldung + Guthaben)
 
 - [ ] Tab 5: KI-Chat — Persönlichkeits-Picker, Kontext-Modi (Absatz / Kapitel / frei)
 - [ ] `rag_talks` / `rag_turns` in Supabase anlegen und via WatermelonDB synchen
 - [ ] RevenueCat + Apple IAP / Google Play Billing einrichten
-- [ ] Pro-Feature-Gate (Tab 5 gesperrt für Free-Nutzer)
+- [ ] Guthaben-Gate (Tab 5 sendet nur bei ausreichendem Kontostand)
 - [ ] Apple Small Business Program beantragen
 - [ ] PostHog Opt-in Analytics
-- [ ] Nutzungslimit pro Pro-User (max. 200 Runden/Monat)
+- [ ] Nutzungs-/Kostenlimit pro Nutzer (Kontostand darf nicht negativ werden)
 
-**Exit-Kriterium:** Pro-Abo kaufbar, KI-Chat mit Persönlichkeit und Kontext funktioniert.
+**Exit-Kriterium:** Guthaben kaufbar, KI-Chat mit Persönlichkeit und Kontext funktioniert und wird gegen Guthaben abgerechnet.
 
 ---
 
@@ -632,7 +876,6 @@ expo (SDK 52+)
 expo-router                  — Navigation (file-based)
 react-native-pager-view      — Wischbare Tabs
 @shopify/flash-list          — Performante Listen (Texte, Notizen, Gespräche)
--- (kein Markdown-Parser — eigener Node-Renderer, ~100 Zeilen)
 @nozbe/watermelondb          — Lokale SQLite-DB + Sync-Layer (MIT)
 expo-sqlite                  — Lokale DB
 @supabase/supabase-js        — Auth + DB-Client
@@ -645,7 +888,7 @@ posthog-react-native         — Analytics mit Opt-in (Phase 3)
 
 ---
 
-## 16. Kostenkalkulation & Pro-Preis
+## 16. Kostenkalkulation & Guthabenpreise
 
 ### 16.1 Fixkosten (monatlich)
 
@@ -660,7 +903,7 @@ posthog-react-native         — Analytics mit Opt-in (Phase 3)
 | RevenueCat | $0 (bis $10.000 MTR/mo) |
 | **Gesamt Fix** | **~$53–73/mo** |
 
-### 16.2 Variable Kosten: Anthropic API (KI-Chat Pro)
+### 16.2 Variable Kosten: Anthropic API (KI-Chat)
 
 Modell: Claude Sonnet — $3/MTok Input, $15/MTok Output
 
@@ -671,21 +914,21 @@ Modell: Claude Sonnet — $3/MTok Input, $15/MTok Output
 | Kosten pro Runde | ~$0.014 |
 | Runden pro Gespräch | ~10 |
 | Kosten pro Gespräch | ~$0.14 |
-| Gespräche pro Pro-User/Monat | ~10 |
-| **API-Kosten pro Pro-User/Monat** | **~$1.40** |
+| Gespräche pro aktivem Chat-User/Monat | ~10 |
+| **API-Kosten pro aktivem Chat-User/Monat** | **~$1.40** |
 
-**Empfehlung:** Ein monatliches Nutzungslimit pro Pro-User einbauen (z.B. 200 Runden/Monat), um API-Kosten zu deckeln. Verbrauchsübersicht ist ohnehin geplant (Tab Konto).
+**Empfehlung:** Guthaben vor jeder Chat-Anfrage prüfen und Kosten nach jeder Antwort über `rag_usage` abbuchen. Zusätzlich ein technisches Nutzungslimit einbauen, damit Fehler oder Missbrauch den Kontostand nicht ins Negative treiben. Verbrauchsübersicht ist ohnehin geplant (Tab Konto).
 
 ### 16.3 Store-Gebühren
 
 **Apple Small Business Program + Google Play:** Dauerhaft **15%** bei Jahresumsatz < $1M (einmalige Bewerbung bei Apple nötig).
 
-| Pro-Preis | Store-Gebühr (15%) | Netto aus Store |
+| Guthaben-Kauf | Store-Gebühr (15%) | Netto aus Store |
 |---|---|---|
 | €4,99 | −€0,75 | €4,24 |
 | €9,99 | −€1,50 | €8,49 |
 
-### 16.4 Deckungsbeitrags-Rechnung pro Pro-User
+### 16.4 Deckungsbeitrags-Rechnung pro aktivem Chat-User
 
 | Posten | €4,99/mo | €9,99/mo |
 |---|---|---|
@@ -694,20 +937,20 @@ Modell: Claude Sonnet — $3/MTok Input, $15/MTok Output
 | Infrastruktur-Anteil ($60/mo ÷ 100 User) | −€0,56 | −€0,56 |
 | **Deckungsbeitrag** | **~€2,38/User/mo** | **~€6,63/User/mo** |
 
-**Bei €4,99/mo:**
-- Breakeven (Infrastruktur gedeckt): ~25 Pro-User
-- Bei 50 Pro-Usern: ~€119/mo Deckungsbeitrag
-- Bei 10 Pro-Usern: ~€24/mo — Infrastruktur noch nicht gedeckt
+**Bei €4,99 Guthaben/Monat:**
+- Breakeven (Infrastruktur gedeckt): ~25 aktive zahlende Chat-User
+- Bei 50 aktiven zahlenden Chat-Usern: ~€119/mo Deckungsbeitrag
+- Bei 10 aktiven zahlenden Chat-Usern: ~€24/mo — Infrastruktur noch nicht gedeckt
 
-**Bei €9,99/mo:**
-- Breakeven: ~9 Pro-User
-- Bei 50 Pro-Usern: ~€330/mo Deckungsbeitrag
+**Bei €9,99 Guthaben/Monat:**
+- Breakeven: ~9 aktive zahlende Chat-User
+- Bei 50 aktiven zahlenden Chat-Usern: ~€330/mo Deckungsbeitrag
 
-**Fazit:** €4,99 funktioniert, braucht aber ~3x so viele zahlende User für denselben Deckungsbeitrag. Sinnvoll wenn niedrige Einstiegshürde wichtiger ist als schneller Breakeven. €9,99 ist effizienter sobald eine treue kleine Nutzerbasis da ist.
+**Fazit:** Guthabenpakete erlauben nutzungsbasierte Abrechnung statt fixer Pro-Schranke. €4,99 funktioniert als niedrige Einstiegshürde, braucht aber mehr zahlende Nutzer für denselben Deckungsbeitrag. €9,99 ist effizienter sobald eine treue kleine Nutzerbasis da ist.
 
-### 16.5 Pro-Preis
+### 16.5 Guthabenpakete
 
-**€5,00/Monat** oder **€40,00/Jahr** (33% Rabatt = Jahreszahler-Anreiz).
+Start mit einfachen Guthabenpaketen, z.B. **€5** und **€10**. Chat-Anfragen werden anhand `llm_pricing` und `rag_usage` gegen den Kontostand abgerechnet.
 
 ---
 
@@ -721,11 +964,11 @@ Modell: Claude Sonnet — $3/MTok Input, $15/MTok Output
 | Sharing V2 | Freunde-System |
 | Sharing V3 | Öffentlicher Feed + Meldungsfunktion |
 | Sprache | Nur Deutsch (V1) |
-| Web-Scope | Lesen + Suche (wenn online); Offline/Sync nur nativ |
 | Offline-Suche | Keine — ausgegraut mit Hinweis |
 | Suchstrategie | Qdrant Hybrid (sparse + dense) via ragrun |
 | Tab 2 Hierarchie | 3 Ebenen, rekursive TreeView |
 | Sync-Engine | WatermelonDB (statt PowerSync) — reifer, MIT-Lizenz, kein eigener Server |
+| Chunk-Speicher Supabase | `rag_chunks` = Archiv inkl. `deprecated_at` (Referenzen: Talks, Begriffe, Quotes, `rag_references`); `vector_chunks` = Qdrant-Spiegel, nur serverseitig |
 
 ---
 
@@ -768,6 +1011,6 @@ Vorteile:
 
 Alle grundlegenden Entscheidungen sind getroffen. Noch offen:
 
-1. **Figma-Projekt:** Wann beginnt der Figma-Design-Prozess? Tokens Studio-Setup sollte vor Phase 1 stattfinden.
+1. **Figma — Layout vorhanden:** Datei [ragapp-Layout](https://www.figma.com/design/T6s2FocVkibx6pUG9A4uvw/ragapp-Layout?node-id=1-3&p=f&t=WcjtFybfBfHGKSU1-0). In Phase 0: `rag_paragraphs`-Zielschema mit den Screens abstimmen, `{{table.field}}`- bzw. Dev-Mode-Annotationen vervollständigen (**§13**, **§13.1** Tab-Checklisten), Design-Tokens nach `theme.ts`.
 
-2. **ragrun DB-Migration:** Sobald ragprep auf Supabase schreibt, muss auch ragrun's DB-Connection auf Supabase umgestellt werden (ragrun liest Chunks bei der Suche). Dies ist Teil der Migration in Phase 0.
+2. **ragrun ↔ Supabase:** Sobald ragprep auf Supabase schreibt, zeigt ragrun's DB-Connection auf **dieselbe** Supabase-Postgres (Lesen von **`rag_chunks`** für Embed, Schreiben von **`vector_chunks`** + Qdrant). **`vector_chunks`**-Schema in Supabase deployen; App-Sync bleibt auf den WatermelonDB-Tabellen (ohne ragrun-exklusive Tabellen). Teil von Phase 3.
