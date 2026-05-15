@@ -1,0 +1,38 @@
+---
+description: ragapp layer rules — where new code belongs
+globs: "{app,src}/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# ragapp architecture
+
+Read ARCHITECTURE.md for full context. When adding or changing code:
+
+## Layer rules
+
+- **Screens** (`app/`, `src/features/`): UI only. Call hooks; no `database.get`, no `fetch`, no `@supabase/supabase-js` imports.
+- **Hooks** (`src/hooks/`): Screen state, `observe()` subscriptions, orchestrate services + repositories.
+- **Repositories** (`src/repositories/`): WatermelonDB only. Local/offline data.
+- **Services** (`src/services/`): `authService`, `ragrunApi` — online business API. No UI imports.
+- **lib** (`src/lib/`): Infrastructure — `config`, `supabase`, `ragrun-client`, `seedLoader`, future `sync/`.
+
+## Online vs offline
+
+- Chat **history**, notes, corpus → repositories + WatermelonDB.
+- Search, chat **send**, health → `ragrunApi` (never Qdrant/ragrun URLs in screens).
+- Auth → `authService` / `useAuth`.
+
+## Config
+
+- Secrets and URLs: `EXPO_PUBLIC_*` in `.env` only. Use `config` from `@/lib/config`.
+
+## Examples
+
+```typescript
+// ✅ feature screen
+const { notes } = useNotes(id);
+
+// ❌ in a screen
+import { database } from '@/db/database';
+await fetch(`${url}/app/search`, ...);
+```

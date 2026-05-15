@@ -1,10 +1,19 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
+import { useRagrunHealth } from '@/hooks/useRagrunHealth';
 import { lightColors, darkColors, spacing, typography, borderRadius } from '../../theme';
 
 export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { online, loading, error } = useRagrunHealth(30_000);
+
+  const searchEnabled = online && !loading;
+  const statusMessage = loading
+    ? 'Verbindung wird geprüft…'
+    : online
+      ? 'Suche bereit (ragrun erreichbar)'
+      : error ?? 'Suche erfordert Internet-Verbindung';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -13,12 +22,12 @@ export default function SearchScreen() {
           placeholder="Suche im Textkorpus…"
           placeholderTextColor={colors.onSurfaceVariant}
           style={[typography.bodyLarge, { color: colors.onSurface, flex: 1 }]}
-          editable={false}
+          editable={searchEnabled}
         />
       </View>
       <View style={[styles.offlineBanner, { backgroundColor: colors.surfaceContainerLow }]}>
         <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-          Suche erfordert Internet-Verbindung (Phase 1+)
+          {statusMessage}
         </Text>
       </View>
     </View>

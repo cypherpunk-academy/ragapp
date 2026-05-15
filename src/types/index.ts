@@ -26,11 +26,20 @@ export type AstInlineNode =
   | { type: 'italic'; content: string }
   | { type: 'footnote_ref'; content: string; ref_id: string };
 
-export type SearchResult = {
-  chunk_id: string;
-  source_id: string;
-  segment_id?: string;
-  paragraph_id?: string;
-  snippet: string;
-  score: number;
-};
+export type {
+  ChatContextIds,
+  ChatContextMode,
+  ChatRequest,
+  ChatResponse,
+  ChatSummarizeResponse,
+  Personality,
+  PersonalitiesResponse,
+  RagrunHealthResponse,
+  SearchRequest,
+  SearchResponse,
+  SearchResult,
+  SegmentSummary,
+  SegmentsResponse,
+  SourceSummary,
+  SourcesResponse,
+} from './ragrun';

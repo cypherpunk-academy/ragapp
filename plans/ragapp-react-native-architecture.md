@@ -2,7 +2,7 @@
 
 **Bezug:** Dieses Dokument präzisiert die **App-Schicht** aus dem [ragapp-gesamtplan](./ragapp-gesamtplan.md) (Zielbild, Tabs, Datenschicht, Repository-Layer, Tech-Stack). Bei Widersprüchen gilt der Gesamtplan.
 
-**Stand:** 2026-05-14 (Repositories: `rag_talks`/`rag_turns`; Offline-first-Formulierung)
+**Stand:** 2026-05-15 (Services/Hooks-Layer; siehe auch [ARCHITECTURE.md](../ARCHITECTURE.md) im Repo-Root)
 
 ---
 
@@ -23,26 +23,38 @@
 └───────────────────────────┬─────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────┐
-│  Feature-Logik (Hooks: z. B. useSync, useSearch, …)     │
+│  Hooks (useAuth, useNotes, useRagrunHealth, useSearch, …) │
 └───────────────────────────┬─────────────────────────────┘
                             │
-┌───────────────────────────▼─────────────────────────────┐
-│  Repository-Layer (s. unten)                                │  ← Gesamtplan §18
-└───────────────┬─────────────────────────┬───────────────┘
-                │                         │
-    ┌───────────▼──────────┐   ┌──────────▼──────────┐
-    │ WatermelonDB + Sync   │   │ HTTP-Client ragrun │
-    │ (Supabase pull/push)  │   │ `/app/*`           │
-    └───────────┬───────────┘   └──────────┬──────────┘
-                │                         │
-    ┌───────────▼──────────┐   ┌──────────▼──────────┐
-    │ Supabase (Auth + RPC) │   │ ragrun API          │
-    └───────────────────────┘   └─────────────────────┘
+        ┌───────────────────┴───────────────────┐
+        │                                       │
+┌───────▼────────┐                    ┌─────────▼─────────┐
+│  Services      │                    │  Repositories      │
+│  authService   │                    │  *Repository       │
+│  ragrunApi     │                    │  (WatermelonDB)    │
+└───────┬────────┘                    └─────────┬─────────┘
+        │                                       │
+┌───────▼────────┐                    ┌─────────▼─────────┐
+│  lib/          │                    │  lib/sync (geplant)│
+│  supabase      │                    │  pull/push RPC     │
+│  ragrun-client │                    └─────────┬─────────┘
+│  config        │                              │
+└───────┬────────┘                    ┌─────────▼─────────┐
+        │                             │  WatermelonDB      │
+┌───────▼────────┐                    └─────────┬─────────┘
+│  ragrun API    │                              │
+│  Supabase Auth │                    ┌─────────▼─────────┐
+└────────────────┘                    │  Supabase (RPC)   │
+                                      └───────────────────┘
 ```
 
-**Regel:** Tab-Komponenten und Feature-UI sprechen **nicht** direkt mit WatermelonDB oder Roh-SQL — nur über Repositories (Gesamtplan §18).
+**Regeln:**
 
-**Repositories (Beispiele, Ergänzung jederzeit):** Korpus (`ParagraphRepository`, ggf. `ChunkRepository` / Mapping auf `app_paragraph_chunk`), **KI-Gespräche (`TalkRepository`, `TurnRepository` — Modelle `rag_talks` / `rag_turns`)**, Notizen (`NoteRepository`), Lesezeichen (`BookmarkRepository`). `POST /app/chat` (ragrun) sendet die Anfrage **online**; die **persistierten** Gespräche und Runden laufen im Plan wie andere Nutzerdaten über **Sync in WatermelonDB** — Repositories kapseln Lesen/Schreiben der lokalen Modelle und triggern bzw. erwarten den nächsten Pull/Push, ohne dass Screens Roh-SQL oder Sync-Details kennen.
+- Screens sprechen **nicht** direkt mit WatermelonDB, `fetch` oder Supabase — nur über **Hooks**.
+- Hooks rufen **Services** (online) oder **Repositories** (offline) auf.
+- **lib/** = Infrastruktur (Clients, Env, Seed); **services/** = fachliche API-Operationen.
+
+**Repositories (Beispiele):** Korpus (`ParagraphRepository`, ggf. `ChunkRepository`), **KI-Gespräche (`TalkRepository`, `TurnRepository`)**, Notizen (`NoteRepository`), Lesezeichen (`BookmarkRepository`). `POST /app/chat` (ragrun) sendet **online** via `ragrunApi`; persistierter Chat-Verlauf über Sync in WatermelonDB — Repositories kapseln lokales Lesen/Schreiben.
 
 ## 3. Routing & Navigation
 
@@ -82,7 +94,7 @@ Die Routen-Dateien bleiben **dünn**: sie importieren Screen-Komponenten aus `sr
 | UI-Zustand pro Screen | `useState` / `useReducer` | Redux |
 | Übergreifendes UI (Theme, Sprache) | React **Context** + kleine Provider | Zustand nur, falls später echte Komplexität |
 | Korpus + Nutzerdaten mit Sync | **WatermelonDB** + Sync-RPC | TanStack Query **ersetzt** Watermelon nicht |
-| Kurzlebige / reine Online-APIs | Schlanker **fetch**- (oder axios-)Client + **eigene Hooks** pro Feature; optional später **TanStack Query** nur für ragrun-Calls (`/app/search`, `/app/chat`, …), um Cache/Retry zu vereinheitlichen | TanStack Query für alles ohne Doppelung zu Sync-Logik |
+| Kurzlebige / reine Online-APIs | **`ragrunApi`** in `src/services/` + **Hooks** pro Feature (`useRagrunHealth`, später `useSearch`); Basis-HTTP in `lib/ragrun-client.ts`; optional später **TanStack Query** nur für ragrun | `fetch` direkt in Screens; TanStack Query für Watermelon-Daten |
 
 **Begründung:** Der Gesamtplan setzt WatermelonDB als Sync-Engine fest. Ein zweites „Server-State“-Framework für dieselben Tabellen würde Duplikat und Inkonsistenz riskieren. TanStack Query passt ragapp **optional** dort, wo **kein** Watermelon-Spiegel existiert (z. B. reine Online-Suche, Chat-Streaming, `/app/health`).
 
@@ -105,23 +117,22 @@ Im Root-`_layout.tsx` typischerweise (Reihenfolge beachten):
 Der Gesamtplan verlangt **kein** klassisches Atomic Design. Pragmatisch und skalierbar:
 
 ```
+app/                            # expo-router (Root)
 src/
-├── app/                        # falls expo-router „src/app“ nutzt — sonst app/ im Root
-├── features/
-│   ├── auth/
-│   ├── read/                   # Tab Lesen, Node-Renderer
-│   ├── search/
-│   ├── overview/
-│   ├── notes/
-│   └── chat/
-├── repositories/               # WatermelonDB: Korpus, Notizen, Talks/Turns, Lesezeichen, …
+├── features/                   # Tab-Screens (search, read, notes, chat, …)
+├── hooks/                      # useAuth, useNotes, useRagrunHealth, …
+├── services/                   # authService, ragrunApi (online)
+├── repositories/               # WatermelonDB: Korpus, Notizen, Talks/Turns, …
 ├── lib/
-│   ├── supabase.ts             # Client, Session
-│   ├── ragrun-client.ts        # Basis-URL, Auth-Header, Fehler-Mapping
-│   └── sync/                   # pull/push Aufrufe, schema_version
-├── components/                 # geteilte UI (Buttons, Typography, …)
-├── theme.ts                    # aus Figma Tokens (Gesamtplan §13)
-└── types/                      # geteilte TS-Typen (API + Modelle)
+│   ├── config.ts               # Env aus app.config.ts / EXPO_PUBLIC_*
+│   ├── supabase.ts             # Client, SecureStore-Session
+│   ├── ragrun-client.ts        # fetch-Wrapper, Bearer, RagrunApiError
+│   ├── seedLoader.ts           # Dev-Seed wenn DB leer
+│   └── sync/                   # (geplant) pull/push RPC
+├── db/                         # Schema, Models, Migrations
+├── components/                 # geteilte UI
+├── theme.ts                    # Figma Tokens (Gesamtplan §13)
+└── types/                      # TS-Typen (inkl. ragrun API)
 ```
 
 **Aus dem Anregungsdokument bewusst weggelassen:** verpflichtende `atoms/molecules/organisms`-Hierarchie und Storybook-Pflicht — können später ergänzt werden, wenn das Team wächst.
@@ -132,9 +143,11 @@ src/
 
 | Ziel | Technik |
 |------|---------|
-| Auth, direkte Profil-/Wallet-Online-Calls | `@supabase/supabase-js` (Gesamtplan) |
-| Sync | Supabase RPC `pull_changes` / `push_changes` (Watermelon-Integration, Gesamtplan §7.3) |
-| Suche, Chat (**Senden**), Personalities, Health | HTTPS gegen **ragrun** mit `/app/`-Prefix (Gesamtplan §10); Chat-**Verlauf** in der UI kommt aus Watermelon (`rag_talks` / `rag_turns`) nach Sync |
+| Auth | `authService` → `lib/supabase.ts` (`@supabase/supabase-js`, Secure Store) |
+| Sync | `lib/sync/` (geplant): Supabase RPC `pull_changes` / `push_changes` |
+| Suche, Chat (**Senden**), Personalities, Health | `ragrunApi` → `lib/ragrun-client.ts`, `/app/*` (Gesamtplan §10) |
+| Chat-**Verlauf** in der UI | Watermelon `rag_talks` / `rag_turns` über Repositories nach Sync |
+| Konfiguration | `.env` + `app.config.ts` + `lib/config.ts` — keine URLs/Keys im Quellcode |
 
 **Typisierung:** Response-Typen für ragrun und für Watermelon-Modelle in `src/types/` bzw. colocated — **TypeScript strict** (Anregungsdokument DX-Teil, gekürzt auf das Nötige).
 
@@ -203,5 +216,7 @@ Der Gesamtplan umfasst Notizen, Konto, Auth — keine generische Form-Engine vor
 
 ## 13. Literatur im Repo
 
+- **Kurzreferenz (für Code & KI):** [ARCHITECTURE.md](../ARCHITECTURE.md)
 - Gesamtplan: [ragapp-gesamtplan.md](./ragapp-gesamtplan.md) (Tabs, Sync-Matrix, Endpunkte, Risiken, Phasen).
+- Setup: [README.md](../README.md)
 - Figma & Datenbindungen: Gesamtplan §13 / §13.1.

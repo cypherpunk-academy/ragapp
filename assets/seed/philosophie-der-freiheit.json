@@ -1,0 +1,103 @@
+{
+  "source_id": "philosophie-der-freiheit",
+  "book_id": "GA-004",
+  "language": "de",
+  "title": "Die Philosophie der Freiheit",
+  "author": "Rudolf Steiner",
+  "paragraphs": [
+    {
+      "paragraph_id": "philosophie-der-freiheit:0:1",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "preface",
+      "segment_index": 0,
+      "segment_title": "Vorrede zur Neuauflage (1918)",
+      "paragraph_number": 1,
+      "text_raw": "Dieses Buch liegt nun in einer Neuauflage vor. Ich könnte mich versucht fühlen, bei dieser Gelegenheit über das Geschriebene Grundsätzliches zu sagen. Allein das scheint mir unnötig. Wenn ich auch heute über manche Einzelheiten anders schreiben würde als vor fünfundzwanzig Jahren: das Verhältnis zu den Grundproblemen der menschlichen Seele, das damals in diesem Buche zum Ausdruck kam, kann ich auch jetzt als das meinige ansehen.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:0:2",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "preface",
+      "segment_index": 0,
+      "segment_title": "Vorrede zur Neuauflage (1918)",
+      "paragraph_number": 2,
+      "text_raw": "Zwei Fragen stehen im Mittelpunkt der Darstellung dieses Buches. Die eine ist die nach der Möglichkeit, zu einer Weltansicht zu gelangen, welche wirklich eine Stütze für alles andere ist, was der Mensch als sein Wissen oder Streben als innerlich notwendig erlebt. Die andere Frage ist nach der Freiheit des menschlichen Willens.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:1:1",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 1,
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "paragraph_number": 1,
+      "text_raw": "Ist der Mensch in seinem Denken und Handeln ein geistig freies Wesen, oder steht er unter dem Zwange einer rein naturgesetzlichen eisernen Notwendigkeit? Auf wenige Fragen hat der menschliche Scharfsinn so viel verwendet wie auf diese. Die Idee der Freiheit des menschlichen Willens hat begeisterte Anhänger und hartnäckige Gegner gefunden.",
+      "annotations": {
+        "italics": [
+          { "start": 53, "end": 59 }
+        ]
+      }
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:1:2",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 1,
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "paragraph_number": 2,
+      "text_raw": "Es gibt Menschen, die in ihrer moralischen Leidenschaftlichkeit jeden für geistig beschränkt halten, der die Freiheit des Willens leugnen kann. Ihnen gegenüber stehen solche, die in der Freiheitsüberzeugung den Höhepunkt der Unwissenschaftlichkeit sehen. Ein und dasselbe Ding wird hier bald als das Wertvollste des Menschen, bald als seine gefährlichste Illusion bezeichnet.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:1:3",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 1,
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "paragraph_number": 3,
+      "text_raw": "Unendliche Feinheit hat die Philosophie auf die Freiheitsfrage verwendet. Das ist kein Wunder. Denn es handelt sich hier um nichts Geringeres als die Grundfrage des Menschenlebens. Freiheit, Willensfreiheit, moralische Verantwortlichkeit, Zurechnungsfähigkeit — das sind keine Begriffe, die nur in der gelehrten Stube ersonnen worden sind.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:1:4",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 1,
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "paragraph_number": 4,
+      "text_raw": "Untersuchen wir zunächst, was wir in unserem unmittelbaren Bewusstsein als Tatsache vorfinden. Wir handeln. Wir fühlen uns dabei als die Urheber unserer Handlungen. Wenn wir handeln, so geschieht dies auf Grund von Motiven. Was sind Motive? Sie sind die Vorstellungen und Begriffe, die wir mit unseren Handlungen verknüpfen.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:1",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 1,
+      "text_raw": "Der Mensch kann über sein eigenes Wesen nachdenken. Er kann fragen: was bin ich, was ist mein Verhältnis zur Welt? Diese Fragen stellen sich ihm nicht nur in besonderen Augenblicken seines Lebens, sondern sie begleiten ihn durch alle Stadien seiner Entwicklung.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:2",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 2,
+      "text_raw": "Es ist der Grundtrieb des Menschen, nach Einheit in allem Dasein zu suchen. Er will die Welt als ein Ganzes verstehen. Diese Suche nach Einheit ist das eigentliche Motiv aller wissenschaftlichen Tätigkeit. Der Mensch ist nicht zufrieden damit, die einzelnen Dinge und Ereignisse der Welt zu kennen; er will wissen, was sie zusammenhält.",
+      "annotations": null
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:3",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 3,
+      "text_raw": "Die Wissenschaft sucht die Einheit in der Vielfalt. Wenn wir die Natur betrachten, so sehen wir eine unendliche Mannigfaltigkeit von Erscheinungen. Aber hinter dieser Mannigfaltigkeit sucht die Wissenschaft die einheitlichen Gesetze, nach denen sich diese Erscheinungen vollziehen. Je mehr es ihr gelingt, diese Gesetze zu finden, desto mehr befriedigt sie den Grundtrieb des menschlichen Geistes.",
+      "annotations": null
+    }
+  ]
+}

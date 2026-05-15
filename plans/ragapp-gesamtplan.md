@@ -2,7 +2,7 @@
 
 **Stand:** 2026-05-14 (Rev. 7 — Verweis auf `ragapp-react-native-architecture.md`)
 **Stack:** Expo (React Native) + Supabase + WatermelonDB + expo-sqlite + ragrun Backend  
-**App-Architektur (Expo/RN):** [ragapp-react-native-architecture.md](./ragapp-react-native-architecture.md)
+**App-Architektur (Expo/RN):** [ragapp-react-native-architecture.md](./ragapp-react-native-architecture.md) · Kurzreferenz Code: [ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ---
 
