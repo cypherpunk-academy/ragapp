@@ -12,6 +12,10 @@ export const NoteRepository = {
     return collection.query(Q.sortBy('created_at', Q.desc)).observe();
   },
 
+  observeBySource(sourceId: string) {
+    return collection.query(Q.where('source_id', sourceId), Q.sortBy('created_at', Q.desc)).observe();
+  },
+
   async create(data: { userId: string; paragraphId?: string; segmentId?: string; sourceId?: string; content: string }): Promise<Note> {
     return database.write(async () =>
       collection.create((note) => {

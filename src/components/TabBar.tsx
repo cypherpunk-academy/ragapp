@@ -1,17 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '../theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
+import { lightColors, darkColors, spacing, textStyles } from '../theme';
 
-export type TabId = 'search' | 'overview' | 'read' | 'notes' | 'chat';
+export type TabId = 'search' | 'overview' | 'read' | 'chat';
 
-const TABS: { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap; iconActive: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'search',   label: 'Suche',     icon: 'search-outline',       iconActive: 'search' },
-  { id: 'overview', label: 'Übersicht', icon: 'list-outline',         iconActive: 'list' },
-  { id: 'read',     label: 'Lesen',     icon: 'book-outline',         iconActive: 'book' },
-  { id: 'notes',    label: 'Notizen',   icon: 'pencil-outline',       iconActive: 'pencil' },
-  { id: 'chat',     label: 'KI-Chat',   icon: 'chatbubble-outline',   iconActive: 'chatbubble' },
+type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
+
+const TABS: { id: TabId; label: string; icon: MaterialIconName }[] = [
+  { id: 'search',   label: 'SUCHE',     icon: 'search' },
+  { id: 'overview', label: 'ÜBERSICHT', icon: 'dashboard' },
+  { id: 'read',     label: 'LESEN',     icon: 'menu-book' },
+  { id: 'chat',     label: 'KI-CHAT',   icon: 'chat' },
 ];
 
 type Props = {
@@ -27,7 +29,11 @@ export default function TabBar({ activeIndex, onTabPress }: Props) {
   return (
     <View style={[
       styles.container,
-      { backgroundColor: colors.surfaceContainer, borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom },
+      {
+        backgroundColor: colors.surface,
+        borderTopColor: colors.outlineVariant,
+        paddingBottom: Math.max(insets.bottom, spacing.l),
+      },
     ]}>
       {TABS.map((tab, index) => {
         const isActive = index === activeIndex;
@@ -39,13 +45,8 @@ export default function TabBar({ activeIndex, onTabPress }: Props) {
             onPress={() => onTabPress(index)}
             activeOpacity={0.7}
           >
-            <View style={[styles.pill, isActive && { backgroundColor: colors.secondaryContainer }]}>
-              <Ionicons name={isActive ? tab.iconActive : tab.icon} size={24} color={color} />
-            </View>
-            <Text
-              style={[typography.labelSmall, { color }]}
-              numberOfLines={1}
-            >
+            <MaterialIcons name={tab.icon} size={24} color={color} />
+            <Text style={[textStyles.labelTab, { color }]} numberOfLines={1}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -59,19 +60,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.s,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
-    gap: 2,
-  },
-  pill: {
-    width: 64,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    gap: 4,
   },
 });

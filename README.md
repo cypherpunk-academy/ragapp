@@ -44,6 +44,11 @@ Kurz: Screens → Hooks → Services (online) / Repositories (offline) → `lib/
 
 Ausführliche Pläne: [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md).
 
+## Design
+
+Kurz-Checkliste und Token-Pipeline: **[design/README.md](./design/README.md)**  
+Nach JSON-Änderung: `npm run build:theme` → App-Theme in [`src/theme.ts`](./src/theme.ts)
+
 ## Lizenz
 
 Noch nicht festgelegt (Ziel: Open Source 1.0.0).

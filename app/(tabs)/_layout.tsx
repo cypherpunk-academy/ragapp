@@ -4,17 +4,22 @@ import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TabBar from '../../src/components/TabBar';
 import { lightColors, darkColors } from '../../src/theme';
+import { ReadingProvider, useReading } from '../../src/contexts/ReadingContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
 import ReadScreen from '../../src/features/read/ReadScreen';
-import NotesScreen from '../../src/features/notes/NotesScreen';
 import ChatScreen from '../../src/features/chat/ChatScreen';
 
-export default function TabsLayout() {
+function TabsInner() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const { _registerTabNav } = useReading();
+
+  React.useEffect(() => {
+    _registerTabNav((index) => pagerRef.current?.setPage(index));
+  }, [_registerTabNav]);
 
   const handleTabPress = (index: number) => {
     pagerRef.current?.setPage(index);
@@ -31,11 +36,18 @@ export default function TabsLayout() {
         <View key="0" style={styles.page}><SearchScreen /></View>
         <View key="1" style={styles.page}><OverviewScreen /></View>
         <View key="2" style={styles.page}><ReadScreen /></View>
-        <View key="3" style={styles.page}><NotesScreen /></View>
-        <View key="4" style={styles.page}><ChatScreen /></View>
+        <View key="3" style={styles.page}><ChatScreen /></View>
       </PagerView>
       <TabBar activeIndex={activeIndex} onTabPress={handleTabPress} />
     </SafeAreaView>
+  );
+}
+
+export default function TabsLayout() {
+  return (
+    <ReadingProvider>
+      <TabsInner />
+    </ReadingProvider>
   );
 }
 

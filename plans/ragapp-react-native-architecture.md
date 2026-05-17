@@ -131,7 +131,7 @@ src/
 │   └── sync/                   # (geplant) pull/push RPC
 ├── db/                         # Schema, Models, Migrations
 ├── components/                 # geteilte UI
-├── theme.ts                    # Figma Tokens (Gesamtplan §13)
+├── theme.ts                    # Runtime-Theme (aus design/tokens/, siehe design/README.md)
 └── types/                      # TS-Typen (inkl. ragrun API)
 ```
 
@@ -209,7 +209,7 @@ Der Gesamtplan umfasst Notizen, Konto, Auth — keine generische Form-Engine vor
 | Auth & Server-DB | Supabase |
 | Sensible Tokens | expo-secure-store |
 | Listen / Lesen | FlashList + Custom Renderer |
-| Theme | `theme.ts` / Restyle (Figma §13) |
+| Theme | `src/theme.ts` (Tokens: `design/tokens/`, Doku: `design/README.md`) |
 | Optionale Erweiterung | TanStack Query nur für ragrun-HTTP ohne Sync-Duplikat |
 
 ---
@@ -219,4 +219,5 @@ Der Gesamtplan umfasst Notizen, Konto, Auth — keine generische Form-Engine vor
 - **Kurzreferenz (für Code & KI):** [ARCHITECTURE.md](../ARCHITECTURE.md)
 - Gesamtplan: [ragapp-gesamtplan.md](./ragapp-gesamtplan.md) (Tabs, Sync-Matrix, Endpunkte, Risiken, Phasen).
 - Setup: [README.md](../README.md)
-- Figma & Datenbindungen: Gesamtplan §13 / §13.1.
+- Design-System & Figma: [`design/README.md`](../design/README.md), Inventar [`design/figma/inventory.md`](../design/figma/inventory.md)
+- Figma-Datenbindungen (Checklisten): Gesamtplan §13.1

@@ -1,6 +1,6 @@
 # ragapp — Architektur
 
-Kurzreferenz für Schichten und Ablage neuer Dateien. Ausführlicher Kontext: [plans/ragapp-react-native-architecture.md](./plans/ragapp-react-native-architecture.md) und [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md).
+Kurzreferenz für Schichten und Ablage neuer Dateien. Ausführlicher Kontext: [plans/ragapp-react-native-architecture.md](./plans/ragapp-react-native-architecture.md) und [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md). Design-Tokens & Figma: [design/README.md](./design/README.md).
 
 ## Schichten
 

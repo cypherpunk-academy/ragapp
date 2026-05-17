@@ -49,12 +49,14 @@ Die App arbeitet **offline-first**: Inhalte sind lokal auf dem Gerät verfügbar
 
 ---
 
-## 3. Navigation: 5 Tabs (horizontal wischbar)
+## 3. Navigation: 4 Tabs (horizontal wischbar)
 
 ```
-[ Suche ] [ Übersicht ] [ Lesen ] [ Notizen ] [ KI-Chat* ]
-                                                  * Anmeldung + Guthaben
+[ Suche ] [ Übersicht ] [ Lesen ] [ KI-Chat* ]
+                                    * Anmeldung + Guthaben
 ```
+
+**Notizen** sind kein eigener Tab mehr: Erstellung per Long-Press im Lesen-Tab (Kontext-Sheet), Auflistung unter **Lesen → Beiträge → Notizen** (pro Absatz bzw. Werk-Streifen).
 
 Implementierung: `expo-router` mit Tab-Layout + horizontales Wischen via `react-native-pager-view` oder `@react-navigation/material-top-tabs`.
 
@@ -119,7 +121,9 @@ Der menschliche und der kosmische Gedanke (GA 151)  ← Vortragsband, Ebene 1
 
 **Zweck:** Textwiedergabe in hoher Lesequalität.
 
-**Renderer:** Flash List + eigener Node-Renderer (kein Markdown-Parser).
+**Renderer:** FlatList + eigener Node-Renderer (kein Markdown-Parser). Flash List kann später ergänzt werden wenn Performanz es erfordert.
+
+**Kapitel-Einheit:** Der Lesen-Screen zeigt immer genau ein vollständiges Kapitel oder einen vollständigen Vortrag. Beim Sprung von Suche oder KI-Chat zu einem Absatz wird das Kapitel geladen, das diesen Absatz enthält, und zum Absatz gescrollt. Prev/Next-Navigation am unteren Rand wechselt zwischen Kapiteln. Absatznummer-Format: `1| Text...` — die Nummer steht inline am Textanfang ohne eigene Spalte.
 
 **Textformat — AST-Nodes (pre-parsed in ragprep, gespeichert als `rendered_content` JSONB in `rag_chunks`):**
 
@@ -147,6 +151,12 @@ Node-Typen: `paragraph`, `italic`, `quote`, `heading`, `footnote_ref`
 - `chunk.rendered_content` → App-Rendering (neue JSONB-Spalte)
 - `ingestion_service.py` schreibt Embeddings nach **Qdrant** und den SQL-Spiegel **`vector_chunks`** (nicht nach `rag_chunks`); `ingestion_service.py` braucht **keine Änderung** für dieses Splitting
 
+**Typografie:**
+- `textAlign: 'justify'` im ParagraphRenderer — iOS rendert Blocksatz nativ
+- **Bedingte Trennzeichen (Soft Hyphens `\u00AD`):** werden von ragprep einmalig in `text_raw` eingefügt (`ragprep/src/cli/commands/textExport/step3Hyphenate.ts`, npm-Package `hypher` + `hyphenation.de`). Die App bekommt pre-hypheniertes `text_raw` via WatermelonDB-Sync — kein Runtime-Processing nötig.
+- **Seed-Daten (Phase 1):** `assets/seed/philosophie-der-freiheit.json` muss einmalig durch `step3Hyphenate.ts` laufen, bevor Soft Hyphens im Simulator sichtbar sind.
+- **Suche-Snippets aus ragrun:** ragrun-Response-Serializer wendet `hypher` (via Node.js Child-Process oder eigene TS-Middleware) auf Snippet-Text an, bevor er an die App gesendet wird — *kein* Python-Environment nötig, da ragprep bereits TypeScript/Node nutzt.
+
 **Textaufbereitung (analog ragkeep statische Seiten):**
 - Zitate: `quote`-Node → eingerückt mit Anführungszeichen-Stil
 - Kursive Passagen: `italic`-Node → italic rendering
@@ -173,20 +183,15 @@ Node-Typen: `paragraph`, `italic`, `quote`, `heading`, `footnote_ref`
 
 ---
 
-### Tab 4: Notizen
+### Lesen → Beiträge (ehem. Tab Notizen)
 
-**Zweck:** Persönliche Annotationen zu Absätzen und Kapiteln.
+**Zweck:** Persönliche Annotationen und weitere Beiträge pro Absatz (nicht eigener Haupt-Tab).
 
-**Auth:** Notizen erfordern Anmeldung. Ohne `currentUser` zeigt Tab 4 einen Anmelde-Hinweis; Lesen und Suche bleiben ohne Anmeldung verfügbar.
-
-**UI:**
-- **Edit-Box** oben: Neue Notiz zum aktuell gelesenen Absatz/Kapitel (Kontext aus Tab 3 wird übernommen)
-- **Liste** darunter: Alle Notizen, gruppiert nach:
-  - Absatz-Notizen (mit Sprung zu Textstelle via `paragraph_id`)
-  - Kapitel-Notizen
-  - Freie Notizen
-- Notiz-Karte: Text, Datum, Quellenkontext, Edit/Delete
-- **V2:** Bewertungen durch Freunde
+**UI (Phase 1–2, umgesetzt in App):**
+- **Beitrags-Streifen** am Absatzende (Notizen / Gespräche / RAG-Zähler) → Screen **Beiträge** mit drei Unter-Tabs
+- **Notiz erstellen:** Long-Press auf Absatz → Kontext-Bottom-Sheet → Notiz-Editor
+- **Notiz-Karte** (own): Edit + Delete; fremde Notizen ohne Aktionen (Figma-Ziel)
+- Gespräche / RAG-Treffer: zunächst leer oder Mock
 
 **Schema (Supabase):**
 ```sql
@@ -639,6 +644,8 @@ Kein neuer Container — WatermelonDB läuft komplett client-seitig und synct di
 
 ## 13. Figma Professional → Code-Workflow
 
+**Repo-Struktur Design:** [`design/README.md`](../design/README.md) (Tokens, Figma-SOP, Inventar) · Runtime: [`src/theme.ts`](../src/theme.ts)
+
 **Aktuelle Design-Datei:** [ragapp-Layout (Figma)](https://www.figma.com/design/T6s2FocVkibx6pUG9A4uvw/ragapp-Layout?node-id=1-3&p=f&t=WcjtFybfBfHGKSU1-0)
 
 **Empfohlener Workflow:**
@@ -731,7 +738,7 @@ Ziel: Jede sichtbare Text- oder Zahl-Information im Layout hat eine **klare Date
 - [ ] **Lesezeichen-Icon:** lokaler State / Lesezeichen-Tabelle (`paragraph_id`)
 - [ ] **Long-Press-Menü:** Aktionen ohne extra DB-Felder; Kontext = aktuelles `paragraph_id`
 
-**Tab 4 — Notizen**
+**Lesen — Beiträge (Notizen)**
 - [ ] **Edit-Box:** `{{app_notes.draft}}` (transient) + Kontext `paragraph_id` / `segment_id` aus Tab 3
 - [ ] **Listen-Gruppen:** Filter in Dev-Mode (`paragraph_id IS NOT NULL` usw.)
 - [ ] **Notiz-Karte:** `{{app_notes.content}}`, `{{app_notes.created_at}}`, Anzeige Sprungziel: Snippet aus `rag_paragraphs` per `paragraph_id` oder `{{rag_paragraphs.segment_title}}`
@@ -757,7 +764,7 @@ Jede Phase liefert etwas Lauffähiges. Kein Backend nötig bis Phase 3.
 ### Phase 0 — Fundament
 
 - [ ] Expo-Projekt initialisieren (`expo-router`, TypeScript, `react-native-pager-view`)
-- [ ] Tab-Navigation (5 Tabs, horizontal wischbar)
+- [x] Tab-Navigation (4 Tabs, horizontal wischbar)
 - [ ] WatermelonDB + expo-sqlite einrichten, Schema-Grundgerüst anlegen
 - [ ] Repository-Layer aufsetzen (Abstraktionsschicht über WatermelonDB)
 - [ ] `rag_paragraphs` als Ziel-Schema definieren (`text_raw`, `annotations`, stabile `paragraph_id`) und mit dem Figma-Layout **ragapp-Layout** (Link §13) sowie **§13.1** (Tab-Checklisten) abgleichen
@@ -788,7 +795,7 @@ Nur lokale Daten. Kein Supabase, kein Sync.
 
 Weiterhin lokal. Datenmodell stabilisiert sich hier.
 
-- [ ] Tab 4: Notizen — Edit-Box + Liste, gruppiert nach Absatz / Kapitel / frei
+- [x] Lesen/Beiträge — Streifen + 3 Unter-Tabs; Notizen per Long-Press (kein Notizen-Haupttab)
 - [ ] `paragraph_id`-Referenzen (`{source_id}:{segment_index}:{paragraph_number}`) durchgehend einsetzen
 - [ ] Kontext-Übergabe: Long-Press → Notiz vorausgefüllt mit Absatz-Kontext
 - [ ] Notiz-Badges am Absatz (Tab 3) zeigen vorhandene Notizen an
