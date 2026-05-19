@@ -10,13 +10,13 @@ import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
-import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
+
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import type Note from '@/data/db/models/Note';
 import type Talk from '@/data/db/models/Talk';
-import type Reference from '@/data/db/models/Reference';
+
 import {
   SOURCE_DETAIL,
   SEGMENT_SUMMARY_DEMO,
@@ -53,14 +53,14 @@ function aggregateNotesBySegment(notes: Note[]): Map<number, ContributionCounts>
   for (const note of notes) {
     const idx = segmentIndexFromNoteIds(note.segmentId, note.paragraphId);
     if (idx === null) continue;
-    const cur = map.get(idx) ?? { notes: 0, conversations: 0, rag: 0 };
+    const cur = map.get(idx) ?? { notes: 0, conversations: 0 };
     cur.notes += 1;
     map.set(idx, cur);
   }
   return map;
 }
 
-const EMPTY_COUNTS: ContributionCounts = { notes: 0, conversations: 0, rag: 0 };
+const EMPTY_COUNTS: ContributionCounts = { notes: 0, conversations: 0 };
 const LOCAL_USER = 'local';
 
 function segmentIndexFromParagraphId(paragraphId: string): number | null {
@@ -80,7 +80,6 @@ function mergeSegmentCounts(
       merged.set(idx, {
         notes: cur.notes + (delta.notes ?? 0),
         conversations: cur.conversations + (delta.conversations ?? 0),
-        rag: cur.rag + (delta.rag ?? 0),
       });
     }
   }
@@ -100,16 +99,6 @@ function aggregateTalksBySegment(talks: Talk[]): Map<number, Partial<Contributio
   return map;
 }
 
-function aggregateReferencesBySegment(refs: Reference[]): Map<number, Partial<ContributionCounts>> {
-  const map = new Map<number, Partial<ContributionCounts>>();
-  for (const r of refs) {
-    const idx = segmentIndexFromParagraphId(r.paragraphId);
-    if (idx === null) continue;
-    const cur = map.get(idx) ?? {};
-    map.set(idx, { rag: (cur.rag ?? 0) + 1 });
-  }
-  return map;
-}
 
 type ViewMode = 'grid' | 'detail';
 
@@ -122,7 +111,6 @@ export default function OverviewScreen() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [talks, setTalks] = useState<Talk[]>([]);
-  const [references, setReferences] = useState<Reference[]>([]);
   const [lastReadParagraphId, setLastReadParagraphId] = useState<string | null>(null);
   const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -145,10 +133,6 @@ export default function OverviewScreen() {
     return () => sub.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const sub = ReferenceRepository.observeAll().subscribe(setReferences);
-    return () => sub.unsubscribe();
-  }, []);
 
   useEffect(() => {
     const sub = BookmarkRepository.observeLastRead(SOURCE_DETAIL.id).subscribe((rows) => {
@@ -166,23 +150,19 @@ export default function OverviewScreen() {
 
   const segmentNoteCounts = useMemo(() => aggregateNotesBySegment(notes), [notes]);
   const segmentTalkCounts = useMemo(() => aggregateTalksBySegment(talks), [talks]);
-  const segmentRefCounts = useMemo(() => aggregateReferencesBySegment(references), [references]);
-
   const segmentContributionCounts = useMemo(
-    () => mergeSegmentCounts(segmentNoteCounts, segmentTalkCounts, segmentRefCounts),
-    [segmentNoteCounts, segmentTalkCounts, segmentRefCounts],
+    () => mergeSegmentCounts(segmentNoteCounts, segmentTalkCounts),
+    [segmentNoteCounts, segmentTalkCounts],
   );
 
   const werkCounts = useMemo<ContributionCounts>(() => {
     let notes = 0;
     let conversations = 0;
-    let rag = 0;
     for (const c of segmentContributionCounts.values()) {
       notes += c.notes;
       conversations += c.conversations;
-      rag += c.rag;
     }
-    return { notes, conversations, rag };
+    return { notes, conversations };
   }, [segmentContributionCounts]);
 
   const continueSegmentTitle = useMemo(() => {
@@ -262,7 +242,7 @@ export default function OverviewScreen() {
             <Text style={[textStyles.sourceEdition, { color: colors.onSurfaceVariant }]}>
               {sourceEditionLine()}
             </Text>
-            {(werkCounts.notes > 0 || werkCounts.conversations > 0 || werkCounts.rag > 0) && (
+            {(werkCounts.notes > 0 || werkCounts.conversations > 0) && (
               <View style={styles.heroStrip}>
                 <ContributionStrip counts={werkCounts} />
               </View>
@@ -292,7 +272,7 @@ export default function OverviewScreen() {
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           {segments.map((seg, i) => {
             const counts = segmentContributionCounts.get(seg.segmentIndex) ?? EMPTY_COUNTS;
-            const hasStrip = counts.notes > 0 || counts.conversations > 0 || counts.rag > 0;
+            const hasStrip = counts.notes > 0 || counts.conversations > 0;
             const expanded = expandedSegments.has(seg.segmentIndex);
             const summary = SEGMENT_SUMMARY_DEMO[seg.segmentIndex];
 

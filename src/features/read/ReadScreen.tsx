@@ -12,10 +12,10 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
-import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
+
 import { useReading } from '@/shared/contexts/ReadingContext';
 import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
-import ContributionCountButton, { type ContributionKind } from '@/shared/components/ContributionCountButton';
+import ContributionCountButton from '@/shared/components/ContributionCountButton';
 import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
@@ -37,7 +37,7 @@ export default function ReadScreen() {
   const [loading, setLoading] = useState(true);
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
-  const [ragCounts, setRagCounts] = useState<Map<string, number>>(new Map());
+
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuMode, setMenuMode] = useState<'menu' | 'editor'>('menu');
   const [noteContent, setNoteContent] = useState('');
@@ -87,16 +87,6 @@ export default function ReadScreen() {
     return () => sub.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const sub = ReferenceRepository.observeAll().subscribe((refs) => {
-      const counts = new Map<string, number>();
-      for (const r of refs) {
-        counts.set(r.paragraphId, (counts.get(r.paragraphId) ?? 0) + 1);
-      }
-      setRagCounts(counts);
-    });
-    return () => sub.unsubscribe();
-  }, []);
 
   const segments = useMemo<Segment[]>(() => {
     const seen = new Map<number, Segment>();
@@ -344,9 +334,8 @@ export default function ReadScreen() {
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
     const noteCount = noteCounts.get(item.paragraphId) ?? 0;
     const conversationCount = talkCounts.get(item.paragraphId) ?? 0;
-    const ragCount = ragCounts.get(item.paragraphId) ?? 0;
-    const hasContributions = noteCount > 0 || conversationCount > 0 || ragCount > 0;
-    const openTab = (tab: ContributionKind) => showContributions(item, tab);
+    const hasContributions = noteCount > 0 || conversationCount > 0;
+    const openTab = (tab: ContributionsTab) => showContributions(item, tab);
     return (
       <TouchableOpacity
         onLongPress={() => handleLongPress(item)}
@@ -368,12 +357,11 @@ export default function ReadScreen() {
           <View style={styles.contributionStrip}>
             <ContributionCountButton kind="notes" count={noteCount} onPress={() => openTab('notes')} />
             <ContributionCountButton kind="conversations" count={conversationCount} onPress={() => openTab('conversations')} />
-            <ContributionCountButton kind="rag" count={ragCount} onPress={() => openTab('rag')} />
           </View>
         )}
       </TouchableOpacity>
     );
-  }, [noteCounts, talkCounts, ragCounts, colors, handleLongPress, showContributions]);
+  }, [noteCounts, talkCounts, colors, handleLongPress, showContributions]);
 
   const typeLabel = currentSegment?.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
 

@@ -54,4 +54,35 @@ export const TurnRepository = {
   async updateAssistantMessage(turn: Turn, message: string): Promise<Turn> {
     return database.write(async () => turn.update((t) => { t.assistantMessage = message; }));
   },
+
+  /**
+   * Dupliziert alle Turns eines Gesprächs in ein neues.
+   * Wird von TalkRepository.copyTalk intern verwendet (innerhalb einer database.write-Transaktion).
+   */
+  async copyTurnsFromTalk(
+    sourceTalkId: string,
+    targetTalkId: string,
+    maxTurnIndex?: number,
+  ): Promise<void> {
+    const sourceTurns = await collection
+      .query(
+        Q.where('talk_id', sourceTalkId),
+        ...(maxTurnIndex != null ? [Q.where('turn_index', Q.lte(maxTurnIndex))] : []),
+        Q.sortBy('turn_index', Q.asc),
+      )
+      .fetch();
+
+    await database.write(async () => {
+      for (const turn of sourceTurns) {
+        await collection.create((t) => {
+          t.talkId = targetTalkId;
+          t.turnIndex = turn.turnIndex;
+          t.userMessage = turn.userMessage;
+          (t as any).assistantPersonality = turn.assistantPersonality;
+          (t as any).assistantMessage = turn.assistantMessage;
+          (t as any).chunkIndexMap = turn.chunkIndexMap;
+        });
+      }
+    });
+  },
 };

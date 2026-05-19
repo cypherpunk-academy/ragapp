@@ -37,8 +37,8 @@ function TabsInner() {
       >
         <View key="0" style={styles.page}><OverviewScreen /></View>
         <View key="1" style={styles.page}><ReadScreen /></View>
-        <View key="2" style={styles.page}><SearchScreen /></View>
-        <View key="3" style={styles.page}><ChatScreen /></View>
+        <View key="2" style={styles.page}><ChatScreen /></View>
+        <View key="3" style={styles.page}><SearchScreen /></View>
       </PagerView>
       <TabBar activeIndex={activeIndex} onTabPress={handleTabPress} />
       {contributions && (

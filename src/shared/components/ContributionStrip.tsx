@@ -4,12 +4,11 @@ import { lightColors, darkColors } from '../theme';
 import { contributionIcon, ICON_SIZES, type ContributionKind } from '../theme';
 import AppIcon from './AppIcon';
 
-const KINDS: ContributionKind[] = ['notes', 'conversations', 'rag'];
+const KINDS: (keyof ContributionCounts)[] = ['notes', 'conversations'];
 
 export type ContributionCounts = {
   notes: number;
   conversations: number;
-  rag: number;
 };
 
 type Props = {

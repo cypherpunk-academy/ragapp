@@ -10,39 +10,25 @@ import { useReading, type ContributionsTab } from '@/shared/contexts/ReadingCont
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
-import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
+
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
 import type Note from '@/data/db/models/Note';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
-import type Reference from '@/data/db/models/Reference';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { getTalkAnchorTurnIndex } from '@/shared/lib/talkAnchor';
+import TalkCard from '@/shared/components/TalkCard';
 
 export type { ContributionsTab };
 
 const TABS: { id: ContributionsTab; label: string }[] = [
   { id: 'notes', label: 'Notizen' },
   { id: 'conversations', label: 'Gespräche' },
-  { id: 'rag', label: 'RAG-Treffer' },
 ];
 
-const PERSONALITY_LABELS: Record<string, string> = {
-  sokrates: 'Sokrates',
-  socrates: 'Sokrates',
-  'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': 'Assistant Host',
-  'assistant-host-deep': 'Assistant Host Deep',
-};
 
-const REF_KIND_LABELS: Record<string, string> = {
-  begriff: 'Begriff',
-  zitat: 'Zitat',
-  buch: 'Buch',
-  vortrag: 'Vortrag',
-};
 
 type TalkWithTurn = { talk: Talk; snippetTurn: Turn | null };
 
@@ -58,15 +44,6 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function personalityLabel(slug: string | null | undefined): string {
-  if (!slug) return 'KI';
-  return PERSONALITY_LABELS[slug] ?? slug;
-}
-
-function refKindLabel(kind: string | null | undefined): string {
-  if (!kind) return 'Treffer';
-  return REF_KIND_LABELS[kind] ?? kind;
-}
 
 export default function ContributionsScreen({
   visible, onClose, paragraph, sourceId, initialTab = 'notes',
@@ -79,7 +56,6 @@ export default function ContributionsScreen({
   const [activeTab, setActiveTab] = useState<ContributionsTab>(initialTab);
   const [notes, setNotes] = useState<Note[]>([]);
   const [talks, setTalks] = useState<TalkWithTurn[]>([]);
-  const [references, setReferences] = useState<Reference[]>([]);
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -91,7 +67,6 @@ export default function ContributionsScreen({
     if (!paragraph || !visible) {
       setNotes([]);
       setTalks([]);
-      setReferences([]);
       return;
     }
     let cancelled = false;
@@ -107,14 +82,12 @@ export default function ContributionsScreen({
     };
 
     const refresh = async () => {
-      const [noteList, talkList, refList] = await Promise.all([
+      const [noteList, talkList] = await Promise.all([
         NoteRepository.findByParagraph(paragraph.paragraphId),
         TalkRepository.findByParagraph(paragraph.paragraphId),
-        ReferenceRepository.findByParagraph(paragraph.paragraphId),
       ]);
       if (cancelled) return;
       setNotes(noteList);
-      setReferences(refList);
       setTalks(await loadTalks(talkList));
     };
 
@@ -122,13 +95,11 @@ export default function ContributionsScreen({
 
     const noteSub = NoteRepository.observeBySource(sourceId).subscribe(() => { void refresh(); });
     const talkSub = TalkRepository.observeByParagraph(paragraph.paragraphId).subscribe(() => { void refresh(); });
-    const refSub = ReferenceRepository.observeByParagraph(paragraph.paragraphId).subscribe(() => { void refresh(); });
 
     return () => {
       cancelled = true;
       noteSub.unsubscribe();
       talkSub.unsubscribe();
-      refSub.unsubscribe();
     };
   }, [paragraph, sourceId, visible]);
 
@@ -182,7 +153,15 @@ export default function ContributionsScreen({
 
       {contextLabel && (
         <Text
-          style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, paddingHorizontal: spacing.m, paddingTop: spacing.s }]}
+          style={[
+            textStyles.contributionsBreadcrumb,
+            {
+              color: colors.onSurfaceVariant,
+              paddingHorizontal: spacing.m,
+              paddingTop: spacing.s,
+              paddingBottom: spacing.l,
+            },
+          ]}
           numberOfLines={2}
         >
           {contextLabel}
@@ -260,78 +239,20 @@ export default function ContributionsScreen({
               </Text>
             )}
             {talks.map(({ talk, snippetTurn }) => (
-              <TouchableOpacity
+              <TalkCard
                 key={talk.id}
-                activeOpacity={0.85}
+                talk={talk}
+                snippetTurn={snippetTurn}
                 onPress={() => openConversationDetail(
                   talk.talkId,
                   paragraph.paragraphId,
                   getTalkAnchorTurnIndex(talk),
                 )}
-                style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}
-              >
-                <View style={styles.noteCardHeader}>
-                  <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-                    {formatDate(talk.updatedAt)} · {personalityLabel(snippetTurn?.assistantPersonality)}
-                  </Text>
-                </View>
-                {talk.title ? (
-                  <Text style={[textStyles.chapterTitle, { color: colors.onBackground, textAlign: 'left' }]}>
-                    {talk.title.toUpperCase()}
-                  </Text>
-                ) : null}
-                {snippetTurn ? (
-                  <Text style={[textStyles.conversationSnippet, { color: colors.onSurface }]} numberOfLines={3}>
-                    {snippetTurn.userMessage}
-                  </Text>
-                ) : null}
-                {talk.summary ? (
-                  <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
-                    {talk.summary}
-                  </Text>
-                ) : null}
-              </TouchableOpacity>
+              />
             ))}
           </>
         )}
 
-        {activeTab === 'rag' && (
-          <>
-            {references.length === 0 && (
-              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
-                Noch keine RAG-Treffer zu diesem Absatz.
-              </Text>
-            )}
-            {references.map((ref) => (
-              <View key={ref.id} style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}>
-                <View style={styles.ragCardHeader}>
-                  <Text style={[textStyles.contributionsTab, { color: colors.primary }]}>
-                    [{ref.refIndex}]
-                  </Text>
-                  <View style={[styles.ragBadge, { backgroundColor: colors.primaryContainer }]}>
-                    <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer }]}>
-                      {refKindLabel(ref.refKind)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[textStyles.chapterTitle, { color: colors.onBackground, textAlign: 'left' }]}>
-                  {ref.sourceTitle}
-                </Text>
-                {ref.segmentTitle ? (
-                  <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-                    {ref.segmentTitle}
-                    {ref.relevance != null ? ` · ${Math.round(ref.relevance * 100)} %` : ''}
-                  </Text>
-                ) : null}
-                {ref.snippet ? (
-                  <Text style={[textStyles.noteBody, { color: colors.onSurface }]} numberOfLines={3}>
-                    {ref.snippet}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </>
-        )}
       </ScrollView>
 
       <NoteEditorModal
@@ -378,6 +299,4 @@ const styles = StyleSheet.create({
   },
   noteBodyScroll: { flexGrow: 0 },
   noteActions: { flexDirection: 'row', gap: spacing.m },
-  ragCardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.s },
-  ragBadge: { paddingHorizontal: spacing.s, paddingVertical: 2, borderRadius: 6 },
 });

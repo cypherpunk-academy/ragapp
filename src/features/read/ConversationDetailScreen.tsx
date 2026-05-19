@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
+  View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
 import type Paragraph from '@/data/db/models/Paragraph';
+
 const PERSONALITY_LABELS: Record<string, string> = {
   sokrates: 'Sokrates',
   socrates: 'Sokrates',
@@ -24,7 +25,7 @@ const PERSONALITY_LABELS: Record<string, string> = {
 type Props = {
   visible: boolean;
   talkId: string;
-  anchorParagraphId: string;
+  anchorParagraphId: string | null;
   anchorTurnIndex: number;
   sourceId: string;
   onClose: () => void;
@@ -42,7 +43,7 @@ export default function ConversationDetailScreen({
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
-  const { navigateToRead } = useReading();
+  const { navigateToRead, navigateToChatWithTalk, closeConversationDetail } = useReading();
 
   const fundstelleAccent = useMemo(() => ({
     border: isDark ? colors.tertiary : colors.onTertiaryContainer,
@@ -62,6 +63,7 @@ export default function ConversationDetailScreen({
   const [talk, setTalk] = useState<Talk | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [anchorParagraph, setAnchorParagraph] = useState<Paragraph | null>(null);
+  const [copying, setCopying] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const turnLayoutsRef = useRef<Map<number, number>>(new Map());
   const didScrollToAnchorRef = useRef(false);
@@ -79,11 +81,13 @@ export default function ConversationDetailScreen({
     let cancelled = false;
 
     const refresh = async () => {
-      const [t, turnList, para] = await Promise.all([
+      const [t, turnList] = await Promise.all([
         TalkRepository.findById(talkId),
         TurnRepository.findAllByTalk(talkId),
-        ParagraphRepository.findByParagraphId(anchorParagraphId),
       ]);
+      const para = anchorParagraphId
+        ? await ParagraphRepository.findByParagraphId(anchorParagraphId)
+        : null;
       if (cancelled) return;
       setTalk(t);
       setTurns(turnList);
@@ -132,6 +136,24 @@ export default function ConversationDetailScreen({
     });
   }, [anchorParagraph, sourceId, onClose, navigateToRead]);
 
+  const handleFortfuehren = useCallback(() => {
+    closeConversationDetail();
+    navigateToChatWithTalk(talkId);
+  }, [talkId, closeConversationDetail, navigateToChatWithTalk]);
+
+  const handleKopieren = useCallback(async () => {
+    setCopying(true);
+    try {
+      const newTalk = await TalkRepository.copyTalk(talkId);
+      closeConversationDetail();
+      navigateToChatWithTalk(newTalk.talkId);
+    } catch (e) {
+      Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
+    } finally {
+      setCopying(false);
+    }
+  }, [talkId, closeConversationDetail, navigateToChatWithTalk]);
+
   if (!visible) return null;
 
   return (
@@ -171,7 +193,7 @@ export default function ConversationDetailScreen({
         }}
       >
         {turns.map((turn) => {
-          const isAnchor = turn.turnIndex === anchorTurnIndex;
+          const isAnchor = anchorParagraphId !== null && turn.turnIndex === anchorTurnIndex;
           return (
             <View
               key={`${turn.talkId}-${turn.turnIndex}`}
@@ -212,6 +234,31 @@ export default function ConversationDetailScreen({
           );
         })}
       </ScrollView>
+
+      {/* Aktionsleiste */}
+      <View style={[styles.actionBar, { borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom || spacing.m }]}>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.secondaryContainer }]}
+          onPress={handleFortfuehren}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-outline" size={16} color={colors.onSecondaryContainer} />
+          <Text style={[textStyles.noteMeta, { color: colors.onSecondaryContainer }]}>
+            Gespräch fortführen
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.surfaceContainerHigh }]}
+          onPress={handleKopieren}
+          disabled={copying}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="copy-outline" size={16} color={colors.onSurfaceVariant} />
+          <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
+            {copying ? 'Kopiere…' : 'Gespräch kopieren'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -255,5 +302,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.m,
     gap: spacing.xs,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    gap: spacing.s,
+    paddingHorizontal: spacing.m,
+    paddingTop: spacing.s,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderRadius: 10,
+    paddingVertical: spacing.s,
+    paddingHorizontal: spacing.m,
   },
 });

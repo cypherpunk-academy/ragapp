@@ -3,8 +3,16 @@ export type SearchResult = {
   source_id: string;
   segment_id?: string;
   paragraph_id?: string;
+  /** Quell-Titel (Werktitel oder Vortragstitel) */
+  title?: string;
+  /** Kapitel- oder Segment-Titel */
+  segment_title?: string;
   snippet: string;
   score: number;
+  /** Chunk-Typ aus ragrun, z. B. 'text' | 'concept' | 'quote' | 'chapter_summary' */
+  chunk_type?: string;
+  /** Quellentyp, z. B. 'buch' | 'vortrag' | 'gespraech' */
+  source_type?: string;
 };
 
 export type SearchRequest = {
