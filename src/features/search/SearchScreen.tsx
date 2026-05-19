@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, StyleSheet, useColorScheme,
-  ActivityIndicator,
+  ActivityIndicator, TouchableOpacity, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { colorWithAlpha } from '@/shared/lib/color';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
 import { useReading } from '@/shared/contexts/ReadingContext';
-import { entityKindFromSearchResult } from '@/shared/theme/entityCards';
+import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import TalkCard from '@/shared/components/TalkCard';
 import EntityResultCard from '@/shared/components/EntityResultCard';
 import type Talk from '@/data/db/models/Talk';
@@ -84,6 +85,19 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
   },
 ] : [];
 
+const ALL_FILTER_KINDS: { kind: EntityKind; label: string }[] = [
+  { kind: 'chunk_buch', label: 'Buch' },
+  { kind: 'chunk_vortrag', label: 'Vortrag' },
+  { kind: 'kapitel_zusammenfassung', label: 'Zusammenfassung' },
+  { kind: 'begriffe', label: 'Begriff' },
+  { kind: 'zitat', label: 'Zitat' },
+  { kind: 'typology', label: 'Typologie' },
+  { kind: 'chunk_gespraech', label: 'Gespräch' },
+  { kind: 'talk', label: 'Gespräch (lokal)' },
+];
+
+const DEFAULT_KINDS: EntityKind[] = ['chunk_buch', 'chunk_vortrag', 'kapitel_zusammenfassung'];
+
 /** Relevanz-Score für einen Talk bei gegebener Query (0–1). */
 function talkScore(talk: Talk, q: string): number {
   if (!q) return 0.5;
@@ -98,10 +112,15 @@ function talkScore(talk: Talk, q: string): number {
 
 export default function SearchScreen() {
   const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const isDark = colorScheme === 'dark';
+  const colors = isDark ? darkColors : lightColors;
   const { openConversationDetail, navigateToRead } = useReading();
 
   const [query, setQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedKinds, setSelectedKinds] = useState<Set<EntityKind>>(
+    new Set(DEFAULT_KINDS),
+  );
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -202,6 +221,31 @@ export default function SearchScreen() {
     return [...talkItems, ...chunkItems].sort((a, b) => b.score - a.score);
   }, [allTalks, snippets, chunkResults, debouncedQuery]);
 
+  const toggleKind = useCallback((kind: EntityKind) => {
+    setSelectedKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) { next.delete(kind); } else { next.add(kind); }
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedKinds((prev) =>
+      prev.size === ALL_FILTER_KINDS.length
+        ? new Set(DEFAULT_KINDS)
+        : new Set(ALL_FILTER_KINDS.map((f) => f.kind)),
+    );
+  }, []);
+
+  // Nach Typ gefilterte Ergebnisliste
+  const filteredItems = useMemo(() => {
+    if (selectedKinds.size === ALL_FILTER_KINDS.length) return sortedItems;
+    return sortedItems.filter((item) => {
+      if (item.type === 'talk') return selectedKinds.has('talk');
+      return selectedKinds.has(entityKindFromSearchResult(item.result));
+    });
+  }, [sortedItems, selectedKinds]);
+
   const handleChunkPress = useCallback((result: SearchResult) => {
     if (result.paragraph_id) {
       navigateToRead({ sourceId: result.source_id, segmentIndex: null, paragraphId: result.paragraph_id });
@@ -231,7 +275,8 @@ export default function SearchScreen() {
   }, [openConversationDetail, handleChunkPress]);
 
   const isLoading = talksLoading || chunksLoading;
-  const isEmpty = !isLoading && sortedItems.length === 0;
+  const isEmpty = !isLoading && filteredItems.length === 0;
+  const isFiltered = selectedKinds.size < ALL_FILTER_KINDS.length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -241,7 +286,7 @@ export default function SearchScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Gespräche und Textkorpus durchsuchen…"
+          placeholder="Bücher, Vorträge durchsuchen…"
           placeholderTextColor={colors.onSurfaceVariant}
           style={[typography.bodyLarge, styles.searchInput, { color: colors.onSurface }]}
           returnKeyType="search"
@@ -254,7 +299,84 @@ export default function SearchScreen() {
         {chunksOffline && !chunksLoading && (
           <Ionicons name="cloud-offline-outline" size={16} color={colors.onSurfaceVariant} />
         )}
+        {/* Filter-Button */}
+        <TouchableOpacity
+          onPress={() => setFilterOpen((v) => !v)}
+          style={styles.filterButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons
+            name="filter"
+            size={18}
+            color={filterOpen || isFiltered ? colors.primary : colors.onSurfaceVariant}
+          />
+          {isFiltered && (
+            <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.filterBadgeText, { color: colors.onPrimary }]}>
+                {selectedKinds.size}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
+
+      {/* Filter-Dropdown */}
+      {filterOpen && (
+        <>
+          <TouchableOpacity
+            style={styles.filterBackdrop}
+            onPress={() => setFilterOpen(false)}
+            activeOpacity={1}
+          />
+          <View style={[styles.filterDropdown, {
+            backgroundColor: colors.surfaceContainerHigh,
+            shadowColor: colors.shadow,
+          }]}>
+            {/* Alle-Zeile */}
+            <TouchableOpacity onPress={toggleAll} style={styles.filterRow}>
+              <View style={[
+                styles.checkbox,
+                {
+                  borderColor: selectedKinds.size === ALL_FILTER_KINDS.length
+                    ? colors.primary : colors.outlineVariant,
+                  backgroundColor: selectedKinds.size === ALL_FILTER_KINDS.length
+                    ? colors.primary : 'transparent',
+                },
+              ]}>
+                {selectedKinds.size === ALL_FILTER_KINDS.length && (
+                  <Ionicons name="checkmark" size={12} color={colors.onPrimary} />
+                )}
+              </View>
+              <Text style={[styles.filterLabel, { color: colors.onSurface }]}>Alle</Text>
+            </TouchableOpacity>
+            <View style={[styles.filterDivider, { backgroundColor: colors.outlineVariant }]} />
+            {/* Typ-Zeilen */}
+            <ScrollView style={styles.filterScroll} showsVerticalScrollIndicator={false}>
+              {ALL_FILTER_KINDS.map(({ kind, label }) => {
+                const cs = getEntityCardStyle(colors, kind, isDark);
+                const checked = selectedKinds.has(kind);
+                return (
+                  <TouchableOpacity key={kind} onPress={() => toggleKind(kind)} style={styles.filterRow}>
+                    <View style={[
+                      styles.checkbox,
+                      {
+                        borderColor: checked ? cs.accentColor : colors.outlineVariant,
+                        backgroundColor: checked
+                          ? colorWithAlpha(cs.accentColor, 0.15) : 'transparent',
+                      },
+                    ]}>
+                      {checked && <Ionicons name="checkmark" size={12} color={cs.accentColor} />}
+                    </View>
+                    <Text style={[styles.filterLabel, { color: checked ? cs.accentColor : colors.onSurfaceVariant, letterSpacing: 0.6 }]}>
+                      {label.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </>
+      )}
 
       {talksLoading ? (
         <View style={styles.center}>
@@ -265,12 +387,12 @@ export default function SearchScreen() {
           <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
             {debouncedQuery
               ? 'Keine Treffer gefunden.'
-              : 'Suche nach Gesprächen, Begriffen, Zitaten\nund Stellen im Textkorpus.'}
+              : 'Bücher, Vorträge, Gespräche,\nBegriffe und Zitate durchsuchen.'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={sortedItems}
+          data={filteredItems}
           keyExtractor={(item, i) =>
             item.type === 'talk' ? item.talk.talkId : `chunk-${item.result.chunk_id}-${i}`
           }
@@ -299,4 +421,54 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1 },
   listContent: { paddingHorizontal: spacing.m, paddingBottom: spacing.xl },
   separator: { height: spacing.m },
+  // Filter
+  filterButton: { position: 'relative' },
+  filterBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  filterBadgeText: { fontSize: 10, fontWeight: '700', lineHeight: 14 },
+  filterBackdrop: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 99,
+  },
+  filterDropdown: {
+    position: 'absolute',
+    top: 70,
+    left: spacing.m,
+    right: spacing.m,
+    zIndex: 100,
+    borderRadius: 14,
+    paddingVertical: spacing.xs,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  filterScroll: { maxHeight: 300 },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.m,
+    paddingVertical: 10,
+    gap: spacing.s,
+  },
+  filterDivider: { height: 1, marginHorizontal: spacing.m, marginVertical: spacing.xs },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterLabel: { fontSize: 13, fontWeight: '600' },
 });
