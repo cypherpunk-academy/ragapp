@@ -4,7 +4,7 @@ import {
   ActivityIndicator, TouchableOpacity, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
 import { colorWithAlpha } from '@/shared/lib/color';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
@@ -232,7 +232,7 @@ export default function SearchScreen() {
   const toggleAll = useCallback(() => {
     setSelectedKinds((prev) =>
       prev.size === ALL_FILTER_KINDS.length
-        ? new Set(DEFAULT_KINDS)
+        ? new Set<EntityKind>()
         : new Set(ALL_FILTER_KINDS.map((f) => f.kind)),
     );
   }, []);
@@ -347,7 +347,7 @@ export default function SearchScreen() {
                   <Ionicons name="checkmark" size={12} color={colors.onPrimary} />
                 )}
               </View>
-              <Text style={[styles.filterLabel, { color: colors.onSurface }]}>Alle</Text>
+              <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Alle</Text>
             </TouchableOpacity>
             <View style={[styles.filterDivider, { backgroundColor: colors.outlineVariant }]} />
             {/* Typ-Zeilen */}
@@ -367,8 +367,8 @@ export default function SearchScreen() {
                     ]}>
                       {checked && <Ionicons name="checkmark" size={12} color={cs.accentColor} />}
                     </View>
-                    <Text style={[styles.filterLabel, { color: checked ? cs.accentColor : colors.onSurfaceVariant, letterSpacing: 0.6 }]}>
-                      {label.toUpperCase()}
+                    <Text style={[textStyles.labelSection, { color: checked ? cs.accentColor : colors.onSurfaceVariant }]}>
+                      {label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -470,5 +470,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterLabel: { fontSize: 13, fontWeight: '600' },
 });

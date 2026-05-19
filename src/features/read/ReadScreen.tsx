@@ -449,19 +449,19 @@ export default function ReadScreen() {
                 </Text>
                 <TouchableOpacity style={styles.menuRow} onPress={handleOpenNoteEditor}>
                   <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
                     Notiz erstellen
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={handleStartChatFromMenu}>
                   <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
-                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
                     KI-Chat starten
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={handleShowContributionsFromMenu}>
                   <Ionicons name="albums-outline" size={20} color={colors.primary} />
-                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
                     Beiträge anzeigen
                   </Text>
                 </TouchableOpacity>
