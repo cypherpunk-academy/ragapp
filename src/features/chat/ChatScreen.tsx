@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
-import { lightColors, darkColors, spacing, typography } from '../../theme';
+import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
 
 export default function ChatScreen() {
   const colorScheme = useColorScheme();

@@ -4,12 +4,12 @@ import {
   useColorScheme, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '../../theme';
-import { NoteRepository } from '../../repositories/NoteRepository';
-import { ParagraphRepository } from '../../repositories/ParagraphRepository';
-import NoteEditorModal from '../../components/NoteEditorModal';
-import type Note from '../../db/models/Note';
-import type Paragraph from '../../db/models/Paragraph';
+import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import type Note from '@/data/db/models/Note';
+import type Paragraph from '@/data/db/models/Paragraph';
 
 const SOURCE_ID = 'philosophie-der-freiheit';
 

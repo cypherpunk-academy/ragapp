@@ -1,0 +1,117 @@
+{
+  "$description": "ragapp Icon-Registry — Material Symbols Outlined. Source of Truth für Figma + App.",
+  "convention": {
+    "family": "Material Symbols Outlined",
+    "weight": 400,
+    "fill": 0,
+    "defaultColorToken": "onSurfaceVariant",
+    "activeColorToken": "primary",
+    "sourceUrl": "https://fonts.google.com/icons",
+    "noUnicodeEmojis": true
+  },
+  "sizes": {
+    "strip": 16,
+    "menu": 18,
+    "tabHeader": 20,
+    "appBar": 24,
+    "tabBar": 24,
+    "hero": 40
+  },
+  "icons": {
+    "contribution.notes": {
+      "material": "edit",
+      "label": "Notizen",
+      "usage": ["Beitrags-Streifen", "Lesen/Beiträge Tab Notizen", "ContextPicker"]
+    },
+    "contribution.conversations": {
+      "material": "chat-bubble-outline",
+      "label": "Gespräche",
+      "usage": ["Beitrags-Streifen", "Lesen/Beiträge Tab Gespräche", "ContextPicker"]
+    },
+    "contribution.rag": {
+      "material": "my-location",
+      "label": "RAG-Treffer",
+      "usage": ["Beitrags-Streifen", "Lesen/Beiträge Tab RAG-Treffer", "ResultCard type=buch"]
+    },
+    "nav.back": {
+      "material": "chevron-left",
+      "label": "Zurück",
+      "usage": ["AppBar", "Werk-Detail"]
+    },
+    "nav.forward": {
+      "material": "chevron-right",
+      "label": "Weiter",
+      "usage": ["Kapitelliste (falls genutzt)"]
+    },
+    "nav.expandSummary": {
+      "material": "expand-more",
+      "label": "Zusammenfassung anzeigen",
+      "usage": ["Werk-Detail Kapitelzeile"]
+    },
+    "nav.collapseSummary": {
+      "material": "expand-less",
+      "label": "Zusammenfassung einklappen",
+      "usage": ["Werk-Detail Kapitelzeile"]
+    },
+    "tab.search": {
+      "material": "search",
+      "label": "Suche",
+      "usage": ["TabBar"]
+    },
+    "tab.overview": {
+      "material": "dashboard",
+      "label": "Übersicht",
+      "usage": ["TabBar"]
+    },
+    "tab.read": {
+      "material": "menu-book",
+      "label": "Lesen",
+      "usage": ["TabBar", "Werk-Cover", "Weiterlesen", "ContextPicker Kapitel"]
+    },
+    "tab.chat": {
+      "material": "chat",
+      "label": "KI-Chat",
+      "usage": ["TabBar"]
+    },
+    "context.paragraph": {
+      "material": "format-paragraph",
+      "label": "Absatz",
+      "usage": ["ContextPicker"]
+    },
+    "context.work": {
+      "material": "auto-stories",
+      "label": "Werk",
+      "usage": ["ContextPicker"]
+    },
+    "context.lecture": {
+      "material": "mic",
+      "label": "Vortrag",
+      "usage": ["ContextPicker", "ResultCard type=vortrag"]
+    },
+    "context.quote": {
+      "material": "format-quote",
+      "label": "Zitat",
+      "usage": ["ResultCard type=zitat"]
+    },
+    "context.summary": {
+      "material": "summarize",
+      "label": "Zusammenfassung",
+      "usage": ["ResultCard type=zusammenfassung"]
+    },
+    "status.offline": {
+      "material": "cloud-off",
+      "label": "Offline",
+      "usage": ["AppBar"]
+    },
+    "account.avatar": {
+      "material": "person",
+      "label": "Konto",
+      "usage": ["AppBar"]
+    },
+    "action.close": {
+      "material": "close",
+      "label": "Schließen",
+      "usage": ["Modals"]
+    }
+  }
+}

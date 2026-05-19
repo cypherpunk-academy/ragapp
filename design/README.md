@@ -9,8 +9,8 @@ Design-Tokens, Figma-Dokumentation und die Anbindung an die Expo-App.
    - **Farben** → [`tokens/material-theme.json`](./tokens/material-theme.json) (Export aus [Material Theme Builder](https://m3.material.io/theme-builder) in Figma)
    - **Abstände, Ecken, Schriftgrößen** → [`tokens/tokens.json`](./tokens/tokens.json)
 3. **`npm run build:theme`** im Projektroot ausführen.
-4. App starten — Farben/Abstände kommen aus [`../src/theme.generated.ts`](../src/theme.generated.ts).
-5. **Schriften / Text-Styles** (Cinzel, Marcellus, `textStyles`) nur bei Bedarf in [`../src/theme.semantic.ts`](../src/theme.semantic.ts) anpassen.
+4. App starten — Farben/Abstände kommen aus [`../src/shared/theme/generated.ts`](../src/shared/theme/generated.ts).
+5. **Schriften / Text-Styles** (Cinzel, Marcellus, `textStyles`) nur bei Bedarf in [`../src/shared/theme/semantic.ts`](../src/shared/theme/semantic.ts) anpassen.
 
 Ausführlicher Ablauf: [`figma/workflow.md`](./figma/workflow.md).
 
@@ -21,10 +21,11 @@ Ausführlicher Ablauf: [`figma/workflow.md`](./figma/workflow.md).
 | Pixel-Layout, Komponenten | [Figma ragapp-Layout](https://www.figma.com/design/T6s2FocVkibx6pUG9A4uvw/ragapp-Layout) |
 | M3-Farben | `tokens/material-theme.json` |
 | Spacing, Radius, Typo-Skalen | `tokens/tokens.json` |
-| Runtime (generiert) | `src/theme.generated.ts` ← `npm run build:theme` |
-| Schriften & semantische Typo | `src/theme.semantic.ts` (manuell) |
-| App-Import | `src/theme.ts` |
-| UI-Komponenten im Code | `src/components/`, `src/features/` |
+| Runtime (generiert) | `src/shared/theme/generated.ts` ← `npm run build:theme` |
+| Schriften & semantische Typo | `src/shared/theme/semantic.ts` (manuell) |
+| Icons (Material Symbols) | [`icons.json`](./icons.json) → [`src/shared/theme/icons.ts`](../src/shared/theme/icons.ts) — siehe [`icons.md`](./icons.md) |
+| App-Import | `src/shared/theme` (`index.ts`) |
+| UI-Komponenten im Code | `src/shared/components/`, `src/features/` |
 
 ## Verzeichnis
 
@@ -36,7 +37,9 @@ design/
 │   ├── inventory.md           ← Screens, Node-IDs, Entscheidungen
 │   ├── material-theme-import.md
 │   └── file.md
-└── tokens/
+├── icons.json                 ← Icon-Registry (Material Symbols)
+├── icons.md                   ← Icon-Richtlinie + Figma-Workflow
+├── tokens/
     ├── README.md
     ├── material-theme.json
     └── tokens.json
@@ -48,7 +51,7 @@ design/
 
 1. Node-ID und Aufbau in [`figma/inventory.md`](./figma/inventory.md) nachschlagen.
 2. UI in `src/features/` oder `src/components/` bauen.
-3. `lightColors`, `spacing`, `textStyles` aus `src/theme.ts` verwenden — keine losen Hex-Werte.
+3. `lightColors`, `spacing`, `textStyles` aus `@/shared/theme` verwenden — keine losen Hex-Werte.
 
 ## Produkt- & Architekturpläne
 

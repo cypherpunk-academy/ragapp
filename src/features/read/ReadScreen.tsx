@@ -1,19 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Modal, Pressable,
+  View, Text, FlatList, TouchableOpacity, Pressable,
   TextInput, KeyboardAvoidingView, Platform,
-  StyleSheet, useColorScheme, ActivityIndicator,
+  StyleSheet, useColorScheme, ActivityIndicator, useWindowDimensions,
+  type ViewToken, AppState,
 } from 'react-native';
+import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '../../theme';
-import { ParagraphRepository } from '../../repositories/ParagraphRepository';
-import { BookmarkRepository } from '../../repositories/BookmarkRepository';
-import { NoteRepository } from '../../repositories/NoteRepository';
-import { useReading } from '../../contexts/ReadingContext';
-import ParagraphRenderer from '../../components/ParagraphRenderer';
-import ContributionCountButton, { type ContributionKind } from '../../components/ContributionCountButton';
-import ContributionsScreen, { type ContributionsTab } from './ContributionsScreen';
-import type Paragraph from '../../db/models/Paragraph';
+import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { TalkRepository } from '@/data/repositories/TalkRepository';
+import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
+import { useReading } from '@/shared/contexts/ReadingContext';
+import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
+import ContributionCountButton, { type ContributionKind } from '@/shared/components/ContributionCountButton';
+import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
+import type Paragraph from '@/data/db/models/Paragraph';
+import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 
 const SOURCE_ID = 'philosophie-der-freiheit';
 const LOCAL_USER = 'local';
@@ -23,31 +28,38 @@ type Segment = { segmentIndex: number; segmentTitle: string; segmentType: string
 export default function ReadScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { target } = useReading();
+  const { height: windowHeight } = useWindowDimensions();
+  const { target, openContributions, navigateToRead, navigateToChat } = useReading();
+  /** Begrenzt mehrzeiligen TextInput, damit Inhalt intern scrollt statt die Sheet-Höhe zu sprengen. */
+  const noteInputMaxHeight = Math.round(windowHeight * 0.45);
 
   const [allParagraphs, setAllParagraphs] = useState<Paragraph[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
+  const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
+  const [ragCounts, setRagCounts] = useState<Map<string, number>>(new Map());
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuMode, setMenuMode] = useState<'menu' | 'editor'>('menu');
   const [noteContent, setNoteContent] = useState('');
-  const [contributionsParagraph, setContributionsParagraph] = useState<Paragraph | null>(null);
-  const [contributionsTab, setContributionsTab] = useState<ContributionsTab>('notes');
-
+  const allParagraphsRef = useRef<Paragraph[]>([]);
+  allParagraphsRef.current = allParagraphs;
   const listRef = useRef<FlatList<Paragraph>>(null);
+  const lastReadWriteParagraphId = useRef<string | null>(null);
+  const pendingLastReadParagraphId = useRef<string | null>(null);
+  const lastReadDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Verhindert, dass beim ersten Mount (Reload, target leer) sofort Kapitel 0 als Lesestelle in die DB geschrieben wird. */
+  const lastReadSegmentBaselineRef = useRef<number | null>(null);
+  /**
+   * Nach Reload zeigt die Liste zuerst Kapitel 0 — Viewability würde sonst z. B. :0:2 als Lesestelle schreiben.
+   * Erst nach DB-Hydration (findLastRead → navigateToRead) oder sobald das Target explizit gesetzt ist, wieder erlauben.
+   */
+  const lastReadCaptureEnabledRef = useRef(false);
+  const blankTargetHydrateDoneRef = useRef(false);
 
   useEffect(() => {
     const sub = ParagraphRepository.observeBySource(SOURCE_ID).subscribe((ps) => {
       setAllParagraphs(ps);
       setLoading(false);
-    });
-    return () => sub.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const sub = BookmarkRepository.observeBySource(SOURCE_ID).subscribe((bookmarks) => {
-      setBookmarkedIds(new Set(bookmarks.map((b) => b.paragraphId)));
     });
     return () => sub.unsubscribe();
   }, []);
@@ -59,6 +71,29 @@ export default function ReadScreen() {
         if (n.paragraphId) counts.set(n.paragraphId, (counts.get(n.paragraphId) ?? 0) + 1);
       }
       setNoteCounts(counts);
+    });
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
+      const counts = new Map<string, number>();
+      for (const t of talks) {
+        const pid = t.contextParagraphId;
+        if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+      }
+      setTalkCounts(counts);
+    });
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = ReferenceRepository.observeAll().subscribe((refs) => {
+      const counts = new Map<string, number>();
+      for (const r of refs) {
+        counts.set(r.paragraphId, (counts.get(r.paragraphId) ?? 0) + 1);
+      }
+      setRagCounts(counts);
     });
     return () => sub.unsubscribe();
   }, []);
@@ -79,8 +114,12 @@ export default function ReadScreen() {
 
   const currentSegmentIndex = useMemo(() => {
     if (target.segmentIndex !== null) return target.segmentIndex;
+    if (target.paragraphId) {
+      const hit = allParagraphs.find((p) => p.paragraphId === target.paragraphId);
+      if (hit) return hit.segmentIndex;
+    }
     return segments[0]?.segmentIndex ?? 0;
-  }, [target.segmentIndex, segments]);
+  }, [target.segmentIndex, target.paragraphId, allParagraphs, segments]);
 
   const chapterParagraphs = useMemo(
     () => allParagraphs.filter((p) => p.segmentIndex === currentSegmentIndex),
@@ -96,7 +135,151 @@ export default function ReadScreen() {
   const prevSegment = currentSegmentPos > 0 ? segments[currentSegmentPos - 1] : null;
   const nextSegment = currentSegmentPos < segments.length - 1 ? segments[currentSegmentPos + 1] : null;
 
-  const { navigateToRead } = useReading();
+  const flushPendingLastRead = useCallback(() => {
+    if (!lastReadCaptureEnabledRef.current) return;
+    const pid = pendingLastReadParagraphId.current;
+    if (!pid || pid === lastReadWriteParagraphId.current) return;
+    lastReadWriteParagraphId.current = pid;
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: SOURCE_ID, paragraphId: pid });
+    }
+    void BookmarkRepository.setLastRead(LOCAL_USER, SOURCE_ID, pid);
+  }, []);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (!lastReadCaptureEnabledRef.current) return;
+      const visible = viewableItems
+        .filter((v) => v.isViewable && v.item != null && typeof v.index === 'number')
+        .sort((a, b) => (a.index as number) - (b.index as number));
+      /** Unterster sichtbarer Absatz = Lesefortschritt (oberste Zeilen bleiben oft noch „viewable“). */
+      const item = visible[visible.length - 1]?.item as Paragraph | undefined;
+      const pid = item?.paragraphId;
+      if (!pid) return;
+      pendingLastReadParagraphId.current = pid;
+      if (lastReadDebounceTimer.current) clearTimeout(lastReadDebounceTimer.current);
+      lastReadDebounceTimer.current = setTimeout(flushPendingLastRead, 280);
+    },
+    [flushPendingLastRead],
+  );
+
+  const flushScrollIdle = useCallback(() => {
+    if (lastReadDebounceTimer.current) {
+      clearTimeout(lastReadDebounceTimer.current);
+      lastReadDebounceTimer.current = null;
+    }
+    flushPendingLastRead();
+  }, [flushPendingLastRead]);
+
+  const firstChapterParagraphId = chapterParagraphs[0]?.paragraphId;
+
+  /**
+   * Kapitelwechsel ohne Zielabsatz: Lesemarke sofort auf Kapitelanfang (stale Debounce vom vorherigen Kapitel).
+   * Nicht beim ersten „Einfrieren“ von segmentIndex nach Mount — sonst überschreibt ein Reload mit leerem target die DB mit Kapitel 0.
+   */
+  useEffect(() => {
+    if (!firstChapterParagraphId) return;
+    if (target.paragraphId) {
+      lastReadSegmentBaselineRef.current = currentSegmentIndex;
+      return;
+    }
+    const prevSeg = lastReadSegmentBaselineRef.current;
+    lastReadSegmentBaselineRef.current = currentSegmentIndex;
+    if (prevSeg === null) return;
+    if (prevSeg === currentSegmentIndex) return;
+    if (!lastReadCaptureEnabledRef.current) return;
+    if (lastReadDebounceTimer.current) {
+      clearTimeout(lastReadDebounceTimer.current);
+      lastReadDebounceTimer.current = null;
+    }
+    pendingLastReadParagraphId.current = firstChapterParagraphId;
+    lastReadWriteParagraphId.current = null;
+    flushPendingLastRead();
+  }, [currentSegmentIndex, firstChapterParagraphId, target.paragraphId, flushPendingLastRead]);
+
+  /** Erster Wechsel von leerem Target → Navigation: Capture kurz sperren, bis Ziel-Kapitel gerendert ist (sonst Viewability auf Kapitel 0). */
+  const hadNavigatedExplicitTargetRef = useRef(false);
+
+  useEffect(() => {
+    const blank = target.segmentIndex === null && target.paragraphId === null;
+    if (blank) {
+      hadNavigatedExplicitTargetRef.current = false;
+      lastReadCaptureEnabledRef.current = false;
+      return;
+    }
+    if (!hadNavigatedExplicitTargetRef.current) {
+      hadNavigatedExplicitTargetRef.current = true;
+      lastReadCaptureEnabledRef.current = false;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          lastReadCaptureEnabledRef.current = true;
+        });
+      });
+      return;
+    }
+    lastReadCaptureEnabledRef.current = true;
+  }, [target.segmentIndex, target.paragraphId]);
+
+  /**
+   * Reload: Context target ist leer, die FlatList zeigt trotzdem Kapitel 0 — ohne Hydration würde Viewability die DB überschreiben.
+   */
+  useEffect(() => {
+    if (target.segmentIndex !== null || target.paragraphId !== null) {
+      blankTargetHydrateDoneRef.current = false;
+      return;
+    }
+    if (allParagraphs.length === 0) return;
+    if (blankTargetHydrateDoneRef.current) return;
+    blankTargetHydrateDoneRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const row = await BookmarkRepository.findLastRead(SOURCE_ID);
+      if (cancelled) return;
+      if (row?.paragraphId) {
+        const hit = allParagraphsRef.current.find((p) => p.paragraphId === row.paragraphId);
+        if (hit) {
+          navigateToRead({ segmentIndex: null, paragraphId: row.paragraphId });
+          return;
+        }
+      }
+      if (!cancelled) {
+        lastReadCaptureEnabledRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      blankTargetHydrateDoneRef.current = false;
+    };
+  }, [target.segmentIndex, target.paragraphId, allParagraphs.length, navigateToRead]);
+
+  const viewabilityConfig = useMemo(
+    () => ({ itemVisiblePercentThreshold: 55 }),
+    [],
+  );
+
+  useEffect(() => {
+    const flushOnBackground = (state: string) => {
+      if (state !== 'active') {
+        if (lastReadDebounceTimer.current) {
+          clearTimeout(lastReadDebounceTimer.current);
+          lastReadDebounceTimer.current = null;
+        }
+        flushPendingLastRead();
+      }
+    };
+    const sub = AppState.addEventListener('change', flushOnBackground);
+    return () => {
+      sub.remove();
+      if (lastReadDebounceTimer.current) {
+        clearTimeout(lastReadDebounceTimer.current);
+        lastReadDebounceTimer.current = null;
+      }
+      flushPendingLastRead();
+    };
+  }, [flushPendingLastRead]);
 
   useEffect(() => {
     if (!target.paragraphId || chapterParagraphs.length === 0) return;
@@ -108,12 +291,6 @@ export default function ReadScreen() {
 
   const handleLongPress = useCallback((p: Paragraph) => setMenuParagraph(p), []);
 
-  const handleToggleBookmark = useCallback(async () => {
-    if (!menuParagraph) return;
-    await BookmarkRepository.toggle(LOCAL_USER, SOURCE_ID, menuParagraph.paragraphId);
-    setMenuParagraph(null);
-  }, [menuParagraph]);
-
   const handleOpenNoteEditor = useCallback(() => {
     setNoteContent('');
     setMenuMode('editor');
@@ -121,35 +298,55 @@ export default function ReadScreen() {
 
   const handleSaveNote = useCallback(async () => {
     const trimmed = noteContent.trim();
-    if (trimmed && menuParagraph) {
+    const paragraph = menuParagraph;
+    if (trimmed && paragraph) {
       await NoteRepository.create({
         userId: LOCAL_USER,
-        paragraphId: menuParagraph.paragraphId,
-        segmentId: `${SOURCE_ID}:${menuParagraph.segmentIndex}`,
+        paragraphId: paragraph.paragraphId,
+        segmentId: `${SOURCE_ID}:${paragraph.segmentIndex}`,
         sourceId: SOURCE_ID,
         content: trimmed,
       });
     }
     setMenuParagraph(null);
     setMenuMode('menu');
-  }, [noteContent, menuParagraph]);
+    setNoteContent('');
+
+    if (trimmed && paragraph) {
+      openContributions(paragraph, 'notes', SOURCE_ID);
+    }
+  }, [noteContent, menuParagraph, openContributions]);
 
   const handleCloseMenu = useCallback(() => {
     setMenuParagraph(null);
     setMenuMode('menu');
   }, []);
 
-  const openContributions = useCallback((p: Paragraph, tab: ContributionsTab) => {
-    setContributionsParagraph(p);
-    setContributionsTab(tab);
-  }, []);
+  const handleStartChatFromMenu = useCallback(() => {
+    if (!menuParagraph) return;
+    setMenuParagraph(null);
+    setMenuMode('menu');
+    navigateToChat();
+  }, [menuParagraph, navigateToChat]);
+
+  const handleShowContributionsFromMenu = useCallback(() => {
+    if (!menuParagraph) return;
+    const p = menuParagraph;
+    setMenuParagraph(null);
+    setMenuMode('menu');
+    openContributions(p, 'notes', SOURCE_ID);
+  }, [menuParagraph, openContributions]);
+
+  const showContributions = useCallback((p: Paragraph, tab: ContributionsTab) => {
+    openContributions(p, tab, SOURCE_ID);
+  }, [openContributions]);
 
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
     const noteCount = noteCounts.get(item.paragraphId) ?? 0;
-    const conversationCount = 0;
-    const ragCount = 0;
+    const conversationCount = talkCounts.get(item.paragraphId) ?? 0;
+    const ragCount = ragCounts.get(item.paragraphId) ?? 0;
     const hasContributions = noteCount > 0 || conversationCount > 0 || ragCount > 0;
-    const openTab = (tab: ContributionKind) => openContributions(item, tab);
+    const openTab = (tab: ContributionKind) => showContributions(item, tab);
     return (
       <TouchableOpacity
         onLongPress={() => handleLongPress(item)}
@@ -162,7 +359,7 @@ export default function ReadScreen() {
           annotations={item.annotations}
           style={{ color: colors.onBackground }}
           prefix={
-            <Text style={[styles.paragraphNumber, { color: colors.onSurfaceVariant }]}>
+            <Text style={[textStyles.readingParagraphNumber, { color: colors.onSurfaceVariant }]}>
               {item.paragraphNumber}{'| '}
             </Text>
           }
@@ -176,7 +373,24 @@ export default function ReadScreen() {
         )}
       </TouchableOpacity>
     );
-  }, [noteCounts, colors, handleLongPress, openContributions]);
+  }, [noteCounts, talkCounts, ragCounts, colors, handleLongPress, showContributions]);
+
+  const typeLabel = currentSegment?.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
+
+  const listHeader = useMemo(() => {
+    if (!currentSegment) return null;
+    return (
+      <View style={styles.chapterBlock}>
+        <Text style={[textStyles.labelSection, { color: colors.primary }]}>{typeLabel}</Text>
+        <Text
+          style={[textStyles.readingChapterTitle, { color: colors.onBackground }]}
+          accessibilityRole="header"
+        >
+          {currentSegment.segmentTitle}
+        </Text>
+      </View>
+    );
+  }, [currentSegment, typeLabel, colors.primary, colors.onBackground]);
 
   if (loading) {
     return (
@@ -186,27 +400,21 @@ export default function ReadScreen() {
     );
   }
 
-  const isBookmarked = menuParagraph ? bookmarkedIds.has(menuParagraph.paragraphId) : false;
-  const typeLabel = currentSegment?.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Kapitel-Header */}
-      <View style={[styles.chapterHeader, { borderBottomColor: colors.outlineVariant }]}>
-        <Text style={[typography.labelSmall, { color: colors.primary }]}>{typeLabel}</Text>
-        <Text style={[typography.titleMedium, { color: colors.onBackground, flex: 1 }]} numberOfLines={2}>
-          {currentSegment?.segmentTitle}
-        </Text>
-      </View>
-
       <FlatList
         ref={listRef}
         data={chapterParagraphs}
         keyExtractor={(p) => p.paragraphId}
         renderItem={renderItem}
+        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         style={styles.list}
         onScrollToIndexFailed={() => {}}
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={onViewableItemsChanged}
+        onMomentumScrollEnd={flushScrollIdle}
+        onScrollEndDrag={flushScrollIdle}
       />
 
       {/* Kapitel-Navigation */}
@@ -240,94 +448,95 @@ export default function ReadScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Long-Press-Menü + Notiz-Editor (ein einziger Modal) */}
-      <Modal
-        visible={menuParagraph !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseMenu}
-      >
-        {menuMode === 'menu' ? (
-          <Pressable style={styles.overlay} onPress={handleCloseMenu}>
-            <View style={[styles.menu, { backgroundColor: colors.surfaceContainer }]}>
-              <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-                Absatz {menuParagraph?.paragraphNumber}
-              </Text>
-              <TouchableOpacity style={styles.menuRow} onPress={handleToggleBookmark}>
-                <Ionicons
-                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
-                  {isBookmarked ? 'Lesezeichen entfernen' : 'Lesezeichen setzen'}
+      {menuParagraph !== null && (
+        <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
+          {menuMode === 'menu' ? (
+            <Pressable style={styles.overlay} onPress={handleCloseMenu}>
+              <View style={[styles.menu, { backgroundColor: colors.surfaceContainer }]}>
+                <Text
+                  style={[typography.labelSmall, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}
+                  numberOfLines={3}
+                >
+                  {paragraphAnchorLabel(menuParagraph)}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuRow} onPress={handleOpenNoteEditor}>
-                <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-                <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
-                  Notiz erstellen
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        ) : (
-          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <Pressable style={styles.overlay} onPress={handleCloseMenu} />
-            <View style={[styles.menu, { backgroundColor: colors.surfaceContainer, gap: spacing.s }]}>
-              <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant }]}>
-                Absatz {menuParagraph?.paragraphNumber} · {currentSegment?.segmentTitle}
-              </Text>
-              <TextInput
-                style={[styles.noteInput, { color: colors.onSurface, borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLow }]}
-                multiline
-                autoFocus
-                placeholder="Notiz eingeben..."
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={noteContent}
-                onChangeText={setNoteContent}
-              />
-              <View style={styles.noteActions}>
-                <TouchableOpacity style={styles.noteBtn} onPress={handleCloseMenu}>
-                  <Text style={[typography.labelLarge, { color: colors.onSurfaceVariant }]}>Abbrechen</Text>
+                <TouchableOpacity style={styles.menuRow} onPress={handleOpenNoteEditor}>
+                  <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                    Notiz erstellen
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.noteBtn, styles.noteBtnFilled, { backgroundColor: colors.primary }]} onPress={handleSaveNote}>
-                  <Text style={[typography.labelLarge, { color: colors.onPrimary }]}>Speichern</Text>
+                <TouchableOpacity style={styles.menuRow} onPress={handleStartChatFromMenu}>
+                  <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
+                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                    KI-Chat starten
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuRow} onPress={handleShowContributionsFromMenu}>
+                  <Ionicons name="albums-outline" size={20} color={colors.primary} />
+                  <Text style={[typography.bodyLarge, { color: colors.onSurface }]}>
+                    Beiträge anzeigen
+                  </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </KeyboardAvoidingView>
-        )}
-      </Modal>
-
-      <ContributionsScreen
-        visible={contributionsParagraph !== null}
-        onClose={() => setContributionsParagraph(null)}
-        paragraph={contributionsParagraph}
-        sourceId={SOURCE_ID}
-        initialTab={contributionsTab}
-      />
+            </Pressable>
+          ) : (
+            <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <Pressable style={styles.overlay} onPress={handleCloseMenu} />
+              <View style={[styles.menu, { backgroundColor: colors.surfaceContainer, gap: spacing.s }]}>
+                <Text
+                  style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.xs, textTransform: 'none' }]}
+                  numberOfLines={3}
+                >
+                  {paragraphAnchorLabel(menuParagraph)}
+                </Text>
+                <TextInput
+                  style={[
+                    textStyles.noteBody,
+                    styles.noteInput,
+                    {
+                      color: colors.onSurface,
+                      borderColor: colors.outlineVariant,
+                      backgroundColor: colors.surfaceContainerLow,
+                      maxHeight: noteInputMaxHeight,
+                    },
+                  ]}
+                  multiline
+                  scrollEnabled
+                  textAlignVertical="top"
+                  autoFocus
+                  placeholder="Notiz eingeben..."
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  value={noteContent}
+                  onChangeText={setNoteContent}
+                />
+                <View style={styles.noteActions}>
+                  <TouchableOpacity style={styles.noteBtn} onPress={handleCloseMenu}>
+                    <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant }]}>Abbrechen</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.noteBtn, styles.noteBtnFilled, { backgroundColor: colors.primary }]} onPress={handleSaveNote}>
+                    <Text style={[textStyles.contributionsTab, { color: colors.onPrimary }]}>Speichern</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  chapterHeader: {
-    paddingHorizontal: spacing.m,
-    paddingTop: spacing.m,
-    paddingBottom: spacing.s,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 2,
-  },
   list: { flex: 1 },
-  listContent: { padding: spacing.m, gap: spacing.m },
-  paragraphWrap: { gap: 4 },
-  paragraphNumber: {
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
+  listContent: { paddingHorizontal: 22, paddingVertical: spacing.l, gap: 26 },
+  chapterBlock: {
+    gap: spacing.s,
+    marginBottom: spacing.s,
+    alignItems: 'center',
   },
+  paragraphWrap: { gap: 4 },
   contributionStrip: {
     flexDirection: 'row',
     alignSelf: 'stretch',
@@ -369,14 +578,12 @@ const styles = StyleSheet.create({
     gap: spacing.m,
     paddingVertical: spacing.s,
   },
-  flex: { flex: 1 },
+  flex: { flex: 1, justifyContent: 'flex-end' },
   noteInput: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 8,
     padding: spacing.s,
     minHeight: 120,
-    fontSize: 16,
-    lineHeight: 24,
     textAlignVertical: 'top',
   },
   noteActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.s },

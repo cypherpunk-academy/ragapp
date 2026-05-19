@@ -11,9 +11,9 @@
 npm run build:theme
 ```
 
-→ [`../../src/theme.generated.ts`](../../src/theme.generated.ts)
+→ [`../../src/shared/theme/generated.ts`](../../src/shared/theme/generated.ts)
 
-Schriften und `textStyles`: [`../../src/theme.semantic.ts`](../../src/theme.semantic.ts) (manuell).
+Schriften und `textStyles`: [`../../src/shared/theme/semantic.ts`](../../src/shared/theme/semantic.ts) (manuell).
 
 Figma-Import der Farben: [`../figma/material-theme-import.md`](../figma/material-theme-import.md).  
 Gesamtworkflow: [`../figma/workflow.md`](../figma/workflow.md).

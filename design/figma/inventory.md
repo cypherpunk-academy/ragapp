@@ -214,7 +214,7 @@ die 7 Make-Screens ins Design-File übertragen.
 
 Token-Build: `npm run build:theme` (siehe [`workflow.md`](./workflow.md)).
 Quell-JSON: `design/tokens/material-theme.json`.
-Ziel: `src/theme/theme.ts` für Expo.
+Ziel: `src/shared/theme` für Expo.
 
 ---
 
@@ -338,7 +338,7 @@ Children: 4× Tab — Auto-Layout Vertical, gap 4
   └── Label (Marcellus 12px UPPERCASE, letter-spacing +0.5)
 ```
 
-**Icons (Material, gefilled):** `Search` · `Dashboard` · `MenuBook` · `Chat` — deckungsgleich mit [`TabBar.tsx`](../../src/components/TabBar.tsx).
+**Icons (Material, gefilled):** `Search` · `Dashboard` · `MenuBook` · `Chat` — deckungsgleich mit [`TabBar.tsx`](../../src/shared/components/TabBar.tsx).
 
 ### 8.2 Color-Logic
 
@@ -817,6 +817,8 @@ Detail-Seite, die per Tap auf den `RAG-Treffer (N)`-Link in einer AI-Bubble erre
 
 ### 16.8 Globale Icon-Konvention (2026-05-12)
 
+**Canonical Registry:** [`../icons.json`](../icons.json) + [`../icons.md`](../icons.md) + [`../../src/shared/theme/icons.ts`](../../src/shared/theme/icons.ts)
+
 **Entscheidung:** Alle ikonisch genutzten Marker in der App sind **Material-Symbols-Outlined-SVG-Icons** — keine Unicode-Emojis. Begründung:
 
 - **Render-Determinismus**: Figmas Server-Renderer kann Supplementary-Multilingual-Plane-Emojis (📖 U+1F4D6, 📚 U+1F4DA, 💭 U+1F4AD, …) nicht zuverlässig darstellen, und `Noto Color Emoji` produziert in der Export-Pipeline weiße Lücken. SVG rendert immer pixel-genau identisch
@@ -992,7 +994,7 @@ Existing instances bleiben durch Property-Name-Matching kompatibel — die Suche
 8. **Vortragsband-Detail-Page** als 2. Beispiel (GA 293 mit Vortrags-Liste statt Kapiteln)
 9. **BookCover als wiederverwendbare Component** (refactor)
 10. **Active-Indicator Pill** in TabBar (optional Polish)
-11. ~~**Style Dictionary Pipeline** für `theme.ts`-Generierung~~ ✅ `npm run build:theme` → `src/theme.generated.ts` (`scripts/build-theme.mjs`)
+11. ~~**Style Dictionary Pipeline** für `theme.ts`-Generierung~~ ✅ `npm run build:theme` → `src/shared/theme/generated.ts` (`scripts/build-theme.mjs`)
 12. **Bedingte Trennzeichen (`&shy;`)** im Lesen-Default für sauberen Block-Satz bei langen deutschen Komposita
 
 ---
@@ -1012,9 +1014,19 @@ ragapp/
 │       └── tokens.json          ← Spacing, Radius, Typo (DTCG)
 ├── config/
 │   └── material-theme.json    ← Symlink → design/tokens/material-theme.json
-├── src/theme.generated.ts     ← generiert (`npm run build:theme`)
-├── src/theme.semantic.ts      ← Fonts / textStyles (manuell)
-├── src/theme.ts               ← Barrel-Export (App)
+├── src/
+│   ├── features/
+│   ├── shared/
+│   │   ├── components/
+│   │   ├── theme/             ← generated, semantic, icons, index
+│   │   ├── hooks/
+│   │   ├── contexts/
+│   │   └── types/
+│   └── data/
+│       ├── db/
+│       ├── repositories/
+│       ├── services/
+│       └── lib/
 └── plans/
     ├── ragapp-gesamtplan.md
     └── ragapp-react-native-architecture.md

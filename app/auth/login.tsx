@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useColorScheme } from 'react-native';
-import { lightColors, darkColors, spacing, typography } from '../../src/theme';
+import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();

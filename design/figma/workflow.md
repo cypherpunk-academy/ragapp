@@ -12,10 +12,10 @@
 ```
 Figma (Layout, Dev Mode)          design/tokens/*.json          App
 ─────────────────────────         ─────────────────────         ───
-Screens & Komponenten      →      (manuell pflegen)      →      src/features/, src/components/
+Screens & Komponenten      →      (manuell pflegen)      →      src/features/, src/shared/components/
 M3 Theme Builder           →      material-theme.json  →      npm run build:theme
-Spacing / Radius / …       →      tokens.json          →      → theme.generated.ts
-Schriften / textStyles     →      (nicht in JSON)      →      theme.semantic.ts (manuell)
+Spacing / Radius / …       →      tokens.json          →      → theme/generated.ts
+Schriften / textStyles     →      (nicht in JSON)      →      theme/semantic.ts (manuell)
 ```
 
 **Komponenten** werden in React Native **manuell** umgesetzt (Dev Mode als Referenz).  
@@ -46,16 +46,16 @@ Suche · Übersicht · Lesen · KI-Chat. Notizen nur unter **Lesen → Beiträge
 npm run build:theme
 ```
 
-Erzeugt [`../../src/theme.generated.ts`](../../src/theme.generated.ts):
+Erzeugt [`../../src/shared/theme/generated.ts`](../../src/shared/theme/generated.ts):
 
 - `lightColors`, `darkColors` (primär aus `material-theme.json`)
 - `spacing`, `borderRadius`, `fontSize`, …
 
-Die App importiert alles über [`../../src/theme.ts`](../../src/theme.ts).
+Die App importiert alles über [`../../src/shared/theme`](../../src/shared/theme/index.ts).
 
 ### Manuell (nicht im Build)
 
-[`../../src/theme.semantic.ts`](../../src/theme.semantic.ts): Google-Font-Namen, `textStyles` (Cinzel/Marcellus/…), M3-`typography` ohne `fontFamily`. Nur anfassen, wenn sich **Schriften** oder semantische Text-Styles in Figma ändern.
+[`../../src/shared/theme/semantic.ts`](../../src/shared/theme/semantic.ts): Google-Font-Namen, `textStyles` (Cinzel/Marcellus/…), M3-`typography` ohne `fontFamily`. Nur anfassen, wenn sich **Schriften** oder semantische Text-Styles in Figma ändern.
 
 Skript: [`../../scripts/build-theme.mjs`](../../scripts/build-theme.mjs).
 
@@ -72,14 +72,14 @@ Skript: [`../../scripts/build-theme.mjs`](../../scripts/build-theme.mjs).
 ### Layout / neue UI-Teile
 
 1. Figma (Dev Mode oder MCP) — Maße, Farben als Token-Namen notieren.
-2. React-Komponente in `src/components/` oder `src/features/` anpassen.
+2. React-Komponente in `src/shared/components/` oder `src/features/` anpassen.
 3. Keine Hardcoded-Hex-Werte; Werte aus `theme.ts`.
 
 ### Neue Screens
 
 1. Frame in Figma anlegen (iPhone 14 Pro, 393×852) — [`inventory.md`](./inventory.md) ergänzen.
 2. Screen in der App implementieren.
-3. Wiederverwendbare Teile: `AppBar`, `TabBar`, … aus `src/components/`.
+3. Wiederverwendbare Teile: `AppBar`, `TabBar`, … aus `src/shared/components/`.
 
 ---
 

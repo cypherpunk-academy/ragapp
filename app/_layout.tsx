@@ -5,9 +5,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
-import { lightColors, darkColors } from '../src/theme';
-import { seedIfEmpty } from '../src/lib/seedLoader';
-import { useAppFonts } from '../src/hooks/useAppFonts';
+import { lightColors, darkColors } from '@/shared/theme';
+import { seedIfEmpty, seedDemoContributionsIfEmpty } from '@/data/lib/seedLoader';
+import { useAppFonts } from '@/shared/hooks/useAppFonts';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,7 +17,9 @@ export default function RootLayout() {
   const [fontsLoaded] = useAppFonts();
 
   useEffect(() => {
-    seedIfEmpty().catch(console.error);
+    seedIfEmpty()
+      .then(() => seedDemoContributionsIfEmpty())
+      .catch(console.error);
   }, []);
 
   useEffect(() => {

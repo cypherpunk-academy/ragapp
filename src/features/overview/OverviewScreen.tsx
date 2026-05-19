@@ -1,15 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, ActivityIndicator,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import AppBar from '../../components/AppBar';
-import { lightColors, darkColors, spacing, typography, textStyles } from '../../theme';
-import { ParagraphRepository } from '../../repositories/ParagraphRepository';
-import { NoteRepository } from '../../repositories/NoteRepository';
-import { useReading } from '../../contexts/ReadingContext';
-import ContributionCountButton from '../../components/ContributionCountButton';
-import type Paragraph from '../../db/models/Paragraph';
+import AppBar from '@/shared/components/AppBar';
+import { ICONS, ICON_SIZES } from '@/shared/theme';
+import AppIcon from '@/shared/components/AppIcon';
+import ContributionStrip, { type ContributionCounts } from '@/shared/components/ContributionStrip';
+import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { TalkRepository } from '@/data/repositories/TalkRepository';
+import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
+import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
+import { useReading } from '@/shared/contexts/ReadingContext';
+import type Paragraph from '@/data/db/models/Paragraph';
+import type Note from '@/data/db/models/Note';
+import type Talk from '@/data/db/models/Talk';
+import type Reference from '@/data/db/models/Reference';
+import {
+  SOURCE_DETAIL,
+  SEGMENT_SUMMARY_DEMO,
+  continueReadingLabel,
+  segmentIndexFromNoteIds,
+  sourceEditionLine,
+} from './sourceDetail';
 
 type Segment = {
   segmentIndex: number;
@@ -34,13 +48,68 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
   return Array.from(map.values()).sort((a, b) => a.segmentIndex - b.segmentIndex);
 }
 
-const SOURCE_ID = 'philosophie-der-freiheit';
-const BOOK_TITLE = 'Die Philosophie der Freiheit';
-const BOOK_AUTHOR = 'Rudolf Steiner';
+function aggregateNotesBySegment(notes: Note[]): Map<number, ContributionCounts> {
+  const map = new Map<number, ContributionCounts>();
+  for (const note of notes) {
+    const idx = segmentIndexFromNoteIds(note.segmentId, note.paragraphId);
+    if (idx === null) continue;
+    const cur = map.get(idx) ?? { notes: 0, conversations: 0, rag: 0 };
+    cur.notes += 1;
+    map.set(idx, cur);
+  }
+  return map;
+}
 
-const BOOKS = [
-  { id: SOURCE_ID, title: BOOK_TITLE, author: BOOK_AUTHOR },
-];
+const EMPTY_COUNTS: ContributionCounts = { notes: 0, conversations: 0, rag: 0 };
+const LOCAL_USER = 'local';
+
+function segmentIndexFromParagraphId(paragraphId: string): number | null {
+  const parts = paragraphId.split(':');
+  if (parts.length < 2) return null;
+  const idx = Number.parseInt(parts[1], 10);
+  return Number.isNaN(idx) ? null : idx;
+}
+
+function mergeSegmentCounts(
+  ...parts: Map<number, Partial<ContributionCounts>>[]
+): Map<number, ContributionCounts> {
+  const merged = new Map<number, ContributionCounts>();
+  for (const part of parts) {
+    for (const [idx, delta] of part) {
+      const cur = merged.get(idx) ?? { ...EMPTY_COUNTS };
+      merged.set(idx, {
+        notes: cur.notes + (delta.notes ?? 0),
+        conversations: cur.conversations + (delta.conversations ?? 0),
+        rag: cur.rag + (delta.rag ?? 0),
+      });
+    }
+  }
+  return merged;
+}
+
+function aggregateTalksBySegment(talks: Talk[]): Map<number, Partial<ContributionCounts>> {
+  const map = new Map<number, Partial<ContributionCounts>>();
+  for (const t of talks) {
+    const pid = t.contextParagraphId;
+    if (!pid) continue;
+    const idx = segmentIndexFromParagraphId(pid);
+    if (idx === null) continue;
+    const cur = map.get(idx) ?? {};
+    map.set(idx, { conversations: (cur.conversations ?? 0) + 1 });
+  }
+  return map;
+}
+
+function aggregateReferencesBySegment(refs: Reference[]): Map<number, Partial<ContributionCounts>> {
+  const map = new Map<number, Partial<ContributionCounts>>();
+  for (const r of refs) {
+    const idx = segmentIndexFromParagraphId(r.paragraphId);
+    if (idx === null) continue;
+    const cur = map.get(idx) ?? {};
+    map.set(idx, { rag: (cur.rag ?? 0) + 1 });
+  }
+  return map;
+}
 
 type ViewMode = 'grid' | 'detail';
 
@@ -50,13 +119,16 @@ export default function OverviewScreen() {
   const { navigateToRead } = useReading();
 
   const [mode, setMode] = useState<ViewMode>('grid');
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [noteCount, setNoteCount] = useState(0);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [talks, setTalks] = useState<Talk[]>([]);
+  const [references, setReferences] = useState<Reference[]>([]);
+  const [lastReadParagraphId, setLastReadParagraphId] = useState<string | null>(null);
+  const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sub = ParagraphRepository.observeBySource(SOURCE_ID).subscribe((ps) => {
+    const sub = ParagraphRepository.observeBySource(SOURCE_DETAIL.id).subscribe((ps) => {
       setSegments(groupBySegment(ps));
       setLoading(false);
     });
@@ -64,20 +136,71 @@ export default function OverviewScreen() {
   }, []);
 
   useEffect(() => {
-    const sub = NoteRepository.observeBySource(SOURCE_ID).subscribe((notes) => {
-      setNoteCount(notes.length);
+    const sub = NoteRepository.observeBySource(SOURCE_DETAIL.id).subscribe(setNotes);
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe(setTalks);
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = ReferenceRepository.observeAll().subscribe(setReferences);
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = BookmarkRepository.observeLastRead(SOURCE_DETAIL.id).subscribe((rows) => {
+      if (rows.length === 0) {
+        setLastReadParagraphId(null);
+        return;
+      }
+      const sorted = [...rows].sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+      );
+      setLastReadParagraphId(sorted[0]?.paragraphId ?? null);
     });
     return () => sub.unsubscribe();
   }, []);
 
-  const selectedBook = useMemo(
-    () => BOOKS.find((b) => b.id === selectedBookId) ?? null,
-    [selectedBookId],
+  const segmentNoteCounts = useMemo(() => aggregateNotesBySegment(notes), [notes]);
+  const segmentTalkCounts = useMemo(() => aggregateTalksBySegment(talks), [talks]);
+  const segmentRefCounts = useMemo(() => aggregateReferencesBySegment(references), [references]);
+
+  const segmentContributionCounts = useMemo(
+    () => mergeSegmentCounts(segmentNoteCounts, segmentTalkCounts, segmentRefCounts),
+    [segmentNoteCounts, segmentTalkCounts, segmentRefCounts],
   );
 
-  const typeLabel = (type: string) => (type === 'preface' ? 'Vorwort' : 'Kapitel');
-  const typeIcon = (type: string): React.ComponentProps<typeof MaterialIcons>['name'] =>
-    type === 'preface' ? 'description' : 'menu-book';
+  const werkCounts = useMemo<ContributionCounts>(() => {
+    let notes = 0;
+    let conversations = 0;
+    let rag = 0;
+    for (const c of segmentContributionCounts.values()) {
+      notes += c.notes;
+      conversations += c.conversations;
+      rag += c.rag;
+    }
+    return { notes, conversations, rag };
+  }, [segmentContributionCounts]);
+
+  const continueSegmentTitle = useMemo(() => {
+    if (!lastReadParagraphId) return null;
+    const seg = segments.find((s) =>
+      s.paragraphs.some((p) => p.paragraphId === lastReadParagraphId),
+    );
+    return seg?.segmentTitle ?? null;
+  }, [lastReadParagraphId, segments]);
+
+  const toggleSummary = (segmentIndex: number) => {
+    setExpandedSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(segmentIndex)) next.delete(segmentIndex);
+      else next.add(segmentIndex);
+      return next;
+    });
+  };
 
   if (loading) {
     return (
@@ -93,27 +216,21 @@ export default function OverviewScreen() {
         <AppBar title="Übersicht" />
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.grid}>
-            {BOOKS.map((book) => (
-              <TouchableOpacity
-                key={book.id}
-                style={styles.coverCard}
-                onPress={() => {
-                  setSelectedBookId(book.id);
-                  setMode('detail');
-                }}
-                activeOpacity={0.8}
+            <TouchableOpacity
+              style={styles.coverCard}
+              onPress={() => setMode('detail')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.coverBox, { backgroundColor: colors.secondaryContainer }]}>
+                <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
+              </View>
+              <Text
+                style={[textStyles.titleCard, { color: colors.onSurface }]}
+                numberOfLines={3}
               >
-                <View style={[styles.coverPlaceholder, { backgroundColor: colors.secondaryContainer }]}>
-                  <MaterialIcons name="menu-book" size={32} color={colors.onSecondaryContainer} />
-                </View>
-                <Text
-                  style={[textStyles.titleCard, { color: colors.onSurface }]}
-                  numberOfLines={3}
-                >
-                  {book.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                {SOURCE_DETAIL.title}
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -125,61 +242,105 @@ export default function OverviewScreen() {
       <AppBar title="" onBackPress={() => setMode('grid')} />
       <ScrollView contentContainerStyle={styles.content}>
 
-      <View style={[styles.hero, { backgroundColor: colors.surfaceContainer }]}>
-        <View style={[styles.heroCover, { backgroundColor: colors.secondaryContainer }]}>
-          <MaterialIcons name="menu-book" size={40} color={colors.onSecondaryContainer} />
-        </View>
-        <View style={styles.heroText}>
-          <Text style={[textStyles.titlePage, { color: colors.onBackground }]}>
-            {selectedBook?.title ?? BOOK_TITLE}
-          </Text>
-          <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-            {selectedBook?.author ?? BOOK_AUTHOR}
-          </Text>
-          {(noteCount > 0) && (
-            <View style={styles.heroStrip}>
-              <ContributionCountButton kind="notes" count={noteCount} />
-            </View>
-          )}
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.continueBtn, { backgroundColor: colors.primaryContainer }]}
-        onPress={() => navigateToRead({ segmentIndex: null, paragraphId: null })}
-      >
-        <MaterialIcons name="menu-book" size={18} color={colors.onPrimaryContainer} />
-        <Text style={[typography.labelLarge, { color: colors.onPrimaryContainer }]}>Weiterlesen</Text>
-      </TouchableOpacity>
-
-      <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-        {segments.map((seg, i) => (
-          <React.Fragment key={seg.segmentIndex}>
-            {i > 0 && <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />}
+        <View style={[styles.hero, { backgroundColor: colors.surfaceContainer }]}>
+          <TouchableOpacity
+            style={[styles.heroCover, { backgroundColor: colors.secondaryContainer }]}
+            onPress={() => navigateToRead({ segmentIndex: null, paragraphId: null })}
+            activeOpacity={0.8}
+          >
+            <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
+          </TouchableOpacity>
+          <View style={styles.heroText}>
             <TouchableOpacity
-              style={styles.row}
-              onPress={() => navigateToRead({ segmentIndex: seg.segmentIndex, paragraphId: null })}
-              activeOpacity={0.7}
+              onPress={() => navigateToRead({ segmentIndex: null, paragraphId: null })}
+              activeOpacity={0.8}
             >
-              <View style={[styles.iconWrap, { backgroundColor: colors.secondaryContainer }]}>
-                <MaterialIcons name={typeIcon(seg.segmentType)} size={18} color={colors.onSecondaryContainer} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant }]}>
-                  {typeLabel(seg.segmentType)}
-                </Text>
-                <Text style={[typography.bodyLarge, { color: colors.onSurface }]} numberOfLines={2}>
-                  {seg.segmentTitle}
-                </Text>
-                <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant }]}>
-                  {seg.paragraphs.length} Absätze
-                </Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={18} color={colors.onSurfaceVariant} />
+              <Text style={[textStyles.titlePage, { color: colors.onBackground }]}>
+                {SOURCE_DETAIL.title}
+              </Text>
             </TouchableOpacity>
-          </React.Fragment>
-        ))}
-      </View>
+            <Text style={[textStyles.sourceEdition, { color: colors.onSurfaceVariant }]}>
+              {sourceEditionLine()}
+            </Text>
+            {(werkCounts.notes > 0 || werkCounts.conversations > 0 || werkCounts.rag > 0) && (
+              <View style={styles.heroStrip}>
+                <ContributionStrip counts={werkCounts} />
+              </View>
+            )}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.continueBtn, { backgroundColor: colors.primaryContainer }]}
+          onPress={() => {
+            const seg = segments.find((s) =>
+              s.paragraphs.some((p) => p.paragraphId === lastReadParagraphId),
+            );
+            navigateToRead({
+              segmentIndex: seg?.segmentIndex ?? null,
+              paragraphId: lastReadParagraphId,
+            });
+          }}
+          activeOpacity={0.85}
+        >
+          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
+          <Text style={[textStyles.continueCta, { color: colors.onPrimaryContainer }]}>
+            {continueReadingLabel(continueSegmentTitle)}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+          {segments.map((seg, i) => {
+            const counts = segmentContributionCounts.get(seg.segmentIndex) ?? EMPTY_COUNTS;
+            const hasStrip = counts.notes > 0 || counts.conversations > 0 || counts.rag > 0;
+            const expanded = expandedSegments.has(seg.segmentIndex);
+            const summary = SEGMENT_SUMMARY_DEMO[seg.segmentIndex];
+
+            return (
+              <React.Fragment key={seg.segmentIndex}>
+                {i > 0 && (
+                  <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+                )}
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    style={styles.rowMain}
+                    onPress={() => navigateToRead({ segmentIndex: seg.segmentIndex, paragraphId: null })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[textStyles.chapterTitle, { color: colors.onSurface }]} numberOfLines={3}>
+                      {seg.segmentTitle}
+                    </Text>
+                    {hasStrip && (
+                      <View style={styles.rowStrip}>
+                        <ContributionStrip counts={counts} />
+                      </View>
+                    )}
+                    {expanded && summary ? (
+                      <Text style={[textStyles.aiSummary, { color: colors.onSurfaceVariant, marginTop: spacing.s }]}>
+                        {summary}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                  {summary ? (
+                    <Pressable
+                      style={styles.expandChevron}
+                      onPress={() => toggleSummary(seg.segmentIndex)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={expanded ? 'Zusammenfassung einklappen' : 'Zusammenfassung anzeigen'}
+                    >
+                      <AppIcon
+                        name={expanded ? ICONS.nav.collapseSummary : ICONS.nav.expandSummary}
+                        size={22}
+                        color={expanded ? colors.primary : colors.onSurfaceVariant}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </React.Fragment>
+            );
+          })}
+        </View>
       </ScrollView>
     </View>
   );
@@ -195,11 +356,8 @@ const styles = StyleSheet.create({
     gap: spacing.m,
     justifyContent: 'center',
   },
-  coverCard: {
-    width: 146,
-    gap: spacing.s,
-  },
-  coverPlaceholder: {
+  coverCard: { width: 146, gap: spacing.s },
+  coverBox: {
     aspectRatio: 2 / 3,
     borderRadius: 8,
     alignItems: 'center',
@@ -219,30 +377,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroText: { flex: 1, gap: 4 },
-  heroStrip: { flexDirection: 'row', gap: 8, marginTop: spacing.s },
+  heroText: { flex: 1, gap: 6 },
+  heroStrip: { marginTop: spacing.xs },
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.s,
-    padding: spacing.m,
-    borderRadius: 12,
+    paddingVertical: spacing.m,
+    paddingHorizontal: spacing.l,
+    borderRadius: 24,
   },
   card: { borderRadius: 12, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: spacing.m,
-    gap: spacing.m,
+    gap: spacing.s,
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  rowMain: { flex: 1, gap: 4 },
+  rowStrip: { marginTop: 4 },
+  expandChevron: {
+    paddingTop: 2,
+    paddingLeft: 4,
   },
-  rowText: { flex: 1, gap: 2 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: spacing.m },
 });

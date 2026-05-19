@@ -644,7 +644,7 @@ Kein neuer Container — WatermelonDB läuft komplett client-seitig und synct di
 
 ## 13. Figma Professional → Code-Workflow
 
-**Repo-Struktur Design:** [`design/README.md`](../design/README.md) (Tokens, Figma-SOP, Inventar) · Runtime: [`src/theme.ts`](../src/theme.ts)
+**Repo-Struktur Design:** [`design/README.md`](../design/README.md) (Tokens, Figma-SOP, Inventar) · Runtime: [`src/shared/theme`](../src/shared/theme/)
 
 **Aktuelle Design-Datei:** [ragapp-Layout (Figma)](https://www.figma.com/design/T6s2FocVkibx6pUG9A4uvw/ragapp-Layout?node-id=1-3&p=f&t=WcjtFybfBfHGKSU1-0)
 

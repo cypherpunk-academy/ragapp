@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generates src/theme.generated.ts from design/tokens/.
+ * Generates src/shared/theme/generated.ts from design/tokens/.
  * Run: npm run build:theme
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'design/tokens/tokens.json');
 const materialPath = join(root, 'design/tokens/material-theme.json');
-const outPath = join(root, 'src/theme.generated.ts');
+const outPath = join(root, 'src/shared/theme/generated.ts');
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));

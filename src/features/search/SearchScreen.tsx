@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
-import { useRagrunHealth } from '@/hooks/useRagrunHealth';
-import { lightColors, darkColors, spacing, typography, borderRadius } from '../../theme';
+import { useRagrunHealth } from '@/shared/hooks/useRagrunHealth';
+import { lightColors, darkColors, spacing, typography, borderRadius } from '@/shared/theme';
 
 export default function SearchScreen() {
   const colorScheme = useColorScheme();

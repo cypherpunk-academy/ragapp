@@ -11,10 +11,11 @@ Read ARCHITECTURE.md for full context. When adding or changing code:
 ## Layer rules
 
 - **Screens** (`app/`, `src/features/`): UI only. Call hooks; no `database.get`, no `fetch`, no `@supabase/supabase-js` imports.
-- **Hooks** (`src/hooks/`): Screen state, `observe()` subscriptions, orchestrate services + repositories.
-- **Repositories** (`src/repositories/`): WatermelonDB only. Local/offline data.
-- **Services** (`src/services/`): `authService`, `ragrunApi` — online business API. No UI imports.
-- **lib** (`src/lib/`): Infrastructure — `config`, `supabase`, `ragrun-client`, `seedLoader`, future `sync/`.
+- **Hooks** (`src/shared/hooks/`): Screen state, `observe()` subscriptions, orchestrate services + repositories.
+- **Repositories** (`src/data/repositories/`): WatermelonDB only. Local/offline data.
+- **Services** (`src/data/services/`): `authService`, `ragrunApi` — online business API. No UI imports.
+- **lib** (`src/data/lib/`): Infrastructure — `config`, `supabase`, `ragrun-client`, `seedLoader`, future `sync/`.
+- **shared** (`src/shared/components/`, `theme/`, `contexts/`, `types/`): Cross-feature UI and contracts.
 
 ## Online vs offline
 
@@ -24,7 +25,7 @@ Read ARCHITECTURE.md for full context. When adding or changing code:
 
 ## Config
 
-- Secrets and URLs: `EXPO_PUBLIC_*` in `.env` only. Use `config` from `@/lib/config`.
+- Secrets and URLs: `EXPO_PUBLIC_*` in `.env` only. Use `config` from `@/data/lib/config`.
 
 ## Examples
 
@@ -33,6 +34,6 @@ Read ARCHITECTURE.md for full context. When adding or changing code:
 const { notes } = useNotes(id);
 
 // ❌ in a screen
-import { database } from '@/db/database';
+import { database } from '@/data/db/database';
 await fetch(`${url}/app/search`, ...);
 ```

@@ -120,19 +120,17 @@ Der Gesamtplan verlangt **kein** klassisches Atomic Design. Pragmatisch und skal
 app/                            # expo-router (Root)
 src/
 ├── features/                   # Tab-Screens (search, read, notes, chat, …)
-├── hooks/                      # useAuth, useNotes, useRagrunHealth, …
-├── services/                   # authService, ragrunApi (online)
-├── repositories/               # WatermelonDB: Korpus, Notizen, Talks/Turns, …
-├── lib/
-│   ├── config.ts               # Env aus app.config.ts / EXPO_PUBLIC_*
-│   ├── supabase.ts             # Client, SecureStore-Session
-│   ├── ragrun-client.ts        # fetch-Wrapper, Bearer, RagrunApiError
-│   ├── seedLoader.ts           # Dev-Seed wenn DB leer
-│   └── sync/                   # (geplant) pull/push RPC
-├── db/                         # Schema, Models, Migrations
-├── components/                 # geteilte UI
-├── theme.ts                    # Runtime-Theme (aus design/tokens/, siehe design/README.md)
-└── types/                      # TS-Typen (inkl. ragrun API)
+├── shared/
+│   ├── components/             # AppBar, TabBar, …
+│   ├── theme/                  # Runtime-Theme (design/tokens/, npm run build:theme)
+│   ├── hooks/                  # useAuth, useNotes, useRagrunHealth, …
+│   ├── contexts/               # ReadingContext, …
+│   └── types/                  # TS-Typen (inkl. ragrun API)
+└── data/
+    ├── db/                     # Schema, Models, Migrations
+    ├── repositories/           # WatermelonDB
+    ├── services/               # authService, ragrunApi (online)
+    └── lib/                    # config, supabase, ragrun-client, seedLoader, sync/ (geplant)
 ```
 
 **Aus dem Anregungsdokument bewusst weggelassen:** verpflichtende `atoms/molecules/organisms`-Hierarchie und Storybook-Pflicht — können später ergänzt werden, wenn das Team wächst.
@@ -209,7 +207,7 @@ Der Gesamtplan umfasst Notizen, Konto, Auth — keine generische Form-Engine vor
 | Auth & Server-DB | Supabase |
 | Sensible Tokens | expo-secure-store |
 | Listen / Lesen | FlashList + Custom Renderer |
-| Theme | `src/theme.ts` (Tokens: `design/tokens/`, Doku: `design/README.md`) |
+| Theme | `src/shared/theme/` (Tokens: `design/tokens/`, Doku: `design/README.md`) |
 | Optionale Erweiterung | TanStack Query nur für ragrun-HTTP ohne Sync-Duplikat |
 
 ---

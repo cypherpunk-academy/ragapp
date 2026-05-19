@@ -79,8 +79,17 @@
       "segment_index": 2,
       "segment_title": "II. Der Grundtrieb der Wissenschaft",
       "paragraph_number": 1,
-      "text_raw": "Der Mensch kann über sein ei­ge­nes Wesen nach­den­ken. Er kann fra­gen: was bin ich, was ist mein Ver­hält­nis zur Welt? Diese Fra­gen stel­len sich ihm nicht nur in be­son­de­ren Au­gen­bli­cken sei­nes Le­bens, son­dern sie be­glei­ten ihn durch alle Sta­di­en sei­ner Ent­wick­lung.",
-      "annotations": null
+      "text_raw": "Zwei Seelen wohnen, ach! in meiner Brust, Die eine will sich von der anderen trennen; Die eine hält, in derber Liebeslust, Sich an die Welt mit klammernden Organen; Die andere hebt gewaltsam sich vom Dust Zu den Gefilden hoher Ahnen.",
+      "annotations": {
+        "foreign_quotes": [
+          {
+            "start": 0,
+            "end": 233,
+            "quoted_author": "Johann Wolfgang von Goethe",
+            "quoted_work": "Faust I"
+          }
+        ]
+      }
     },
     {
       "paragraph_id": "philosophie-der-freiheit:2:2",
@@ -89,8 +98,15 @@
       "segment_index": 2,
       "segment_title": "II. Der Grundtrieb der Wissenschaft",
       "paragraph_number": 2,
-      "text_raw": "Es ist der Grund­trieb des Men­schen, nach Ein­heit in allem Da­sein zu su­chen. Er will die Welt als ein Gan­zes ver­ste­hen. Diese Suche nach Ein­heit ist das ei­gent­li­che Motiv aller wis­sen­schaft­li­chen Tä­tig­keit. Der Mensch ist nicht zu­frie­den damit, die ein­zel­nen Dinge und Er­eig­nis­se der Welt zu ken­nen; er will wis­sen, was sie zu­sam­men­hält.",
-      "annotations": null
+      "text_raw": "Mit diesen Worten spricht Goethe einen tief in der menschlichen Natur begründeten Charakterzug aus. Nicht ein einheitlich organisiertes Wesen ist der Mensch. Er verlangt stets mehr, als die Welt ihm freiwillig gibt. Bedürfnisse hat die Natur uns gegeben; unter diesen sind solche, deren Befriedigung sie unserer eigenen Tätigkeit überlässt. Reichlich sind die Gaben, die uns zugeteilt, aber noch reichlicher ist unser Begehren. Wir scheinen zur Unzufriedenheit geboren. Nur ein besonderer Fall dieser Unzufriedenheit ist unser Erkenntnisdrang. Wir blicken einen Baum zweimal an. Wir sehen das eine Mal seine Äste in Ruhe, das andere Mal in Bewegung. Wir geben uns mit dieser Beobachtung nicht zufrieden. Warum stellt sich uns der Baum das eine Mal ruhend, das andere Mal in Bewegung dar? So fragen wir. Jeder Blick in die Natur erzeugt in uns eine Summe von Fragen. Mit jeder Erscheinung, die uns entgegentritt, ist uns eine Aufgabe mitgegeben. Jedes Erlebnis wird uns zum Rätsel. Wir sehen aus dem Ei ein dem Muttertier ähnliches Wesen hervorgehen; wir fragen nach dem Grund dieser Ähnlichkeit. Wir beobachten an einem Lebewesen Wachstum und Entwicklung bis zu einem bestimmten Grad der Vollkommenheit: wir suchen nach den Bedingungen dieser Erfahrung. Nirgends sind wir mit dem zufrieden, was die Natur vor unseren Sinnen ausbreitet. Wir suchen überall nach dem, was wir Erklärung der Tatsachen nennen.",
+      "annotations": {
+        "italics": [
+          {
+            "start": 1373,
+            "end": 1382
+          }
+        ]
+      }
     },
     {
       "paragraph_id": "philosophie-der-freiheit:2:3",
@@ -99,8 +115,307 @@
       "segment_index": 2,
       "segment_title": "II. Der Grundtrieb der Wissenschaft",
       "paragraph_number": 3,
-      "text_raw": "Die Wis­sen­schaft sucht die Ein­heit in der Viel­falt. Wenn wir die Natur be­trach­ten, so sehen wir eine un­end­li­che Man­nig­fal­tig­keit von Er­schei­nun­gen. Aber hin­ter die­ser Man­nig­fal­tig­keit sucht die Wis­sen­schaft die ein­heit­li­chen Ge­set­ze, nach denen sich diese Er­schei­nun­gen voll­zie­hen. Je mehr es ihr ge­lingt, diese Ge­set­ze zu fin­den, desto mehr be­frie­digt sie den Grund­trieb des mensch­li­chen Geis­tes.",
-      "annotations": null
+      "text_raw": "Der Überschuss dessen, was wir in den Dingen suchen, über das, was uns in ihnen unmittelbar gegeben ist, spaltet unser ganzes Wesen in zwei Teile; wir werden uns unseres Gegensatzes zur Welt bewusst. Wir stellen uns als ein selbstständiges Wesen der Welt gegenüber. Das Universum erscheint uns in den zwei Gegensätzen: Ich und Welt.",
+      "annotations": {
+        "foreign_quotes": [
+          { "start": 319, "end": 322 },
+          { "start": 327, "end": 331 }
+        ]
+      }
+    }
+  ],
+  "talks": [
+    {
+      "talk_id": "demo-talk-freiheit-1",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Ist der Mensch wirklich frei?",
+      "summary": "Diskussion über Bewusstsein und Willensfreiheit am Eingangsabsatz: ob „geistig frei“ Tatsachenbehauptung oder Grenzidee ist, und wie Motive sich von äußerem Zwang unterscheiden lassen.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:1:1",
+        "source_id": "philosophie-der-freiheit",
+        "anchor_turn_index": "1"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:1:1"
+    },
+    {
+      "talk_id": "demo-talk-freiheit-2",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Freiheit vs. Notwendigkeit",
+      "summary": "Klärt, ob Willensfreiheit wissenschaftlich entscheidbar ist und wie der Absatz Begeisterung für Freiheit mit Skepsis gegenüber Illusion zusammenführt, ohne die Frage vorzeitig zu beantworten.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:1:1",
+        "source_id": "philosophie-der-freiheit",
+        "anchor_turn_index": "0"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:1:1"
+    },
+    {
+      "talk_id": "demo-talk-spinoza-kontext",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Spioza ist der Ausgangspunkt dieses Gedankenfehlers",
+      "summary": "Demo-Anker für be4a72ee: Spinoza, Determinismus und Steiner — ob der Stein-Vergleich die Freiheitsfrage trifft oder sie nur verschärft, ohne den Text zu vereinfachen oder vorwegzunehmen.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:1:2",
+        "source_id": "philosophie-der-freiheit",
+        "anchor_turn_index": "1"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:1:2"
+    },
+    {
+      "talk_id": "demo-talk-bank-dreigliederung",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Verwalten oder Sichtbarmachen — Über Arbeit, Kapital und die neue Bank",
+      "summary": "Demo-Anker für 0fa15930: Dreigliederung, Geistesleben und Kapital — vom Verwalten von Geld zur Einsicht, die Begabungen sichtbar macht; Schenkung, Assoziation und die Grenze wirtschaftlicher Macht im sozialen Organismus.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:2:2",
+        "source_id": "philosophie-der-freiheit",
+        "anchor_turn_index": "2"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:2:2"
+    },
+    {
+      "talk_id": "demo-talk-erkenntnis-1",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Was heißt Erklärung?",
+      "summary": "Erörtert Steiners Erkenntnisdrang: warum jede Erscheinung eine Aufgabe wird und „Erklärung“ mehr meint als bloße Beschreibung — der Überschuss des Denkens über die unmittelbar gegebene Wahrnehmung.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:2:2",
+        "source_id": "philosophie-der-freiheit"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:2:2"
+    },
+    {
+      "talk_id": "demo-talk-begriff-idee",
+      "user_id": "local",
+      "collection": "philo-von-freisinn-v2",
+      "title": "Was ist der Unterschied zwischen Begriff und Idee?",
+      "summary": "Anknüpfung an d616dcc9: wie Begriff und Idee im Denken zusammenhängen, wo die Vorstellung noch ungeklärt bleibt und wann erst die aktive Synthese des Ich die totale Wirklichkeit vermittelt und frei wird.",
+      "context_mode": "paragraph",
+      "context_ids": {
+        "paragraph_id": "philosophie-der-freiheit:1:3",
+        "source_id": "philosophie-der-freiheit"
+      },
+      "context_paragraph_id": "philosophie-der-freiheit:1:3"
+    }
+  ],
+  "turns": [
+    {
+      "talk_id": "demo-talk-freiheit-1",
+      "turn_index": 0,
+      "assistant_personality": "sokrates",
+      "user_message": "Ich lese die Philosophie der Freiheit zum ersten Mal — wo soll ich mit der Freiheitsfrage anfangen?",
+      "assistant_message": "Am Eingang des ersten Kapitels. Steiner stellt dort die Grundfrage, bevor er sie vertieft: ob der Mensch frei handelt oder einem Zwang folgt.",
+      "chunk_index_map": {}
+    },
+    {
+      "talk_id": "demo-talk-freiheit-1",
+      "turn_index": 1,
+      "assistant_personality": "sokrates",
+      "user_message": "Steiner spricht hier von einem geistig freien Wesen — meinst du, das ist eine Tatsachenbehauptung oder eine Grenzidee?",
+      "assistant_message": "Fragen wir zuerst: Was erlebst du selbst, wenn du handelst? Findest du Motive, oder findest du Zwang? Die Stelle legt die Spannung offen, bevor sie sie auflöst.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-freiheit-1",
+      "turn_index": 2,
+      "assistant_personality": "sokrates",
+      "user_message": "Wenn ich Motive finde, heißt das dann schon Freiheit — oder nur, dass die Ursache im Inneren liegt?",
+      "assistant_message": "Das ist der nächste Schritt im Text. Innere Motive allein genügen noch nicht; es geht darum, ob du die Gründe deines Handelns auch wirklich durchschaust und ihnen nicht nur ausgesetzt bist.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-freiheit-2",
+      "turn_index": 0,
+      "assistant_personality": "der-machtarchitekt",
+      "user_message": "Kann man Freiheit des Willens überhaupt wissenschaftlich entscheiden?",
+      "assistant_message": "Wissenschaft entscheidet selten letzte Fragen — sie verschärft sie. Der Absatz sammelt die großen Lager: Begeisterung für Freiheit und Skepsis gegenüber Illusion.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-freiheit-2",
+      "turn_index": 1,
+      "assistant_personality": "der-machtarchitekt",
+      "user_message": "Heißt das, die Frage ist prinzipiell offen — oder nur methodisch schwer?",
+      "assistant_message": "Beides zugleich: offen, weil du im Handeln etwas erlebst, das keine Messung ersetzt; schwer, weil jede Theorie den Blick auf dieses Erleben schon mitbringt.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-freiheit-2",
+      "turn_index": 2,
+      "assistant_personality": "der-machtarchitekt",
+      "user_message": "Und die Begeisterung für Freiheit — ist die ein Argument oder nur ein Gefühl?",
+      "assistant_message": "Weder noch allein. Sie weist auf ein Erlebnis, das der Text prüfen will: ob Freiheit Illusion ist oder ob sie im bewussten Handeln wirklich auftritt.",
+      "chunk_index_map": {}
+    },
+    {
+      "talk_id": "demo-talk-spinoza-kontext",
+      "turn_index": 0,
+      "assistant_personality": "assistant-host",
+      "user_message": "Bevor wir bei Spinoza sind: Was meint Steiner mit dem Vergleich des Steins überhaupt?",
+      "assistant_message": "Er schärft den Begriff von Ursache: Der Stein „handelt“ nur, weil etwas von außen ihn bewegt. Die Frage ist, ob beim Menschen alles genauso abläuft.",
+      "chunk_index_map": {}
+    },
+    {
+      "talk_id": "demo-talk-spinoza-kontext",
+      "turn_index": 1,
+      "assistant_personality": "assistant-host",
+      "user_message": "Spinoza ist der Ausgangspunkt dieses Gedankenfehlers, dass man den Stein für frei halten kann — trifft Steiner damit den Kern?",
+      "assistant_message": "Der Vergleich dient der Schärfe, nicht der Abwehr: Wenn alles determiniert wäre, bliebe nur Schein von Freiheit. Steiner fragt, ob du im Handeln wirklich nur Effekt bist — oder ob Motive aus dir selbst kommen.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-spinoza-kontext",
+      "turn_index": 2,
+      "assistant_personality": "assistant-host",
+      "user_message": "Kann ich den Stein-Vergleich also nicht einfach wegwischen, ohne mein eigenes Handeln anzusehen?",
+      "assistant_message": "Genau. Der Vergleich zwingt dich zurück ins Erleben: Findest du beim Handeln nur äußere Ursachen — oder auch Gründe, die du als deine erkennst?",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-bank-dreigliederung",
+      "turn_index": 0,
+      "assistant_personality": "assistant-host",
+      "user_message": "Art, Maß und Zeit der Arbeit sollen im Rechtsleben festgelegt werden — was ist damit genau gemeint, und wer findet den Platz für Fähigkeiten im Geistesleben?",
+      "assistant_message": "Art, Maß und Zeit sind Rahmenbedingungen für alle — nicht der Inhalt der Arbeit. Der Platz für Fähigkeiten entsteht aus freier Initiative und dem Verständnis anderer, nicht aus Verfügung über andere.",
+      "chunk_index_map": { "1": 0, "2": 1 }
+    },
+    {
+      "talk_id": "demo-talk-bank-dreigliederung",
+      "turn_index": 1,
+      "assistant_personality": "assistant-host",
+      "user_message": "Im Geistesleben sollen Menschen Überschuss-Kapital verwalten und Orte finden, wo Fähigkeiten wirken — ist das noch Geistesleben oder schon Wirtschaft?",
+      "assistant_message": "Die Verfügung über Geld ist wirtschaftliche Macht. Steiner meint Einsicht in produktive Verwendungen — nicht, dass das Geistesleben Kapital lenkt, das andere frei geben.",
+      "chunk_index_map": { "2": 1 }
+    },
+    {
+      "talk_id": "demo-talk-bank-dreigliederung",
+      "turn_index": 2,
+      "assistant_personality": "assistant-host",
+      "user_message": "Ah — die neuen Banken verwalteten kein Geld, sondern machten Orte sichtbar, wo Begabungen gebraucht werden. Das können Menschen, Assoziationen oder Politiker sein.",
+      "assistant_message": "Du hast den entscheidenden Schritt gemacht: nicht Verwalten, sondern Sichtbarmachen. Dann bleibt die Schenkung frei, und Assoziationen entscheiden aus Sachverstand.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-bank-dreigliederung",
+      "turn_index": 3,
+      "assistant_personality": "assistant-host",
+      "user_message": "Danke dir!",
+      "assistant_message": "Gern. Die Dreigliederung ist keine fertige Anwendung, sondern eine Anregung, Verhältnisse immer wieder neu zu durchdenken — gerade dort, wo Geld und Geist sich berühren.",
+      "chunk_index_map": {}
+    },
+    {
+      "talk_id": "demo-talk-erkenntnis-1",
+      "turn_index": 0,
+      "assistant_personality": "assistant-host",
+      "user_message": "Warum betont Steiner am Ende die Erklärung der Tatsachen?",
+      "assistant_message": "Weil Erkenntnis hier als Überschuss über die unmittelbare Gegebenheit beschrieben wird. Wir fragen nicht nur, was ist, sondern was es bedeutet — das Wort Erklärung markiert diesen Sprung.",
+      "chunk_index_map": { "1": 0 }
+    },
+    {
+      "talk_id": "demo-talk-begriff-idee",
+      "turn_index": 0,
+      "assistant_personality": "socrates",
+      "user_message": "Was ist der Unterschied zwischen Begriff und Idee?",
+      "assistant_message": "Beim Menschen sind Begriff und Wahrnehmung zunächst getrennt — die Idee verbindet sie erst in wirklicher Tätigkeit. Ist die Vorstellung für dich schon Erkenntnis, oder erst ein Durchgangsstadium?",
+      "chunk_index_map": { "1": 0 }
+    }
+  ],
+  "references": [
+    {
+      "ref_id": "demo-ref-1-1",
+      "paragraph_id": "philosophie-der-freiheit:1:1",
+      "turn_id": "demo-turn-ext-1",
+      "chunk_id": "chunk:begriff-willensfreiheit",
+      "ref_index": 1,
+      "ref_kind": "begriff",
+      "relevance": 0.92,
+      "source_title": "Die Philosophie der Freiheit",
+      "segment_title": "IX. Die Idee der Freiheit",
+      "snippet": "Begriff Willensfreiheit° — verwandt mit der Eingangsfrage nach geistiger Freiheit."
+    },
+    {
+      "ref_id": "demo-ref-1-2",
+      "paragraph_id": "philosophie-der-freiheit:1:1",
+      "chunk_id": "chunk:zitat-spinoza-stein",
+      "ref_index": 2,
+      "ref_kind": "zitat",
+      "relevance": 0.87,
+      "source_title": "Die Philosophie der Freiheit",
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "snippet": "Spinoza-Vergleich: der Stein, der sich für frei hält."
+    },
+    {
+      "ref_id": "demo-ref-1-3",
+      "paragraph_id": "philosophie-der-freiheit:1:1",
+      "chunk_id": "chunk:summary-kap-9",
+      "ref_index": 3,
+      "ref_kind": "buch",
+      "relevance": 0.81,
+      "source_title": "Die Philosophie der Freiheit",
+      "segment_title": "Kapitelzusammenfassung",
+      "snippet": "Kapitel IX knüpft die Freiheitsidee an moralische Individualität."
+    },
+    {
+      "ref_id": "demo-ref-2-1",
+      "paragraph_id": "philosophie-der-freiheit:2:2",
+      "chunk_id": "chunk:begriff-erklärung",
+      "ref_index": 1,
+      "ref_kind": "begriff",
+      "relevance": 0.94,
+      "source_title": "Die Philosophie der Freiheit",
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "snippet": "Erklärung° — zentraler Begriff für den Überschuss über die bloße Wahrnehmung."
+    },
+    {
+      "ref_id": "demo-ref-2-2",
+      "paragraph_id": "philosophie-der-freiheit:2:2",
+      "chunk_id": "chunk:zitat-goethe-faust",
+      "ref_index": 2,
+      "ref_kind": "zitat",
+      "relevance": 0.89,
+      "source_title": "Faust I",
+      "segment_title": "Zwei Seelen",
+      "snippet": "Goethe-Zitat als Ausgangspunkt des Kapitels."
+    },
+    {
+      "ref_id": "demo-ref-1-4",
+      "paragraph_id": "philosophie-der-freiheit:1:3",
+      "ref_index": 1,
+      "ref_kind": "vortrag",
+      "relevance": 0.76,
+      "source_title": "Die Wahrheit wird uns frei machen",
+      "segment_title": "Berlin, 1904",
+      "snippet": "Vortrag knüpft an die Grundfrage der Willensfreiheit an."
+    },
+    {
+      "ref_id": "demo-ref-1-2b",
+      "paragraph_id": "philosophie-der-freiheit:1:2",
+      "ref_index": 1,
+      "ref_kind": "zitat",
+      "relevance": 0.88,
+      "source_title": "Die Philosophie der Freiheit",
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "snippet": "Es gibt Menschen, die jeden für geistig beschränkt halten, der die Freiheit des Willens leugnen kann."
+    },
+    {
+      "ref_id": "demo-ref-2-3",
+      "paragraph_id": "philosophie-der-freiheit:2:2",
+      "ref_index": 3,
+      "ref_kind": "buch",
+      "relevance": 0.84,
+      "source_title": "Aufsätze über die Dreigliederung des sozialen Organismus und zur Zeitlage",
+      "segment_title": "DREIGLIEDERUNG UND SOZIALES VERTRAUEN (KAPITAL UND KREDIT)",
+      "snippet": "Ein freies Geistesleben schafft Interessen, welche die Arbeit in die Gemeinschaft ziel- und inhaltbegabt hineinstellen."
     }
   ]
 }

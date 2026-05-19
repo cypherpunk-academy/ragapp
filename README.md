@@ -47,7 +47,7 @@ Ausführliche Pläne: [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md)
 ## Design
 
 Kurz-Checkliste und Token-Pipeline: **[design/README.md](./design/README.md)**  
-Nach JSON-Änderung: `npm run build:theme` → App-Theme in [`src/theme.ts`](./src/theme.ts)
+Nach JSON-Änderung: `npm run build:theme` → App-Theme in [`src/shared/theme`](./src/shared/theme/)
 
 ## Lizenz
 
