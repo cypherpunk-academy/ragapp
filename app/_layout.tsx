@@ -4,10 +4,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Linking from 'expo-linking';
 import { useColorScheme } from 'react-native';
 import { lightColors, darkColors } from '@/shared/theme';
 import { seedIfEmpty, seedDemoContributionsIfEmpty } from '@/data/lib/seedLoader';
 import { useAppFonts } from '@/shared/hooks/useAppFonts';
+import { authService } from '@/data/services/authService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +22,17 @@ export default function RootLayout() {
     seedIfEmpty()
       .then(() => seedDemoContributionsIfEmpty())
       .catch(console.error);
+  }, []);
+
+  // Handle Supabase Magic Link deep links (e.g. ragapp://auth/callback?code=...)
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (url) void authService.handleDeepLink(url);
+    });
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      void authService.handleDeepLink(url);
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {

@@ -18,6 +18,8 @@ import { authErrorSuggestsNewAccount, authService } from '@/data/services/authSe
 import { useAuth } from '@/shared/hooks/useAuth';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
+const appleSignInAvailable = authService.isAppleSignInAvailable();
+
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
     return (err as { message: string }).message;
@@ -36,6 +38,23 @@ export default function LoginScreen() {
   const [sent, setSent] = useState(false);
 
   const trimmed = email.trim();
+
+  const handleApple = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await authService.signInWithApple();
+      router.replace('/(tabs)');
+    } catch (e: unknown) {
+      // User cancelled — Apple throws ERR_REQUEST_CANCELED
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
+      if (code !== 'ERR_REQUEST_CANCELED') {
+        setError(errorMessage(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleSend = async () => {
     setError(null);
@@ -135,6 +154,27 @@ export default function LoginScreen() {
                 <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Link senden</Text>
               )}
             </TouchableOpacity>
+
+            {appleSignInAvailable && (
+              <>
+                <View style={[styles.dividerRow, { marginTop: spacing.m }]}>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
+                  <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, marginHorizontal: spacing.s }]}>
+                    oder
+                  </Text>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
+                </View>
+                <TouchableOpacity
+                  style={[styles.appleBtn, { backgroundColor: colors.onBackground }]}
+                  onPress={() => void handleApple()}
+                  disabled={busy}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="logo-apple" size={20} color={colors.background} />
+                  <Text style={[textStyles.continueCta, { color: colors.background }]}>Mit Apple anmelden</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
       </ScrollView>
@@ -168,5 +208,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  appleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s,
+    borderRadius: 999,
+    paddingVertical: spacing.s,
+    minHeight: 44,
+    marginTop: spacing.m,
   },
 });

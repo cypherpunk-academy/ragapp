@@ -5,13 +5,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES, type MaterialIconName } from '../theme';
 
-export type TabId = 'search' | 'overview' | 'read' | 'chat';
+export type TabId = 'search' | 'overview' | 'read' | 'chat' | 'konto';
 
 const TABS: { id: TabId; label: string; icon: MaterialIconName }[] = [
   { id: 'overview', label: 'ÜBERSICHT', icon: ICONS.tab.overview },
   { id: 'read',     label: 'LESEN',     icon: ICONS.tab.read },
   { id: 'chat',     label: 'KI-CHAT',   icon: ICONS.tab.chat },
   { id: 'search',   label: 'SUCHE',     icon: ICONS.tab.search },
+  { id: 'konto',    label: 'KONTO',     icon: ICONS.account.avatar },
 ];
 
 type Props = {

@@ -1,7 +1,18 @@
 import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import { config } from '@/data/lib/config';
 import { getSupabase } from '@/data/lib/supabase';
+
+// Install: npx expo install expo-apple-authentication
+// Also add "usesAppleSignIn": true to app.config.ts → ios.infoPlist
+let AppleAuthentication: typeof import('expo-apple-authentication') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  AppleAuthentication = require('expo-apple-authentication') as typeof import('expo-apple-authentication');
+} catch {
+  // package not installed — Apple Sign-In unavailable
+}
 
 export type AuthState = {
   session: Session | null;
@@ -80,6 +91,50 @@ export const authService = {
       },
     });
     if (error) throw error;
+  },
+
+  /** True when Apple Sign-In is available (iOS 13+ and package installed). */
+  isAppleSignInAvailable(): boolean {
+    if (Platform.OS !== 'ios') return false;
+    if (!AppleAuthentication) return false;
+    return true;
+  },
+
+  /**
+   * Sign in with Apple ID.
+   * Requires expo-apple-authentication to be installed and
+   * "usesAppleSignIn": true in app.config.ts → ios.infoPlist.
+   */
+  async signInWithApple(): Promise<void> {
+    if (!this.isAvailable()) throw new Error('Supabase is not configured.');
+    if (!AppleAuthentication) throw new Error('expo-apple-authentication is not installed.');
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+
+    const { error } = await getSupabase().auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+    });
+    if (error) throw error;
+  },
+
+  /**
+   * Handle a deep-link URL that Supabase redirected to after Magic Link click.
+   * Call this from the root layout's Linking listener.
+   */
+  async handleDeepLink(url: string): Promise<void> {
+    if (!this.isAvailable()) return;
+    // Supabase PKCE flow sends ?code=..., legacy OTP sends #access_token=...
+    if (!url.includes('access_token') && !url.includes('code=')) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (getSupabase().auth as any).getSessionFromUrl({ url });
   },
 
   async signOut(): Promise<void> {

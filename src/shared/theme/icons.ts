@@ -15,7 +15,6 @@ export const ICONS = {
   contribution: {
     notes: 'edit' as MaterialIconName,
     conversations: 'chat-bubble-outline' as MaterialIconName,
-    rag: 'my-location' as MaterialIconName,
   },
   nav: {
     back: 'chevron-left' as MaterialIconName,
