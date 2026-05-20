@@ -195,8 +195,8 @@ export default function OverviewScreen() {
                       accessibilityLabel="Zusammenfassung anzeigen"
                     >
                       <AppIcon
-                        name={ICONS.nav.expandSummary}
-                        size={22}
+                        name={ICONS.context.summary}
+                        size={20}
                         color={colors.onSurfaceVariant}
                       />
                     </Pressable>
