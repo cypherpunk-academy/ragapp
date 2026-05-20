@@ -4,6 +4,7 @@ import type {
   ChatRequest,
   ChatResponse,
   ChatSummarizeResponse,
+  ChunkTextResponse,
   PersonalitiesResponse,
   RagrunHealthResponse,
   SearchRequest,
@@ -30,6 +31,14 @@ export const ragrunApi = {
       method: 'POST',
       body: request,
     });
+  },
+
+  /** Optional: Chunk-Volltext nachladen, falls `POST /app/search` kein `text` liefert. */
+  async getChunk(chunkId: string, sourceId?: string): Promise<ChunkTextResponse> {
+    const q = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : '';
+    return ragrunRequest<ChunkTextResponse>(
+      `${APP_PREFIX}/chunks/${encodeURIComponent(chunkId)}${q}`,
+    );
   },
 
   async getSources(): Promise<SourcesResponse> {

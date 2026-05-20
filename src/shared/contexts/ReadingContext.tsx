@@ -17,6 +17,14 @@ type ConversationDetailOverlay = {
   anchorTurnIndex: number;
 };
 
+type ChunkPreviewOverlay = {
+  sourceId: string;
+  chunkId: string;
+  title?: string | null;
+  /** MVP: ein Chunk; Volltext aus Suche oder Folge-API. */
+  initialText: string;
+};
+
 type ReadingTarget = {
   sourceId: string;
   segmentIndex: number | null;
@@ -27,6 +35,7 @@ type ReadingContextValue = {
   target: ReadingTarget;
   contributions: ContributionsOverlay | null;
   conversationDetail: ConversationDetailOverlay | null;
+  chunkPreview: ChunkPreviewOverlay | null;
   chatTalkId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
   navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => void;
@@ -38,6 +47,8 @@ type ReadingContextValue = {
   closeContributions: () => void;
   openConversationDetail: (talkId: string, anchorParagraphId?: string | null, anchorTurnIndex?: number) => void;
   closeConversationDetail: () => void;
+  openChunkPreview: (payload: ChunkPreviewOverlay) => void;
+  closeChunkPreview: () => void;
   /** Wird vom Layout injiziert. */
   _registerTabNav: (fn: (index: number) => void) => void;
 };
@@ -52,6 +63,7 @@ const ReadingContext = createContext<ReadingContextValue>({
   target: { sourceId: DEFAULT_SOURCE, segmentIndex: null, paragraphId: null },
   contributions: null,
   conversationDetail: null,
+  chunkPreview: null,
   chatTalkId: null,
   navigateToRead: () => {},
   navigateToChat: () => {},
@@ -60,6 +72,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   closeContributions: () => {},
   openConversationDetail: () => {},
   closeConversationDetail: () => {},
+  openChunkPreview: () => {},
+  closeChunkPreview: () => {},
   _registerTabNav: () => {},
 });
 
@@ -78,6 +92,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
   const [contributions, setContributions] = useState<ContributionsOverlay | null>(null);
   const [conversationDetail, setConversationDetail] = useState<ConversationDetailOverlay | null>(null);
+  const [chunkPreview, setChunkPreview] = useState<ChunkPreviewOverlay | null>(null);
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
 
   const navigateToRead = useCallback(
@@ -115,12 +130,19 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
   const closeConversationDetail = useCallback(() => setConversationDetail(null), []);
 
+  const openChunkPreview = useCallback((payload: ChunkPreviewOverlay) => {
+    setChunkPreview(payload);
+  }, []);
+
+  const closeChunkPreview = useCallback(() => setChunkPreview(null), []);
+
   return (
     <ReadingContext.Provider
       value={{
         target,
         contributions,
         conversationDetail,
+        chunkPreview,
         chatTalkId,
         navigateToRead,
         navigateToChat,
@@ -129,6 +151,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         closeContributions,
         openConversationDetail,
         closeConversationDetail,
+        openChunkPreview,
+        closeChunkPreview,
         _registerTabNav,
       }}
     >

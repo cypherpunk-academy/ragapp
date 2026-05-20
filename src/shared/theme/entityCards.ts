@@ -25,7 +25,7 @@ type EntityCardConfig = {
  * Jeder Typ hat eine klar unterscheidbare Nicht-Grau-Farbe.
  */
 const ENTITY_CARD_CONFIG: Record<EntityKind, EntityCardConfig> = {
-  // Gespräche: Tertiary (Malve/Lila)
+  // KI-Gespräche (eigene Talks + indexierte Assistant-Talks): Tertiary (Malve/Lila)
   talk: {
     label: 'Gespräch',
     icon: 'chat',
@@ -66,11 +66,11 @@ const ENTITY_CARD_CONFIG: Record<EntityKind, EntityCardConfig> = {
     icon: 'summarize',
     accentHex: () => '#E65100',
   },
-  // Notiz: Tertiary (Malve — seltener in Suche, teilt sich mit Gespräch)
+  // Notiz: eigenständige Farbe (nicht Gespräch-Tertiary)
   notiz: {
     label: 'Notiz',
     icon: 'edit',
-    accentHex: (c) => c.tertiary,
+    accentHex: () => '#A67C52',
   },
   // Typologie: Teal (unterscheidet sich von Blau, Grün, Orange)
   typology: {
@@ -127,10 +127,12 @@ export function entityKindFromSearchResult(result: {
   const ct = result.chunk_type?.toLowerCase() ?? '';
   const st = result.source_type?.toLowerCase() ?? '';
 
+  if (ct === 'note' || ct === 'notiz') return 'notiz';
   if (ct === 'concept' || ct === 'term' || ct === 'begriff') return 'begriff';
   if (ct === 'quote' || ct === 'zitat') return 'zitat';
   if (ct === 'chapter_summary' || ct === 'summary') return 'kapitel_zusammenfassung';
   if (ct === 'typology' || ct === 'typologie') return 'typology';
+  // Indexierte KI-Gespräche (Assistant-Exports, chunk_type talk)
   if (ct === 'talk') return 'chunk_gespraech';
   if (st === 'vortrag' || st === 'lecture') return 'chunk_vortrag';
   if (st === 'gespraech' || st === 'conversation') return 'chunk_gespraech';

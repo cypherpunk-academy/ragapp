@@ -32,6 +32,7 @@ export type {
   ChatRequest,
   ChatResponse,
   ChatSummarizeResponse,
+  ChunkTextResponse,
   Personality,
   PersonalitiesResponse,
   RagrunHealthResponse,

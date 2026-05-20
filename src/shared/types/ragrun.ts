@@ -8,11 +8,33 @@ export type SearchResult = {
   /** Kapitel- oder Segment-Titel */
   segment_title?: string;
   snippet: string;
+  /** Volltext des Chunks (wenn die Suche ihn mitliefert) — für Karten-Vorschau & Overlay. */
+  text?: string;
   score: number;
   /** Chunk-Typ aus ragrun, z. B. 'text' | 'concept' | 'quote' | 'chapter_summary' */
   chunk_type?: string;
   /** Quellentyp, z. B. 'buch' | 'vortrag' | 'gespraech' */
   source_type?: string;
+  /** Werk-/Quell-Autor (Kontextzeile bei Notiz) */
+  author?: string;
+  /** Buchtitel der Quelle (Kontextzeile bei Notiz, Buch) */
+  book_title?: string;
+  /** Vortrag: Ort (Kontextzeile bei Notiz) */
+  venue?: string;
+  /** Vortrag: Datum (ISO oder Anzeige-String) */
+  lecture_date?: string;
+  /** Notiz: Autor der Notiz (Zeile 2, fett) */
+  note_author?: string;
+  /** Notiz: Datum der Notiz — ISO oder Anzeige (Zeile 2, fett) */
+  note_date?: string;
+  /** Zitat: Autorenzeile (groß) */
+  quote_author?: string;
+  /** Zitat: voller Zitattext (Kartenkörper); fallback `snippet` */
+  quote_text?: string;
+  /** Leseposition / Folge-Laden (optional) */
+  source_index?: number;
+  /** Mehr-Chunk-Overlay (optional, Phase 2) */
+  chunk_ids?: string[];
 };
 
 export type SearchRequest = {
@@ -24,6 +46,14 @@ export type SearchRequest = {
 
 export type SearchResponse = {
   results: SearchResult[];
+};
+
+/** Optional: `GET /app/chunks/{chunk_id}` — Volltext nachladen. */
+export type ChunkTextResponse = {
+  chunk_id: string;
+  source_id?: string;
+  text?: string;
+  snippet?: string;
 };
 
 export type RagrunHealthResponse = {

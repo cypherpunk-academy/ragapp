@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, StyleSheet, useColorScheme,
-  ActivityIndicator, TouchableOpacity, ScrollView,
+  ActivityIndicator, TouchableOpacity, ScrollView, type TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
+import { lightColors, darkColors, spacing, typography, textStyles, fonts } from '@/shared/theme';
+import { fontSize as tokenFontSize } from '@/shared/theme/generated';
 import { colorWithAlpha } from '@/shared/lib/color';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
+import { buildSearchHitCard, type SearchHitNavigation } from '@/shared/lib/searchHitCard';
 import TalkCard from '@/shared/components/TalkCard';
 import EntityResultCard from '@/shared/components/EntityResultCard';
 import type Talk from '@/data/db/models/Talk';
@@ -26,29 +28,40 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
   {
     chunk_id: 'demo-begriff-1',
     source_id: 'philo-von-freisinn',
-    title: 'Philosophie von Freisinn',
+    title: 'Neigung',
     segment_title: 'Grundbegriff',
     snippet: 'Neigung: Wenn die Handlung aus dem Willen des Handelnden hervorgeht und nicht aus äußerem Zwang, spricht man von Neigung. Schopenhauer unterscheidet zwei Arten der Motivation...',
+    text: 'Neigung: Wenn die Handlung aus dem Willen des Handelnden hervorgeht und nicht aus äußerem Zwang, spricht man von Neigung. Schopenhauer unterscheidet zwei Arten der Motivation und weitere feine Nuancen.',
     score: 0.82,
     chunk_type: 'begriff',
     source_type: 'buch',
+    author: 'Schopenhauer',
+    book_title: 'Philosophie von Freisinn',
   },
   {
     chunk_id: 'demo-book-1',
     source_id: 'rebel-code',
     title: 'Rebel Code: Linux and the Open Source Revolution',
+    book_title: 'Rebel Code: Linux and the Open Source Revolution',
     segment_title: 'The Origins of Linux',
+    author: 'Glyn Moody',
     snippet: 'Guido van Rossum created Python in the late 1980s, drawing inspiration from ABC and Modula-3. His goal was a language that was easy to read and write...',
+    text: 'Guido van Rossum created Python in the late 1980s, drawing inspiration from ABC and Modula-3. His goal was a language that was easy to read and write for programmers and newcomers alike.',
     score: 0.74,
     chunk_type: 'book',
     source_type: 'buch',
+    paragraph_id: 'demo-book-para-1',
   },
   {
     chunk_id: 'demo-summary-1',
     source_id: 'rudolf-steiner-vortrag',
     title: 'Vortrag über die sittliche Phantasie',
     segment_title: 'Kapitel 9 — Zusammenfassung',
+    author: 'Rudolf Steiner',
+    venue: 'Dornach',
+    lecture_date: '1920-05-14',
     snippet: 'Zusammenfassung: Steiner erläutert in diesem Vortrag die Bedeutung der sittlichen Phantasie als Quelle freier sittlicher Handlungen. Der Mensch erschafft sich selbst seine moralischen Ziele...',
+    text: 'Zusammenfassung: Steiner erläutert in diesem Vortrag die Bedeutung der sittlichen Phantasie als Quelle freier sittlicher Handlungen. Der Mensch erschafft sich selbst seine moralischen Ziele und verwirklicht sie durch moralische Intuition.',
     score: 0.71,
     chunk_type: 'chapter_summary',
     source_type: 'vortrag',
@@ -57,18 +70,27 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
     chunk_id: 'demo-quote-1',
     source_id: 'assange-collected',
     title: 'Julian Assange: Collected Writings',
+    book_title: 'Julian Assange: Collected Writings',
     segment_title: 'State and Knowledge',
-    snippet: '"The internet, our greatest tool of emancipation, has been transformed into the most dangerous facilitator of totalitarianism we have ever seen." — Julian Assange',
+    quote_author: 'Julian Assange',
+    quote_text:
+      '"The internet, our greatest tool of emancipation, has been transformed into the most dangerous facilitator of totalitarianism we have ever seen."',
+    snippet:
+      '"The internet, our greatest tool of emancipation, has been transformed into the most dangerous facilitator of totalitarianism we have ever seen." — Julian Assange',
     score: 0.68,
     chunk_type: 'quote',
     source_type: 'buch',
+    paragraph_id: 'demo-quote-para-1',
   },
   {
     chunk_id: 'demo-talk-1',
     source_id: 'philo-von-freisinn',
     title: 'Gespräch: Arbeit als Ware',
     segment_title: 'Philosophie von Freisinn',
+    author: 'Rudolf Steiner',
+    book_title: 'Philosophie der Freiheit',
     snippet: 'Wenn Arbeit als Ware behandelt wird, verliert der Mensch seinen Selbstzweck. Marx sieht darin die Entfremdung: Der Arbeiter wird zum Mittel fremder Zwecke...',
+    text: 'Wenn Arbeit als Ware behandelt wird, verliert der Mensch seinen Selbstzweck. Marx sieht darin die Entfremdung: Der Arbeiter wird zum Mittel fremder Zwecke und verliert die Bedeutung seiner eigenen Tätigkeit.',
     score: 0.65,
     chunk_type: 'talk',
     source_type: 'gespraech',
@@ -79,11 +101,33 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
     title: 'Motive sittlichen Handelns',
     segment_title: 'Sittliche Phantasie',
     snippet: 'Typologie der Motive sittlichen Handelns nach Rudolf Steiner: (1) Egoismus, (2) Konformismus, (3) Moralischer Intuitionismus, (4) Sittliche Phantasie als höchste Stufe...',
+    text: 'Typologie der Motive sittlichen Handelns nach Rudolf Steiner: (1) Egoismus, (2) Konformismus, (3) Moralischer Intuitionismus, (4) Sittliche Phantasie als höchste Stufe moralischen Handelns.',
     score: 0.60,
     chunk_type: 'typology',
     source_type: 'buch',
+    author: 'Rudolf Steiner',
+    book_title: 'Philosophie der Freiheit',
+  },
+  {
+    chunk_id: 'demo-notiz-1',
+    source_id: 'philosophie-der-freiheit',
+    title: 'Gedanke zur Willensfreiheit',
+    segment_title: 'Abschnitt 3',
+    snippet: 'Der freie Wille lässt sich nicht auf kausale Ketten reduzieren, ohne das Phänomen zu verfehlen. Kant trennt intelligiblen und empirischen Charakter...',
+    text: 'Der freie Wille lässt sich nicht auf kausale Ketten reduzieren, ohne das Phänomen zu verfehlen. Kant trennt intelligiblen und empirischen Charakter. Die praktische Vernunft setzt sich über Naturgesetze hinweg.',
+    score: 0.55,
+    chunk_type: 'notiz',
+    source_type: 'buch',
+    note_author: 'Michael',
+    note_date: '2026-05-18',
+    author: 'Rudolf Steiner',
+    book_title: 'Philosophie der Freiheit',
+    paragraph_id: 'demo-para-notiz',
   },
 ] : [];
+
+/** KI-Gespräche: eigene Talks (lokal) + indexierte Assistant-Talks (ragrun, chunk_type talk). */
+const GESPRAECH_FILTER_KINDS: EntityKind[] = ['talk', 'chunk_gespraech'];
 
 const ALL_FILTER_KINDS: { kind: EntityKind; label: string }[] = [
   { kind: 'chunk_buch', label: 'Buch' },
@@ -92,11 +136,98 @@ const ALL_FILTER_KINDS: { kind: EntityKind; label: string }[] = [
   { kind: 'begriff', label: 'Begriff' },
   { kind: 'zitat', label: 'Zitat' },
   { kind: 'typology', label: 'Typologie' },
-  { kind: 'chunk_gespraech', label: 'Gespräch' },
-  { kind: 'talk', label: 'Gespräch (lokal)' },
+  { kind: 'talk', label: 'Gespräch' },
+  { kind: 'notiz', label: 'Notiz' },
 ];
 
-const DEFAULT_KINDS: EntityKind[] = ['chunk_buch', 'chunk_vortrag', 'kapitel_zusammenfassung'];
+const DEFAULT_KINDS: EntityKind[] = ALL_FILTER_KINDS.map(({ kind }) => kind);
+
+/** Suchfeld: mehrzeilig (RAG-Anfragen), Special Elite (Figma §11.3). */
+const SEARCH_INPUT_MIN_HEIGHT = 48;
+const SEARCH_INPUT_MAX_HEIGHT = 120;
+const SEARCH_BAR_ICON_SIZE = 18;
+
+const SEARCH_INPUT_TEXT_STYLE: TextStyle = {
+  fontFamily: fonts.derived,
+  fontSize: tokenFontSize.sm,
+  lineHeight: 20,
+  fontWeight: '400',
+};
+
+/** Pluralformen für Such-Hinweise (Placeholder, Leerzustand). */
+const SEARCH_SCOPE_PLURALS: Record<EntityKind, string> = {
+  chunk_buch: 'Bücher',
+  chunk_vortrag: 'Vorträge',
+  kapitel_zusammenfassung: 'Zusammenfassungen',
+  begriff: 'Begriffe',
+  zitat: 'Zitate',
+  typology: 'Typologien',
+  talk: 'Gespräche',
+  notiz: 'Notizen',
+  chunk_gespraech: 'Gespräche',
+};
+
+function selectedScopeTerms(selectedKinds: Set<EntityKind>): string[] {
+  return ALL_FILTER_KINDS
+    .filter(({ kind }) => selectedKinds.has(kind))
+    .map(({ kind }) => SEARCH_SCOPE_PLURALS[kind]);
+}
+
+type SearchScopeParts = { prefix: string; suffix: string };
+
+/** Such-Hinweis: aktive Filter + „durchsuchen“ (einheitlicher Stil). */
+function searchScopeParts(selectedKinds: Set<EntityKind>): SearchScopeParts {
+  const terms = selectedScopeTerms(selectedKinds);
+  if (terms.length === 0) {
+    return { prefix: 'Typ auswählen und', suffix: ' durchsuchen…' };
+  }
+  return { prefix: terms.join(', '), suffix: ' durchsuchen…' };
+}
+
+const SEARCH_EMPTY_HINT: SearchScopeParts = {
+  prefix: 'Stellen Sie eine Frage in eigenen Worten.',
+  suffix: '\nDie KI findet passende Texte – auch ohne das exakte Wort.',
+};
+
+function searchHintStyle(baseColor: string, baseStyle: TextStyle): TextStyle {
+  const flat = StyleSheet.flatten(baseStyle);
+  const baseSize = typeof flat.fontSize === 'number' ? flat.fontSize : 16;
+  const baseLineHeight = typeof flat.lineHeight === 'number' ? flat.lineHeight : 24;
+  return {
+    color: colorWithAlpha(baseColor, 0.4),
+    fontSize: baseSize * 1.25,
+    lineHeight: baseLineHeight * 1.25,
+  };
+}
+
+function ScopeSearchHint({
+  prefix,
+  suffix,
+  baseColor,
+  style,
+  textAlign = 'left',
+  numberOfLines,
+}: SearchScopeParts & {
+  baseColor: string;
+  style?: TextStyle;
+  textAlign?: 'left' | 'center';
+  numberOfLines?: number;
+}) {
+  const base: TextStyle = { color: baseColor, textAlign, ...style };
+  if (!suffix) {
+    return (
+      <Text style={base} numberOfLines={numberOfLines}>
+        {prefix}
+      </Text>
+    );
+  }
+  return (
+    <Text style={[base, searchHintStyle(baseColor, base)]} numberOfLines={numberOfLines}>
+      {prefix}
+      {suffix}
+    </Text>
+  );
+}
 
 /** Relevanz-Score für einen Talk bei gegebener Query (0–1). */
 function talkScore(talk: Talk, q: string): number {
@@ -114,7 +245,7 @@ export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
-  const { openConversationDetail, navigateToRead } = useReading();
+  const { openConversationDetail, navigateToRead, openChunkPreview } = useReading();
 
   const [query, setQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -240,17 +371,34 @@ export default function SearchScreen() {
   // Nach Typ gefilterte Ergebnisliste
   const filteredItems = useMemo(() => {
     if (selectedKinds.size === ALL_FILTER_KINDS.length) return sortedItems;
+    const gespraechActive = selectedKinds.has('talk');
     return sortedItems.filter((item) => {
-      if (item.type === 'talk') return selectedKinds.has('talk');
-      return selectedKinds.has(entityKindFromSearchResult(item.result));
+      if (item.type === 'talk') return gespraechActive;
+      const kind = entityKindFromSearchResult(item.result);
+      if (GESPRAECH_FILTER_KINDS.includes(kind)) return gespraechActive;
+      return selectedKinds.has(kind);
     });
   }, [sortedItems, selectedKinds]);
 
-  const handleChunkPress = useCallback((result: SearchResult) => {
-    if (result.paragraph_id) {
-      navigateToRead({ sourceId: result.source_id, segmentIndex: null, paragraphId: result.paragraph_id });
-    }
-  }, [navigateToRead]);
+  const handleSearchNavigation = useCallback(
+    (nav: SearchHitNavigation) => {
+      if (nav.kind === 'read') {
+        navigateToRead({
+          sourceId: nav.sourceId,
+          segmentIndex: null,
+          paragraphId: nav.paragraphId,
+        });
+      } else if (nav.kind === 'overlay') {
+        openChunkPreview({
+          sourceId: nav.sourceId,
+          chunkId: nav.chunkId,
+          title: nav.title,
+          initialText: nav.initialText,
+        });
+      }
+    },
+    [navigateToRead, openChunkPreview],
+  );
 
   const renderItem = useCallback(({ item }: { item: ScoredItem }) => {
     if (item.type === 'talk') {
@@ -263,41 +411,76 @@ export default function SearchScreen() {
       );
     }
     const kind = entityKindFromSearchResult(item.result);
+    const { card, navigation } = buildSearchHitCard(item.result, kind);
     return (
       <EntityResultCard
         kind={kind}
-        title={item.result.title ?? item.result.source_id}
-        subtitle={item.result.segment_title}
-        snippet={item.result.snippet}
-        onPress={item.result.paragraph_id ? () => handleChunkPress(item.result) : undefined}
+        metaSmall={card.metaSmall}
+        headlineLarge={card.headlineLarge}
+        notizRows={card.notizRows}
+        bodyMode={card.bodyMode}
+        bodyText={card.bodyText}
+        onPress={navigation.kind !== 'none' ? () => handleSearchNavigation(navigation) : undefined}
       />
     );
-  }, [openConversationDetail, handleChunkPress]);
+  }, [openConversationDetail, handleSearchNavigation]);
 
   const isLoading = talksLoading || chunksLoading;
   const isEmpty = !isLoading && filteredItems.length === 0;
   const isFiltered = selectedKinds.size < ALL_FILTER_KINDS.length;
+  const scopeParts = useMemo(
+    () => searchScopeParts(selectedKinds),
+    [selectedKinds],
+  );
+  const scopeEmptyParts = SEARCH_EMPTY_HINT;
+  const searchPlaceholderText = `${scopeParts.prefix}${scopeParts.suffix}`;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Suchleiste */}
       <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
-        <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Bücher, Vorträge durchsuchen…"
-          placeholderTextColor={colors.onSurfaceVariant}
-          style={[typography.bodyLarge, styles.searchInput, { color: colors.onSurface }]}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          autoCorrect={false}
+        <Ionicons
+          name="search"
+          size={SEARCH_BAR_ICON_SIZE}
+          color={colors.onSurfaceVariant}
+          style={styles.searchBarIcon}
         />
+        <View style={styles.searchInputWrap}>
+          {!query && (
+            <View style={styles.placeholderOverlay} pointerEvents="none">
+              <Text style={[SEARCH_INPUT_TEXT_STYLE, { color: colors.onSurfaceVariant }]}>
+                {searchPlaceholderText}
+              </Text>
+            </View>
+          )}
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder=""
+            multiline
+            scrollEnabled
+            textAlignVertical="top"
+            style={[SEARCH_INPUT_TEXT_STYLE, styles.searchInput, { color: colors.onSurface }]}
+            returnKeyType="default"
+            blurOnSubmit={false}
+            clearButtonMode="while-editing"
+            autoCorrect={false}
+          />
+        </View>
         {chunksLoading && (
-          <ActivityIndicator size="small" color={colors.onSurfaceVariant} />
+          <ActivityIndicator
+            size="small"
+            color={colors.onSurfaceVariant}
+            style={styles.searchBarTrailingIcon}
+          />
         )}
         {chunksOffline && !chunksLoading && (
-          <Ionicons name="cloud-offline-outline" size={16} color={colors.onSurfaceVariant} />
+          <Ionicons
+            name="cloud-offline-outline"
+            size={16}
+            color={colors.onSurfaceVariant}
+            style={styles.searchBarTrailingIcon}
+          />
         )}
         {/* Filter-Button */}
         <TouchableOpacity
@@ -384,11 +567,18 @@ export default function SearchScreen() {
         </View>
       ) : isEmpty ? (
         <View style={styles.center}>
-          <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-            {debouncedQuery
-              ? 'Keine Treffer gefunden.'
-              : 'Bücher, Vorträge, Gespräche,\nBegriffe und Zitate durchsuchen.'}
-          </Text>
+          {debouncedQuery ? (
+            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
+              Keine Treffer gefunden.
+            </Text>
+          ) : (
+            <ScopeSearchHint
+              {...scopeEmptyParts}
+              baseColor={colors.onSurfaceVariant}
+              style={typography.bodyMedium}
+              textAlign="center"
+            />
+          )}
         </View>
       ) : (
         <FlatList
@@ -411,18 +601,43 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   searchBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderRadius: 12,
     paddingHorizontal: spacing.m,
-    paddingVertical: spacing.s,
+    paddingVertical: spacing.m,
     margin: spacing.m,
     gap: spacing.s,
   },
-  searchInput: { flex: 1 },
+  searchBarIcon: {
+    marginTop: (SEARCH_INPUT_MIN_HEIGHT - SEARCH_BAR_ICON_SIZE) / 2,
+  },
+  searchBarTrailingIcon: {
+    marginTop: (SEARCH_INPUT_MIN_HEIGHT - 16) / 2,
+  },
+  searchInputWrap: {
+    flex: 1,
+    minHeight: SEARCH_INPUT_MIN_HEIGHT,
+    maxHeight: SEARCH_INPUT_MAX_HEIGHT,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: SEARCH_INPUT_MIN_HEIGHT,
+    maxHeight: SEARCH_INPUT_MAX_HEIGHT,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    includeFontPadding: false,
+  },
+  placeholderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+  },
   listContent: { paddingHorizontal: spacing.m, paddingBottom: spacing.xl },
   separator: { height: spacing.m },
   // Filter
-  filterButton: { position: 'relative' },
+  filterButton: {
+    position: 'relative',
+    marginTop: (SEARCH_INPUT_MIN_HEIGHT - SEARCH_BAR_ICON_SIZE) / 2,
+  },
   filterBadge: {
     position: 'absolute',
     top: -6,
@@ -442,7 +657,7 @@ const styles = StyleSheet.create({
   },
   filterDropdown: {
     position: 'absolute',
-    top: 70,
+    top: 92,
     left: spacing.m,
     right: spacing.m,
     zIndex: 100,

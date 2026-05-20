@@ -11,13 +11,22 @@ import ReadScreen from '../../src/features/read/ReadScreen';
 import ChatScreen from '../../src/features/chat/ChatScreen';
 import ContributionsScreen from '../../src/features/read/ContributionsScreen';
 import ConversationDetailScreen from '../../src/features/read/ConversationDetailScreen';
+import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
 
 function TabsInner() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const { _registerTabNav, contributions, closeContributions, conversationDetail, closeConversationDetail } = useReading();
+  const {
+    _registerTabNav,
+    contributions,
+    closeContributions,
+    conversationDetail,
+    closeConversationDetail,
+    chunkPreview,
+    closeChunkPreview,
+  } = useReading();
 
   React.useEffect(() => {
     _registerTabNav((index) => pagerRef.current?.setPage(index));
@@ -58,6 +67,16 @@ function TabsInner() {
           anchorTurnIndex={conversationDetail.anchorTurnIndex}
           sourceId={contributions?.sourceId ?? 'philosophie-der-freiheit'}
           onClose={closeConversationDetail}
+        />
+      )}
+      {chunkPreview && (
+        <ChunkPreviewScreen
+          visible
+          chunkId={chunkPreview.chunkId}
+          sourceId={chunkPreview.sourceId}
+          title={chunkPreview.title}
+          initialText={chunkPreview.initialText}
+          onClose={closeChunkPreview}
         />
       )}
     </SafeAreaView>
