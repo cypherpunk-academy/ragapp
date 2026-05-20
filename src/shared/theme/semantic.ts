@@ -105,12 +105,12 @@ export const textStyles = {
     lineHeight: 28,
     fontStyle: 'italic' as const,
   },
+  /** Übersicht: expandierte Kapitel-Zusammenfassung — Special Elite, leicht unter Kapitelüberschrift (chapterTitle) */
   aiSummary: {
-    fontFamily: fonts.source,
-    fontSize: tokenFontSize.sm,
-    lineHeight: 20,
+    fontFamily: fonts.derived,
+    fontSize: tokenFontSize.md,
+    lineHeight: 22,
     fontWeight: '400' as const,
-    fontStyle: 'italic' as const,
   },
   /** Lesen / Beiträge — AppBar-Titel */
   contributionsTitle: {

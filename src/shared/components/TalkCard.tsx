@@ -26,9 +26,11 @@ type Props = {
   talk: Talk;
   snippetTurn: Turn | null;
   onPress: () => void;
+  /** Nur Suchliste: Relevanz in Akzentfarbe des Typs (0–100). */
+  relevancePercent?: number;
 };
 
-export default function TalkCard({ talk, snippetTurn, onPress }: Props) {
+export default function TalkCard({ talk, snippetTurn, onPress, relevancePercent }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -68,6 +70,10 @@ export default function TalkCard({ talk, snippetTurn, onPress }: Props) {
         </Text>
       ) : null}
 
+      {(talk.title || snippetTurn) ? (
+        <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+      ) : null}
+
       {/* Erste Frage als Snippet */}
       {snippetTurn ? (
         <Text style={[textStyles.conversationSnippet, { color: colors.onSurface }]} numberOfLines={3}>
@@ -75,10 +81,9 @@ export default function TalkCard({ talk, snippetTurn, onPress }: Props) {
         </Text>
       ) : null}
 
-      {/* Zusammenfassung */}
-      {talk.summary ? (
-        <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
-          {talk.summary}
+      {relevancePercent != null ? (
+        <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor }]}>
+          {`Relevanz: ${relevancePercent}%`}
         </Text>
       ) : null}
     </TouchableOpacity>
@@ -88,4 +93,5 @@ export default function TalkCard({ talk, snippetTurn, onPress }: Props) {
 const styles = StyleSheet.create({
   card: { padding: spacing.m, gap: spacing.xs },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.xs, alignSelf: 'stretch' },
 });

@@ -35,12 +35,17 @@ export function useAuth() {
     };
   }, []);
 
+  const isConfigured = authService.isAvailable();
+  /** Ohne Supabase-Env: vorübergehend als angemeldet gelten (lokaler Betrieb); sobald Supabase konfiguriert ist, zählt nur die echte Session. */
+  const isAuthenticated = Boolean(state.session) || !isConfigured;
+
   return {
     ...state,
     loading,
-    isConfigured: authService.isAvailable(),
-    isAuthenticated: Boolean(state.session),
-    signInWithMagicLink: authService.signInWithMagicLink.bind(authService),
+    isConfigured,
+    isAuthenticated,
+    signInWithMagicLinkExistingUser: authService.signInWithMagicLinkExistingUser.bind(authService),
+    signUpWithMagicLink: authService.signUpWithMagicLink.bind(authService),
     signOut: authService.signOut.bind(authService),
   };
 }

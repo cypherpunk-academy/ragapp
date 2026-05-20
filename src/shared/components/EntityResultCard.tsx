@@ -19,6 +19,8 @@ type Props = {
   bodyMode?: SearchHitCardBodyMode;
   /** Snippet / Zitat / Chunk-Anfang (nach Trennstrich). */
   bodyText?: string;
+  /** Nur Suchliste: Relevanz in Akzentfarbe des Typs (0–100). */
+  relevancePercent?: number;
   onPress?: () => void;
 };
 
@@ -29,6 +31,7 @@ export default function EntityResultCard({
   notizRows,
   bodyMode = 'truncated_text',
   bodyText = '',
+  relevancePercent,
   onPress,
 }: Props) {
   const colorScheme = useColorScheme();
@@ -119,6 +122,12 @@ export default function EntityResultCard({
             {trimmedBody}
           </Text>
         )
+      ) : null}
+
+      {relevancePercent != null ? (
+        <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor }]}>
+          {`Relevanz: ${relevancePercent}%`}
+        </Text>
       ) : null}
     </TouchableOpacity>
   );

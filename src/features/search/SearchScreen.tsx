@@ -402,16 +402,19 @@ export default function SearchScreen() {
 
   const renderItem = useCallback(({ item }: { item: ScoredItem }) => {
     if (item.type === 'talk') {
+      const pct = Math.round(Math.min(1, Math.max(0, item.score)) * 100);
       return (
         <TalkCard
           talk={item.talk}
           snippetTurn={item.snippetTurn}
+          relevancePercent={pct}
           onPress={() => openConversationDetail(item.talk.talkId, null)}
         />
       );
     }
     const kind = entityKindFromSearchResult(item.result);
     const { card, navigation } = buildSearchHitCard(item.result, kind);
+    const pct = Math.round(Math.min(1, Math.max(0, item.score)) * 100);
     return (
       <EntityResultCard
         kind={kind}
@@ -420,6 +423,7 @@ export default function SearchScreen() {
         notizRows={card.notizRows}
         bodyMode={card.bodyMode}
         bodyText={card.bodyText}
+        relevancePercent={pct}
         onPress={navigation.kind !== 'none' ? () => handleSearchNavigation(navigation) : undefined}
       />
     );

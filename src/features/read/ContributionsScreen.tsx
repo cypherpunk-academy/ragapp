@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { overlayStyles } from '@/shared/styles/overlays';
@@ -20,6 +22,7 @@ import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { getTalkAnchorTurnIndex } from '@/shared/lib/talkAnchor';
 import TalkCard from '@/shared/components/TalkCard';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 export type { ContributionsTab };
 
@@ -52,6 +55,7 @@ export default function ContributionsScreen({
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { loading: authLoading, isAuthenticated, isConfigured } = useAuth();
   const { navigateToRead, openConversationDetail } = useReading();
   const [activeTab, setActiveTab] = useState<ContributionsTab>(initialTab);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -64,7 +68,7 @@ export default function ContributionsScreen({
   }, [visible, initialTab]);
 
   useEffect(() => {
-    if (!paragraph || !visible) {
+    if (!paragraph || !visible || !isAuthenticated) {
       setNotes([]);
       setTalks([]);
       return;
@@ -101,7 +105,7 @@ export default function ContributionsScreen({
       noteSub.unsubscribe();
       talkSub.unsubscribe();
     };
-  }, [paragraph, sourceId, visible]);
+  }, [paragraph, sourceId, visible, isAuthenticated]);
 
   const contextLabel = useMemo(() => {
     if (!paragraph) return null;
@@ -168,100 +172,132 @@ export default function ContributionsScreen({
         </Text>
       )}
 
-      <View style={[styles.tabRow, { borderBottomColor: colors.outlineVariant }]}>
-        {TABS.map((tab) => {
-          const active = tab.id === activeTab;
-          return (
+      {authLoading && (
+        <View style={styles.authLoading}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      )}
+
+      {!authLoading && !isAuthenticated && (
+        <View style={[styles.scroll, styles.content]}>
+          <View style={[styles.authGateCard, { backgroundColor: colors.surfaceContainer }]}>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
+              Notizen und Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar und bearbeitbar.
+            </Text>
+            {!isConfigured ? (
+              <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.s }]}>
+                In dieser Installation ist noch kein Anmeldeserver hinterlegt (Supabase-URL und -Schlüssel).
+              </Text>
+            ) : null}
             <TouchableOpacity
-              key={tab.id}
-              style={styles.tab}
-              onPress={() => setActiveTab(tab.id)}
+              style={[styles.authCta, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/auth/login')}
+              activeOpacity={0.85}
             >
-              <Text style={[textStyles.contributionsTab, { color: active ? colors.primary : colors.onSurfaceVariant }]}>
-                {tab.label}
-              </Text>
-              {active && <View style={[styles.tabUnderline, { backgroundColor: colors.primary }]} />}
+              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          </View>
+        </View>
+      )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {activeTab === 'notes' && (
-          <>
-            {notes.length === 0 && (
-              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
-                Noch keine Notizen zu diesem Absatz.
-              </Text>
-            )}
-            {notes.map((note) => (
-              <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}>
-                <View style={styles.noteCardHeader}>
-                  <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-                    {formatDate(note.createdAt)} · ICH
-                  </Text>
-                  <View style={styles.noteActions}>
-                    <TouchableOpacity onPress={() => handleEdit(note)} hitSlop={8}>
-                      <Ionicons name="pencil" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(note)} hitSlop={8}>
-                      <Ionicons name="close" size={18} color={colors.onSurfaceVariant} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                {anchorLabel ? (
-                  <View style={[styles.noteCardAnchor, { borderBottomColor: colors.outlineVariant }]}>
-                    <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, textTransform: 'none' }]}>
-                      {anchorLabel}
-                    </Text>
-                  </View>
-                ) : null}
-                <ScrollView
-                  style={[styles.noteBodyScroll, { maxHeight: notePreviewMaxHeight }]}
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator
+      {!authLoading && isAuthenticated && (
+        <>
+          <View style={[styles.tabRow, { borderBottomColor: colors.outlineVariant }]}>
+            {TABS.map((tab) => {
+              const active = tab.id === activeTab;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={styles.tab}
+                  onPress={() => setActiveTab(tab.id)}
                 >
-                  <Pressable onPress={handleOpenInReader} accessibilityRole="link">
-                    <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{note.content}</Text>
-                  </Pressable>
-                </ScrollView>
-              </View>
-            ))}
-          </>
-        )}
+                  <Text style={[textStyles.contributionsTab, { color: active ? colors.primary : colors.onSurfaceVariant }]}>
+                    {tab.label}
+                  </Text>
+                  {active && <View style={[styles.tabUnderline, { backgroundColor: colors.primary }]} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        {activeTab === 'conversations' && (
-          <>
-            {talks.length === 0 && (
-              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
-                Noch keine Gespräche zu diesem Absatz.
-              </Text>
-            )}
-            {talks.map(({ talk, snippetTurn }) => (
-              <TalkCard
-                key={talk.id}
-                talk={talk}
-                snippetTurn={snippetTurn}
-                onPress={() => openConversationDetail(
-                  talk.talkId,
-                  paragraph.paragraphId,
-                  getTalkAnchorTurnIndex(talk),
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+            {activeTab === 'notes' && (
+              <>
+                {notes.length === 0 && (
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
+                    Noch keine Notizen zu diesem Absatz.
+                  </Text>
                 )}
-              />
-            ))}
-          </>
-        )}
+                {notes.map((note) => (
+                  <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}>
+                    <View style={styles.noteCardHeader}>
+                      <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
+                        {formatDate(note.createdAt)} · ICH
+                      </Text>
+                      <View style={styles.noteActions}>
+                        <TouchableOpacity onPress={() => handleEdit(note)} hitSlop={8}>
+                          <Ionicons name="pencil" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(note)} hitSlop={8}>
+                          <Ionicons name="close" size={18} color={colors.onSurfaceVariant} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    {anchorLabel ? (
+                      <View style={[styles.noteCardAnchor, { borderBottomColor: colors.outlineVariant }]}>
+                        <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, textTransform: 'none' }]}>
+                          {anchorLabel}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <ScrollView
+                      style={[styles.noteBodyScroll, { maxHeight: notePreviewMaxHeight }]}
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator
+                    >
+                      <Pressable onPress={handleOpenInReader} accessibilityRole="link">
+                        <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{note.content}</Text>
+                      </Pressable>
+                    </ScrollView>
+                  </View>
+                ))}
+              </>
+            )}
 
-      </ScrollView>
+            {activeTab === 'conversations' && (
+              <>
+                {talks.length === 0 && (
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
+                    Noch keine Gespräche zu diesem Absatz.
+                  </Text>
+                )}
+                {talks.map(({ talk, snippetTurn }) => (
+                  <TalkCard
+                    key={talk.id}
+                    talk={talk}
+                    snippetTurn={snippetTurn}
+                    onPress={() => openConversationDetail(
+                      talk.talkId,
+                      paragraph.paragraphId,
+                      getTalkAnchorTurnIndex(talk),
+                    )}
+                  />
+                ))}
+              </>
+            )}
 
-      <NoteEditorModal
-        visible={editorOpen}
-        onClose={() => { setEditorOpen(false); setEditNote(null); }}
-        note={editNote}
-        contextLabel={contextLabel}
-        onDeleted={() => { setEditorOpen(false); setEditNote(null); }}
-      />
+          </ScrollView>
+
+          <NoteEditorModal
+            visible={editorOpen}
+            onClose={() => { setEditorOpen(false); setEditNote(null); }}
+            note={editNote}
+            contextLabel={contextLabel}
+            onDeleted={() => { setEditorOpen(false); setEditNote(null); }}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -299,4 +335,15 @@ const styles = StyleSheet.create({
   },
   noteBodyScroll: { flexGrow: 0 },
   noteActions: { flexDirection: 'row', gap: spacing.m },
+  authLoading: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
+  authGateCard: { borderRadius: 12, padding: spacing.l, gap: spacing.m },
+  authCta: {
+    marginTop: spacing.s,
+    borderRadius: 999,
+    paddingVertical: spacing.s,
+    paddingHorizontal: spacing.l,
+    alignItems: 'center',
+    alignSelf: 'center',
+    minWidth: 200,
+  },
 });

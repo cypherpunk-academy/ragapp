@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Pressable,
+  View, Text, TouchableOpacity, Pressable,
   TextInput, KeyboardAvoidingView, Platform,
   StyleSheet, useColorScheme, ActivityIndicator, useWindowDimensions,
   type ViewToken, AppState,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
@@ -43,7 +44,7 @@ export default function ReadScreen() {
   const [noteContent, setNoteContent] = useState('');
   const allParagraphsRef = useRef<Paragraph[]>([]);
   allParagraphsRef.current = allParagraphs;
-  const listRef = useRef<FlatList<Paragraph>>(null);
+  const listRef = useRef<FlashList<Paragraph>>(null);
   const lastReadWriteParagraphId = useRef<string | null>(null);
   const pendingLastReadParagraphId = useRef<string | null>(null);
   const lastReadDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -390,14 +391,14 @@ export default function ReadScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <FlatList
+      <FlashList
         ref={listRef}
         data={chapterParagraphs}
         keyExtractor={(p) => p.paragraphId}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        style={styles.list}
+        estimatedItemSize={150}
         onScrollToIndexFailed={() => {}}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}

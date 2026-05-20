@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,9 +12,9 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authErrorSuggestsNewAccount, authService } from '@/data/services/authService';
+import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
@@ -25,22 +25,34 @@ function errorMessage(err: unknown): string {
   return 'Ein Fehler ist aufgetreten.';
 }
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
-  const { isConfigured } = useAuth();
-  const [email, setEmail] = useState('');
+  const { email: emailParam } = useLocalSearchParams<{ email?: string | string[] }>();
+  const initialEmail = useMemo(() => {
+    if (typeof emailParam === 'string') return emailParam;
+    if (Array.isArray(emailParam) && emailParam[0]) return emailParam[0];
+    return '';
+  }, [emailParam]);
+  const [email, setEmail] = useState(initialEmail);
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const { isConfigured } = useAuth();
 
-  const trimmed = email.trim();
+  const trimmedEmail = email.trim();
+  const trimmedName = name.trim();
 
-  const handleSend = async () => {
+  const handleCreate = async () => {
     setError(null);
-    if (!trimmed || !trimmed.includes('@')) {
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
       setError('Bitte eine gültige E-Mail-Adresse eingeben.');
+      return;
+    }
+    if (!trimmedName) {
+      setError('Bitte einen Namen eingeben.');
       return;
     }
     if (!authService.isAvailable()) {
@@ -49,13 +61,9 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      await authService.signInWithMagicLinkExistingUser(trimmed);
+      await authService.signUpWithMagicLink(trimmedEmail, trimmedName);
       setSent(true);
     } catch (e) {
-      if (authErrorSuggestsNewAccount(e)) {
-        router.push({ pathname: '/auth/register', params: { email: trimmed } });
-        return;
-      }
       setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -72,7 +80,7 @@ export default function LoginScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Anmelden
+          Konto anlegen
         </Text>
       </View>
 
@@ -87,18 +95,23 @@ export default function LoginScreen() {
           </Text>
         ) : null}
 
+        <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
+          Für diese E-Mail-Adresse existiert noch kein Konto. Legen Sie ein Konto an; wir senden Ihnen einen Link zur
+          Bestätigung.
+        </Text>
+
         {sent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Wir haben einen Anmeldelink an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmed}</Text>
-              {' '}gesendet. Öffnen Sie die E-Mail auf diesem Gerät, um die Anmeldung abzuschließen.
+              Wir haben einen Bestätigungslink an{' '}
+              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmedEmail}</Text>
+              {' '}gesendet. Öffnen Sie die E-Mail auf diesem Gerät, um die Registrierung abzuschließen.
             </Text>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(tabs)')}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Zurück</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Zur App</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -121,12 +134,33 @@ export default function LoginScreen() {
                 { color: colors.onSurface, borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLowest },
               ]}
             />
+            <Text
+              style={[
+                textStyles.contributionsBreadcrumb,
+                { color: colors.onSurfaceVariant, marginBottom: spacing.s, marginTop: spacing.m },
+              ]}
+            >
+              Name
+            </Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Ihr Anzeigename"
+              placeholderTextColor={colors.onSurfaceVariant}
+              autoCapitalize="words"
+              editable={!busy}
+              style={[
+                styles.input,
+                textStyles.noteBody,
+                { color: colors.onSurface, borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLowest },
+              ]}
+            />
             {error ? (
               <Text style={[typography.bodySmall, { color: colors.error, marginTop: spacing.s }]}>{error}</Text>
             ) : null}
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: busy ? 0.7 : 1 }]}
-              onPress={() => void handleSend()}
+              onPress={() => void handleCreate()}
               disabled={busy}
             >
               {busy ? (
