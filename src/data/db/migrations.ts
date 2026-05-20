@@ -36,5 +36,16 @@ export const migrations = schemaMigrations({
         unsafeExecuteSql('DELETE FROM bookmarks WHERE is_last_read = 0;'),
       ],
     },
+    {
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: 'bookmarks',
+          columns: [
+            { name: 'is_manual', type: 'boolean', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

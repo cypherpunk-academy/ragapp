@@ -122,6 +122,83 @@
           { "start": 327, "end": 331 }
         ]
       }
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:1:5",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 1,
+      "segment_title": "I. Das bewusste menschliche Handeln",
+      "paragraph_number": 5,
+      "text_raw": "Nicht das bloße Denken, sondern das lebendige Denken ist es, das dem Menschen den Zugang zur Wirklichkeit erschließt. Nur wer das lebendige Denken aus eigenem Erleben kennt, kann die Freiheit als Tatsache erfahren, nicht als bloße Idee, sondern als das Erlebnis des Selbst.",
+      "annotations": {
+        "italics": [
+          { "start": 36, "end": 52 },
+          { "start": 130, "end": 146 },
+          { "start": 225, "end": 235 },
+          { "start": 253, "end": 272 }
+        ]
+      }
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:4",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 4,
+      "text_raw": "Mit Recht sagte Kant: «Handle so, daß die Maxime deines Willens jederzeit zugleich als Prinzip einer allgemeinen Gesetzgebung gelten könne.» Diese Forderung ist der reinste Ausdruck des sittlichen Gesetzes, das der Mensch in sich trägt.",
+      "annotations": {
+        "foreign_quotes": [
+          {
+            "start": 22,
+            "end": 140,
+            "quoted_author": "Immanuel Kant",
+            "quoted_work": "Kritik der praktischen Vernunft"
+          }
+        ]
+      }
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:5",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 5,
+      "text_raw": "Wie wir im ersten Kapitel gesehen haben, ist das Denken die einzige Tätigkeit, bei der der Mensch sich selbst beim Vollbringen zuschaut. Im Handeln dagegen ist ihm nur das Ergebnis gegeben, nicht der Akt selbst in seiner lebendigen Entstehung.",
+      "annotations": {
+        "page_refs": [
+          {
+            "start": 11,
+            "end": 25,
+            "anchor_id": "kap-i-1",
+            "target_paragraph_id": "philosophie-der-freiheit:1:1"
+          }
+        ]
+      }
+    },
+    {
+      "paragraph_id": "philosophie-der-freiheit:2:6",
+      "source_id": "philosophie-der-freiheit",
+      "segment_type": "chapter",
+      "segment_index": 2,
+      "segment_title": "II. Der Grundtrieb der Wissenschaft",
+      "paragraph_number": 6,
+      "text_raw": "Arthur Schopenhauer hat diesen Sachverhalt scharf beleuchtet. In seiner Preisschrift schrieb er: «Der Mensch kann zwar tun, was er will; er kann aber nicht wollen, was er will.» Damit ist das Problem der Willensfreiheit auf seinen eigentlichen Kern zurückgeführt. Was der Mensch als Freiheit erlebt, ist die Einsicht in die Notwendigkeit.",
+      "annotations": {
+        "foreign_quotes": [
+          {
+            "start": 97,
+            "end": 177,
+            "quoted_author": "Arthur Schopenhauer",
+            "quoted_work": "Über die Freiheit des menschlichen Willens"
+          }
+        ],
+        "italics": [
+          { "start": 231, "end": 248 }
+        ]
+      }
     }
   ],
   "talks": [

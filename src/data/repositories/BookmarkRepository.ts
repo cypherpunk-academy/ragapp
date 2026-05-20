@@ -51,6 +51,33 @@ export const BookmarkRepository = {
       );
   },
 
+  observeManualBookmarks(sourceId: string) {
+    return collection
+      .query(Q.where('source_id', sourceId), Q.where('is_manual', true))
+      .observe();
+  },
+
+  async toggleManualBookmark(userId: string, sourceId: string, paragraphId: string): Promise<void> {
+    await database.write(async () => {
+      const existing = await collection
+        .query(Q.where('paragraph_id', paragraphId), Q.where('source_id', sourceId))
+        .fetch();
+      if (existing[0]) {
+        await existing[0].update((bm) => {
+          bm.isManual = !bm.isManual;
+        });
+      } else {
+        await collection.create((bm) => {
+          bm.userId = userId;
+          bm.sourceId = sourceId;
+          bm.paragraphId = paragraphId;
+          bm.isLastRead = false;
+          bm.isManual = true;
+        });
+      }
+    });
+  },
+
   async setLastRead(userId: string, sourceId: string, paragraphId: string): Promise<void> {
     logBookmark('setLastRead (before write)', { userId, sourceId, paragraphId });
     await database.write(async () => {

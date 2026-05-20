@@ -52,6 +52,7 @@ export default function OverviewScreen() {
   const [mode, setMode] = useState<ViewMode>('grid');
   const [segments, setSegments] = useState<Segment[]>([]);
   const [lastReadParagraphId, setLastReadParagraphId] = useState<string | null>(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [summaryOverlay, setSummaryOverlay] = useState<{ segmentIndex: number; title: string; summary: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +60,13 @@ export default function OverviewScreen() {
     const sub = ParagraphRepository.observeBySource(SOURCE_DETAIL.id).subscribe((ps) => {
       setSegments(groupBySegment(ps));
       setLoading(false);
+    });
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = BookmarkRepository.observeManualBookmarks(SOURCE_DETAIL.id).subscribe((bms) => {
+      setBookmarkedIds(bms.map((b) => b.paragraphId));
     });
     return () => sub.unsubscribe();
   }, []);
@@ -84,6 +92,32 @@ export default function OverviewScreen() {
     );
     return seg?.segmentTitle ?? null;
   }, [lastReadParagraphId, segments]);
+
+  const paragraphMap = useMemo(() => {
+    const map = new Map<string, { paragraph: Paragraph; segmentTitle: string }>();
+    for (const seg of segments) {
+      for (const p of seg.paragraphs) {
+        map.set(p.paragraphId, { paragraph: p, segmentTitle: seg.segmentTitle });
+      }
+    }
+    return map;
+  }, [segments]);
+
+  const bookmarkedParagraphs = useMemo(() =>
+    bookmarkedIds
+      .map((id) => paragraphMap.get(id))
+      .filter((x): x is { paragraph: Paragraph; segmentTitle: string } => x != null),
+  [bookmarkedIds, paragraphMap]);
+
+  const bookmarkedSorted = useMemo(() =>
+    [...bookmarkedParagraphs].sort(
+      (a, b) =>
+        a.paragraph.segmentIndex - b.paragraph.segmentIndex ||
+        a.paragraph.paragraphNumber - b.paragraph.paragraphNumber,
+    ),
+  [bookmarkedParagraphs]);
+
+  const [bookmarkDropdownOpen, setBookmarkDropdownOpen] = useState(false);
 
 
   if (loading) {
@@ -149,24 +183,75 @@ export default function OverviewScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.continueBtn, { backgroundColor: colors.primaryContainer }]}
-          onPress={() => {
-            const seg = segments.find((s) =>
-              s.paragraphs.some((p) => p.paragraphId === lastReadParagraphId),
-            );
-            navigateToRead({
-              segmentIndex: seg?.segmentIndex ?? null,
-              paragraphId: lastReadParagraphId,
-            });
-          }}
-          activeOpacity={0.85}
-        >
-          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
-          <Text style={[textStyles.continueCta, { color: colors.onPrimaryContainer }]}>
-            {continueReadingLabel(continueSegmentTitle)}
-          </Text>
-        </TouchableOpacity>
+        <View style={[
+          styles.continueCard,
+          { backgroundColor: colors.primaryContainer },
+          bookmarkedSorted.length > 0 && styles.continueCardExpanded,
+        ]}>
+          {/* Weiterlesen-Hauptzeile */}
+          <View style={styles.continueTopRow}>
+            <TouchableOpacity
+              style={styles.continueMain}
+              onPress={() => {
+                const seg = segments.find((s) =>
+                  s.paragraphs.some((p) => p.paragraphId === lastReadParagraphId),
+                );
+                navigateToRead({
+                  segmentIndex: seg?.segmentIndex ?? null,
+                  paragraphId: lastReadParagraphId,
+                });
+              }}
+              activeOpacity={0.85}
+            >
+              <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
+              <Text style={[textStyles.continueCta, { color: colors.onPrimaryContainer }]}>
+                {continueReadingLabel(continueSegmentTitle)}
+              </Text>
+            </TouchableOpacity>
+            {bookmarkedSorted.length > 0 && (
+              <>
+                <View style={[styles.continueVertDivider, { backgroundColor: colors.onPrimaryContainer }]} />
+                <TouchableOpacity
+                  style={styles.continueChevronBtn}
+                  onPress={() => setBookmarkDropdownOpen((v) => !v)}
+                  activeOpacity={0.7}
+                  hitSlop={8}
+                >
+                  <AppIcon
+                    name={bookmarkDropdownOpen ? ICONS.nav.collapseSummary : ICONS.nav.expandSummary}
+                    size={20}
+                    color={colors.onPrimaryContainer}
+                  />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {/* Lesezeichen-Dropdown */}
+          {bookmarkDropdownOpen && bookmarkedSorted.map(({ paragraph, segmentTitle }) => (
+            <React.Fragment key={paragraph.paragraphId}>
+              <View style={[styles.continueHorizDivider, { backgroundColor: colors.onPrimaryContainer }]} />
+              <TouchableOpacity
+                style={styles.continueBookmarkRow}
+                onPress={() => {
+                  navigateToRead({ segmentIndex: null, paragraphId: paragraph.paragraphId });
+                  setBookmarkDropdownOpen(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <AppIcon name={ICONS.context.bookmark} size={14} color={colors.onPrimaryContainer} style={styles.continueBookmarkIcon} />
+                <View style={styles.continueBookmarkText}>
+                  <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
+                    {segmentTitle} · ¶{paragraph.paragraphNumber}
+                  </Text>
+                  <Text style={[textStyles.chapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
+                    {paragraph.textRaw.replace(/\u00AD/g, '').trim()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+        </View>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           {segments.map((seg, i) => {
@@ -280,14 +365,56 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroText: { flex: 1, gap: 6 },
-  continueBtn: {
+  continueCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  continueCardExpanded: {
+    borderRadius: 16,
+  },
+  continueTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  continueMain: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.s,
     paddingVertical: spacing.m,
     paddingHorizontal: spacing.l,
-    borderRadius: 24,
+  },
+  continueVertDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    marginVertical: spacing.s,
+    opacity: 0.35,
+  },
+  continueChevronBtn: {
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.m,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueHorizDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.m,
+    opacity: 0.3,
+  },
+  continueBookmarkRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.s,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.s,
+  },
+  continueBookmarkIcon: {
+    marginTop: 3,
+  },
+  continueBookmarkText: {
+    flex: 1,
+    gap: 2,
   },
   card: { borderRadius: 12, overflow: 'hidden' },
   row: {

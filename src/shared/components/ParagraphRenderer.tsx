@@ -2,20 +2,33 @@ import React, { useMemo } from 'react';
 import { Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles } from '../theme';
 import type { ParagraphAnnotations } from '../types';
+import { useReading } from '../contexts/ReadingContext';
 
 /** Figma Lesen/Default — rust italic (#b25738) */
 const READING_ITALIC_COLOR = '#B25738';
 
-type SegmentKind = 'plain' | 'italic' | 'quote';
+/**
+ * ~10px Abstand in Body-Schrift (18px): En (~9px) + Hair (~2px).
+ * marginLeft/paddingLeft auf nested Text wird in RN oft ignoriert.
+ */
+const SUFFIX_ICON_GAP_CHARS = '\u2002\u200A';
 
-type Segment = { text: string; kind: SegmentKind };
+type SegmentKind = 'plain' | 'italic' | 'quote' | 'page_ref';
 
-type AnnotatedRange = { start: number; end: number; kind: SegmentKind };
+type Segment = { text: string; kind: SegmentKind; targetParagraphId?: string };
+
+type AnnotatedRange = { start: number; end: number; kind: SegmentKind; targetParagraphId?: string };
 
 function buildSegments(text: string, annotations: ParagraphAnnotations | null): Segment[] {
   const ranges: AnnotatedRange[] = [
     ...(annotations?.italics ?? []).map(({ start, end }) => ({ start, end, kind: 'italic' as const })),
     ...(annotations?.foreign_quotes ?? []).map(({ start, end }) => ({ start, end, kind: 'quote' as const })),
+    ...(annotations?.page_refs ?? []).map(({ start, end, target_paragraph_id }) => ({
+      start,
+      end,
+      kind: 'page_ref' as const,
+      targetParagraphId: target_paragraph_id,
+    })),
   ].sort((a, b) => a.start - b.start || a.end - b.end);
 
   if (ranges.length === 0) return [{ text, kind: 'plain' }];
@@ -23,11 +36,11 @@ function buildSegments(text: string, annotations: ParagraphAnnotations | null): 
   const segments: Segment[] = [];
   let cursor = 0;
 
-  for (const { start, end, kind } of ranges) {
+  for (const { start, end, kind, targetParagraphId } of ranges) {
     const from = Math.max(0, Math.min(start, text.length));
     const to = Math.max(from, Math.min(end, text.length));
     if (cursor < from) segments.push({ text: text.slice(cursor, from), kind: 'plain' });
-    if (from < to) segments.push({ text: text.slice(from, to), kind });
+    if (from < to) segments.push({ text: text.slice(from, to), kind, targetParagraphId });
     cursor = Math.max(cursor, to);
   }
   if (cursor < text.length) segments.push({ text: text.slice(cursor), kind: 'plain' });
@@ -45,11 +58,14 @@ type Props = {
   annotations: ParagraphAnnotations | null;
   style?: object;
   prefix?: React.ReactNode;
+  /** Inline am Ende des Absatz-Textes (z. B. Beiträge-Zähler) — nur Text-kompatible Kinder. */
+  suffix?: React.ReactNode;
 };
 
-export default function ParagraphRenderer({ text, annotations, style, prefix }: Props) {
+export default function ParagraphRenderer({ text, annotations, style, prefix, suffix }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { navigateToRead } = useReading();
   const segments = useMemo(() => buildSegments(text, annotations), [text, annotations]);
   const fullQuote = isFullQuoteParagraph(text, annotations);
 
@@ -74,8 +90,25 @@ export default function ParagraphRenderer({ text, annotations, style, prefix }: 
             </Text>
           );
         }
+        if (seg.kind === 'page_ref') {
+          return (
+            <Text
+              key={i}
+              style={[styles.pageRef, { color: colors.tertiary }]}
+              onPress={() => navigateToRead({ segmentIndex: null, paragraphId: seg.targetParagraphId ?? null })}
+            >
+              {seg.text}
+            </Text>
+          );
+        }
         return <Text key={i}>{seg.text}</Text>;
       })}
+      {suffix ? (
+        <>
+          <Text>{SUFFIX_ICON_GAP_CHARS}</Text>
+          <Text style={styles.suffixIcons}>{suffix}</Text>
+        </>
+      ) : null}
     </Text>
   );
 }
@@ -83,5 +116,12 @@ export default function ParagraphRenderer({ text, annotations, style, prefix }: 
 const styles = StyleSheet.create({
   base: {
     textAlign: 'justify',
+  },
+  pageRef: {
+    textDecorationLine: 'underline',
+  },
+  /** Zeilenhöhe wie Fließtext, damit Icons mit der letzten Zeile bündig sind. */
+  suffixIcons: {
+    lineHeight: textStyles.readingBody.lineHeight,
   },
 });

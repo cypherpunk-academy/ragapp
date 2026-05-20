@@ -131,6 +131,11 @@ export default function ContributionsScreen({
     });
   }, [paragraph, sourceId, onClose, navigateToRead]);
 
+  const handleCreateNote = useCallback(() => {
+    setEditNote(null);
+    setEditorOpen(true);
+  }, []);
+
   const handleEdit = (note: Note) => {
     setEditNote(note);
     setEditorOpen(true);
@@ -224,9 +229,19 @@ export default function ContributionsScreen({
             {activeTab === 'notes' && (
               <>
                 {notes.length === 0 && (
-                  <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
-                    Noch keine Notizen zu diesem Absatz.
-                  </Text>
+                  <View style={styles.emptyNotes}>
+                    <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
+                      Noch keine Notizen zu diesem Absatz.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.createNoteBtn, { backgroundColor: colors.primary }]}
+                      onPress={handleCreateNote}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="pencil-outline" size={20} color={colors.onPrimary} />
+                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Notiz erstellen</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
                 {notes.map((note) => (
                   <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}>
@@ -294,6 +309,9 @@ export default function ContributionsScreen({
             onClose={() => { setEditorOpen(false); setEditNote(null); }}
             note={editNote}
             contextLabel={contextLabel}
+            paragraphId={paragraph.paragraphId}
+            segmentId={`${sourceId}:${paragraph.segmentIndex}`}
+            sourceId={sourceId}
             onDeleted={() => { setEditorOpen(false); setEditNote(null); }}
           />
         </>
@@ -345,5 +363,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     minWidth: 200,
+  },
+  emptyNotes: {
+    alignItems: 'center',
+    gap: spacing.l,
+    marginTop: spacing.l,
+    paddingHorizontal: spacing.m,
+  },
+  createNoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    borderRadius: 999,
+    paddingVertical: spacing.s,
+    paddingHorizontal: spacing.l,
   },
 });

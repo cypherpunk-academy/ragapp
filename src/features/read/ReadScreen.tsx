@@ -7,8 +7,8 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { overlayStyles } from '@/shared/styles/overlays';
-import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICON_SIZES } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
@@ -16,7 +16,6 @@ import { TalkRepository } from '@/data/repositories/TalkRepository';
 
 import { useReading } from '@/shared/contexts/ReadingContext';
 import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
-import ContributionCountButton from '@/shared/components/ContributionCountButton';
 import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
@@ -38,6 +37,7 @@ export default function ReadScreen() {
   const [loading, setLoading] = useState(true);
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
+  const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set());
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuMode, setMenuMode] = useState<'menu' | 'editor'>('menu');
@@ -84,6 +84,13 @@ export default function ReadScreen() {
         if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
       }
       setTalkCounts(counts);
+    });
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = BookmarkRepository.observeManualBookmarks(SOURCE_ID).subscribe((bms) => {
+      setBookmarkIds(new Set(bms.map((b) => b.paragraphId)));
     });
     return () => sub.unsubscribe();
   }, []);
@@ -328,6 +335,13 @@ export default function ReadScreen() {
     openContributions(p, 'notes', SOURCE_ID);
   }, [menuParagraph, openContributions]);
 
+  const handleToggleBookmarkFromMenu = useCallback(() => {
+    if (!menuParagraph) return;
+    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, SOURCE_ID, menuParagraph.paragraphId);
+    setMenuParagraph(null);
+    setMenuMode('menu');
+  }, [menuParagraph]);
+
   const showContributions = useCallback((p: Paragraph, tab: ContributionsTab) => {
     openContributions(p, tab, SOURCE_ID);
   }, [openContributions]);
@@ -335,13 +349,16 @@ export default function ReadScreen() {
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
     const noteCount = noteCounts.get(item.paragraphId) ?? 0;
     const conversationCount = talkCounts.get(item.paragraphId) ?? 0;
-    const hasContributions = noteCount > 0 || conversationCount > 0;
+    const isBookmarked = bookmarkIds.has(item.paragraphId);
+    const hasStrip = noteCount > 0 || conversationCount > 0 || isBookmarked;
     const openTab = (tab: ContributionsTab) => showContributions(item, tab);
+    const iconMeta = colors.onSurfaceVariant;
+    const iconPx = ICON_SIZES.strip;
+
     return (
-      <TouchableOpacity
+      <Pressable
         onLongPress={() => handleLongPress(item)}
         delayLongPress={400}
-        activeOpacity={0.9}
         style={styles.paragraphWrap}
       >
         <ParagraphRenderer
@@ -353,16 +370,40 @@ export default function ReadScreen() {
               {item.paragraphNumber}{'| '}
             </Text>
           }
+          suffix={
+            hasStrip ? (
+              <Text style={[styles.inlineContributions, { color: iconMeta }]}>
+                {isBookmarked ? (
+                  <Text
+                    onPress={() =>
+                      void BookmarkRepository.toggleManualBookmark(LOCAL_USER, SOURCE_ID, item.paragraphId)
+                    }
+                    style={styles.inlineContributionHit}
+                  >
+                    <MaterialIcons name="bookmark" size={iconPx} color={colors.primary} />
+                  </Text>
+                ) : null}
+                {noteCount > 0 ? (
+                  <Text onPress={() => openTab('notes')} style={styles.inlineContributionHit}>
+                    {isBookmarked ? '\u2002' : null}
+                    <MaterialIcons name={contributionIcon('notes')} size={iconPx} color={iconMeta} />
+                    <Text style={styles.inlineContributionCount}>{noteCount}</Text>
+                  </Text>
+                ) : null}
+                {conversationCount > 0 ? (
+                  <Text onPress={() => openTab('conversations')} style={styles.inlineContributionHit}>
+                    {(isBookmarked || noteCount > 0) ? '\u2002' : null}
+                    <MaterialIcons name={contributionIcon('conversations')} size={iconPx} color={iconMeta} />
+                    <Text style={styles.inlineContributionCount}>{conversationCount}</Text>
+                  </Text>
+                ) : null}
+              </Text>
+            ) : undefined
+          }
         />
-        {hasContributions && (
-          <View style={styles.contributionStrip}>
-            <ContributionCountButton kind="notes" count={noteCount} onPress={() => openTab('notes')} />
-            <ContributionCountButton kind="conversations" count={conversationCount} onPress={() => openTab('conversations')} />
-          </View>
-        )}
-      </TouchableOpacity>
+      </Pressable>
     );
-  }, [noteCounts, talkCounts, colors, handleLongPress, showContributions]);
+  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions]);
 
   const typeLabel = currentSegment?.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
 
@@ -448,6 +489,18 @@ export default function ReadScreen() {
                 >
                   {paragraphAnchorLabel(menuParagraph)}
                 </Text>
+                <TouchableOpacity style={styles.menuRow} onPress={handleToggleBookmarkFromMenu}>
+                  <Ionicons
+                    name={menuParagraph && bookmarkIds.has(menuParagraph.paragraphId) ? 'bookmark' : 'bookmark-outline'}
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
+                    {menuParagraph && bookmarkIds.has(menuParagraph.paragraphId)
+                      ? 'Lesezeichen entfernen'
+                      : 'Lesezeichen setzen'}
+                  </Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={handleOpenNoteEditor}>
                   <Ionicons name="pencil-outline" size={20} color={colors.primary} />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
@@ -519,19 +572,28 @@ const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 22, paddingVertical: spacing.l, gap: 26 },
+  listContent: { paddingHorizontal: 22, paddingVertical: spacing.l },
   chapterBlock: {
     gap: spacing.s,
     marginBottom: spacing.s,
     alignItems: 'center',
   },
-  paragraphWrap: { gap: 4 },
-  contributionStrip: {
-    flexDirection: 'row',
-    alignSelf: 'stretch',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 2,
+  paragraphWrap: {
+    marginBottom: spacing.l,
+  },
+  inlineContributions: {
+    fontSize: 11,
+    lineHeight: 28,
+    includeFontPadding: false,
+  },
+  inlineContributionHit: {
+    paddingHorizontal: 2,
+  },
+  inlineContributionCount: {
+    fontSize: 11,
+    lineHeight: 28,
+    fontVariant: ['tabular-nums'],
+    opacity: 0.85,
   },
   chapNav: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ export default class Bookmark extends Model {
   @field('paragraph_id') paragraphId!: string;
   @field('source_id')    sourceId!: string;
   @field('is_last_read') isLastRead!: boolean;
+  @field('is_manual')    isManual!: boolean;
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;
 }

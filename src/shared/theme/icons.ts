@@ -35,6 +35,7 @@ export const ICONS = {
     lecture: 'mic' as MaterialIconName,
     quote: 'format-quote' as MaterialIconName,
     summary: 'summarize' as MaterialIconName,
+    bookmark: 'bookmark' as MaterialIconName,
   },
   status: {
     offline: 'cloud-off' as MaterialIconName,
