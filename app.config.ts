@@ -17,6 +17,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.anonymous.ragapp',
+    usesAppleSignIn: true,
   },
   android: {
     adaptiveIcon: {
@@ -34,6 +35,7 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-font',
+    'expo-apple-authentication',
     [
       'expo-splash-screen',
       {
