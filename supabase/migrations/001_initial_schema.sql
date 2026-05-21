@@ -34,9 +34,7 @@ CREATE OR REPLACE FUNCTION ts_to_ms(ts timestamptz) RETURNS bigint
 CREATE TABLE IF NOT EXISTS rag_paragraphs (
   id               text        PRIMARY KEY,   -- paragraph_id
   source_id        text        NOT NULL,
-  book_id          text,
   language         text,
-  segment_type     text        NOT NULL,
   segment_index    integer     NOT NULL,
   segment_title    text        NOT NULL,
   paragraph_number integer     NOT NULL,
@@ -82,16 +80,15 @@ CREATE INDEX IF NOT EXISTS idx_rag_chunks_updated   ON rag_chunks (updated_at);
 
 -- ---------------------------------------------------------------------------
 -- rag_talks  — exact ragrun schema (migrations 0010 + 0011 + 0012 + 0021)
--- mensch_id stores the Supabase auth.uid()::text of the owner.
+-- user_id stores the Supabase auth.uid() of the owner.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rag_talks (
   talk_id            uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
   collection         varchar(128),
-  mensch_id          varchar(128),   -- Supabase auth.uid()::text
-  mensch_name        varchar(256),
-  slug               varchar(256),
+  user_id            varchar(128),   -- Supabase auth.uid()
+  user_name          varchar(256),
   title              text,
-  action_id          varchar(128),
+  personality        varchar(128),
   summary            text,
   usage              jsonb,
   kontext_meta       jsonb,
@@ -100,15 +97,14 @@ CREATE TABLE IF NOT EXISTS rag_talks (
                          'draft','personal','peers','candidate',
                          'staged','archive','published','bug'
                        )),
-  bug_description    text,
   kontext_source_id  text,
-  kontext_segment_id text,
+  kontext_paragraph_id text,
   kontext_paragraph  text,
   created_at         timestamptz   NOT NULL DEFAULT now(),
   updated_at         timestamptz   NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_rag_talks_mensch  ON rag_talks (mensch_id);
+CREATE INDEX IF NOT EXISTS idx_rag_talks_user    ON rag_talks (user_id);
 CREATE INDEX IF NOT EXISTS idx_rag_talks_updated ON rag_talks (updated_at);
 
 -- ---------------------------------------------------------------------------
@@ -118,13 +114,11 @@ CREATE TABLE IF NOT EXISTS rag_turns (
   turn_id              uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
   talk_id              uuid          NOT NULL REFERENCES rag_talks (talk_id) ON DELETE CASCADE,
   turn_index           integer,
-  action_id            varchar(128),
-  assistant_personality varchar(128),
+  personality          varchar(128),
   user_message         text,
   assistant_message    text,
   usage                jsonb,
   collection           varchar(128),
-  is_relay             boolean       NOT NULL DEFAULT false,
   chunk_index_map      jsonb,
   kontext_meta         jsonb,
   created_at           timestamptz   NOT NULL DEFAULT now(),
@@ -236,19 +230,19 @@ CREATE POLICY "chunks_select" ON rag_chunks
 CREATE POLICY "talks_select" ON rag_talks
   FOR SELECT TO authenticated
   USING (
-    mensch_id = auth.uid()::text
+    user_id = auth.uid()::text
     OR publishing_status IN ('peers', 'candidate', 'staged', 'published')
   );
 
 -- rag_talks: users can create their own talks (ragrun also inserts via service role)
 CREATE POLICY "talks_insert" ON rag_talks
   FOR INSERT TO authenticated
-  WITH CHECK (mensch_id = auth.uid()::text);
+  WITH CHECK (user_id = auth.uid()::text);
 
 -- rag_talks: users can update their own talks
 CREATE POLICY "talks_update" ON rag_talks
   FOR UPDATE TO authenticated
-  USING (mensch_id = auth.uid()::text);
+  USING (user_id = auth.uid()::text);
 
 -- rag_turns: readable when the parent talk is accessible
 CREATE POLICY "turns_select" ON rag_turns
@@ -258,7 +252,7 @@ CREATE POLICY "turns_select" ON rag_turns
       SELECT 1 FROM rag_talks t
       WHERE t.talk_id = rag_turns.talk_id
         AND (
-          t.mensch_id = auth.uid()::text
+          t.user_id = auth.uid()::text
           OR t.publishing_status IN ('peers', 'candidate', 'staged', 'published')
         )
     )

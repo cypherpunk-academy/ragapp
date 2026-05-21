@@ -108,7 +108,7 @@ export default function ConversationDetailScreen({
 
   const contextLabel = useMemo(() => {
     if (!anchorParagraph) return null;
-    const typeLabel = anchorParagraph.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
+    const typeLabel = 'Kapitel';
     return `${typeLabel} · ${anchorParagraph.segmentTitle} · ¶${anchorParagraph.paragraphNumber}`;
   }, [anchorParagraph]);
 
@@ -225,7 +225,7 @@ export default function ConversationDetailScreen({
               {turn.assistantMessage ? (
                 <View style={styles.bubble}>
                   <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, marginBottom: spacing.xs }]}>
-                    {personalityLabel(turn.assistantPersonality)}
+                    {personalityLabel(turn.personality)}
                   </Text>
                   <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{turn.assistantMessage}</Text>
                 </View>

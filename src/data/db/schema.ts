@@ -1,16 +1,14 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: 'paragraphs',
       columns: [
         { name: 'paragraph_id',     type: 'string', isIndexed: true },
         { name: 'source_id',        type: 'string', isIndexed: true },
-        { name: 'book_id',          type: 'string', isOptional: true },
         { name: 'language',         type: 'string', isOptional: true },
-        { name: 'segment_type',     type: 'string' },
         { name: 'segment_index',    type: 'number' },
         { name: 'segment_title',    type: 'string' },
         { name: 'paragraph_number', type: 'number', isIndexed: true },
@@ -70,16 +68,14 @@ export const schema = appSchema({
         { name: 'user_id',    type: 'string', isIndexed: true },
         { name: 'user_name',  type: 'string', isOptional: true },
         { name: 'collection',         type: 'string', isOptional: true },
-        { name: 'slug',               type: 'string', isOptional: true },
         { name: 'title',              type: 'string', isOptional: true },
-        { name: 'action_id',          type: 'string', isOptional: true },
+        { name: 'personality',        type: 'string', isOptional: true },
         { name: 'summary',            type: 'string', isOptional: true },
         { name: 'usage',              type: 'string', isOptional: true }, // JSON
         { name: 'kontext_meta',       type: 'string', isOptional: true }, // JSON
         { name: 'publishing_status',  type: 'string' },
-        { name: 'bug_description',    type: 'string', isOptional: true },
         { name: 'kontext_source_id',  type: 'string', isOptional: true, isIndexed: true },
-        { name: 'kontext_segment_id', type: 'string', isOptional: true },
+        { name: 'kontext_paragraph_id', type: 'string', isOptional: true },
         { name: 'kontext_paragraph',  type: 'string', isOptional: true },
         { name: 'created_at',         type: 'number' },
         { name: 'updated_at',         type: 'number' },
@@ -90,13 +86,11 @@ export const schema = appSchema({
       columns: [
         { name: 'talk_id',              type: 'string', isIndexed: true },
         { name: 'turn_index',           type: 'number', isOptional: true },
-        { name: 'action_id',            type: 'string', isOptional: true },
-        { name: 'assistant_personality',type: 'string', isOptional: true },
+        { name: 'personality',          type: 'string', isOptional: true },
         { name: 'user_message',         type: 'string', isOptional: true },
         { name: 'assistant_message',    type: 'string', isOptional: true },
         { name: 'usage',                type: 'string', isOptional: true }, // JSON
         { name: 'collection',           type: 'string', isOptional: true },
-        { name: 'is_relay',             type: 'boolean' },
         { name: 'chunk_index_map',      type: 'string', isOptional: true }, // JSON
         { name: 'kontext_meta',         type: 'string', isOptional: true }, // JSON
         { name: 'created_at',           type: 'number' },

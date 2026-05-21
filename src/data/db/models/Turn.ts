@@ -6,13 +6,11 @@ export default class Turn extends Model {
 
   @field('talk_id')               talkId!: string;
   @field('turn_index')            turnIndex!: number | null;
-  @field('action_id')             actionId!: string | null;
-  @field('assistant_personality') assistantPersonality!: string | null;
+  @field('personality')           personality!: string | null;
   @field('user_message')          userMessage!: string | null;
   @field('assistant_message')     assistantMessage!: string | null;
   @field('usage')                 usage!: string | null;          // JSON
   @field('collection')            collectionName!: string | null; // 'collection' conflicts with Model.collection
-  @field('is_relay')              isRelay!: boolean;
   @field('chunk_index_map')       chunkIndexMap!: string | null;  // JSON
   @field('kontext_meta')          kontextMeta!: string | null;    // JSON
   @readonly @date('created_at') createdAt!: Date;

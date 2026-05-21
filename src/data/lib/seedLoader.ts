@@ -7,7 +7,6 @@ const LOCAL_USER = 'local';
 type SeedParagraph = {
   paragraph_id: string;
   source_id: string;
-  segment_type: string;
   segment_index: number;
   segment_title: string;
   paragraph_number: number;
@@ -21,14 +20,14 @@ type SeedTalk = {
   collection: string;
   title: string;
   summary?: string;
-  kontext_segment_id?: string;
-  context_paragraph_id?: string; // legacy seed field → mapped to kontext_segment_id
+  kontext_paragraph_id?: string;
+  context_paragraph_id?: string; // legacy seed field → mapped to kontext_paragraph_id
 };
 
 type SeedTurn = {
   talk_id: string;
   turn_index: number;
-  assistant_personality: string;
+  personality: string;
   user_message: string;
   assistant_message: string;
   chunk_index_map?: Record<string, number>;
@@ -54,9 +53,7 @@ export async function seedIfEmpty(): Promise<void> {
       await paragraphCollection.create((record: any) => {
         record.paragraphId    = p.paragraph_id;
         record.sourceId       = p.source_id;
-        record.bookId         = seedData.book_id;
         record.language       = seedData.language;
-        record.segmentType    = p.segment_type;
         record.segmentIndex   = p.segment_index;
         record.segmentTitle   = p.segment_title;
         record.paragraphNumber= p.paragraph_number;
@@ -123,7 +120,7 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
         talk.collectionName      = t.collection;
         talk.title               = t.title;
         talk.summary             = t.summary ?? null;
-        talk.kontextSegmentId    = t.kontext_segment_id ?? t.context_paragraph_id ?? null;
+        talk.kontextParagraphId    = t.kontext_paragraph_id ?? t.context_paragraph_id ?? null;
         talk.publishingStatus    = 'personal';
       });
     }
@@ -132,7 +129,7 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
       await turnCollection.create((turn: any) => {
         turn.talkId = t.talk_id;
         turn.turnIndex = t.turn_index;
-        turn.assistantPersonality = t.assistant_personality;
+        turn.personality = t.personality;
         turn.userMessage = t.user_message;
         turn.assistantMessage = t.assistant_message;
         turn.chunkIndexMap = t.chunk_index_map ?? null;

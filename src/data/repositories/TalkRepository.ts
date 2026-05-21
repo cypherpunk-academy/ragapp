@@ -26,17 +26,17 @@ export const TalkRepository = {
     }
   },
 
-  /** Findet Talks deren kontext_segment_id der Absatz-ID entspricht. */
+  /** Findet Talks deren kontext_paragraph_id der Absatz-ID entspricht. */
   async findByParagraph(paragraphId: string): Promise<Talk[]> {
     return collection.query(
-      Q.where('kontext_segment_id', paragraphId),
+      Q.where('kontext_paragraph_id', paragraphId),
       Q.sortBy('updated_at', Q.desc),
     ).fetch();
   },
 
   observeByParagraph(paragraphId: string) {
     return collection.query(
-      Q.where('kontext_segment_id', paragraphId),
+      Q.where('kontext_paragraph_id', paragraphId),
       Q.sortBy('updated_at', Q.desc),
     ).observe();
   },
@@ -63,7 +63,7 @@ export const TalkRepository = {
     title?: string;
     summary?: string;
     kontextSourceId?: string;
-    kontextSegmentId?: string;
+    kontextParagraphId?: string;
     kontextParagraph?: string;
   }): Promise<Talk> {
     return database.write(async () =>
@@ -74,7 +74,7 @@ export const TalkRepository = {
         talk.title = data.title ?? null;
         talk.summary = data.summary ?? null;
         talk.kontextSourceId = data.kontextSourceId ?? null;
-        talk.kontextSegmentId = data.kontextSegmentId ?? null;
+        talk.kontextParagraphId = data.kontextParagraphId ?? null;
         talk.kontextParagraph = data.kontextParagraph ?? null;
         talk.publishingStatus = 'personal';
       }),
@@ -113,7 +113,7 @@ export const TalkRepository = {
         talk.title = sourceTalk.title ? `${sourceTalk.title} ${titleSuffix}` : null;
         talk.summary = sourceTalk.summary;
         talk.kontextSourceId = sourceTalk.kontextSourceId;
-        talk.kontextSegmentId = sourceTalk.kontextSegmentId;
+        talk.kontextParagraphId = sourceTalk.kontextParagraphId;
         talk.kontextParagraph = sourceTalk.kontextParagraph;
         talk.publishingStatus = 'personal';
       });
@@ -123,7 +123,7 @@ export const TalkRepository = {
           t.talkId = newTalk.id;
           t.turnIndex = turn.turnIndex;
           t.userMessage = turn.userMessage;
-          t.assistantPersonality = turn.assistantPersonality;
+          t.personality = turn.personality;
           t.assistantMessage = turn.assistantMessage;
           t.chunkIndexMap = turn.chunkIndexMap;
         });

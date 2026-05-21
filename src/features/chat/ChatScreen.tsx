@@ -125,7 +125,7 @@ export default function ChatScreen() {
         talkId: activeTalkId,
         turnIndex: nextIndex,
         userMessage: text,
-        assistantPersonality: 'assistant-host',
+        personality: 'assistant-host',
         assistantMessage: undefined,
       });
       // TODO: ragrun-API aufrufen und assistantMessage updaten
@@ -250,7 +250,7 @@ export default function ChatScreen() {
             {turn.assistantMessage ? (
               <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
                 <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, marginBottom: spacing.xs }]}>
-                  {personalityLabel(turn.assistantPersonality)}
+                  {personalityLabel(turn.personality)}
                 </Text>
                 <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
                   {turn.assistantMessage}

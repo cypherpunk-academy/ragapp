@@ -69,13 +69,11 @@ export const migrations = schemaMigrations({
           columns: [
             { name: 'user_id',    type: 'string', isIndexed: true },
             { name: 'user_name',  type: 'string', isOptional: true },
-            { name: 'slug',               type: 'string', isOptional: true },
-            { name: 'action_id',          type: 'string', isOptional: true },
+            { name: 'personality',        type: 'string', isOptional: true },
             { name: 'usage',              type: 'string', isOptional: true },
             { name: 'kontext_meta',       type: 'string', isOptional: true },
-            { name: 'bug_description',    type: 'string', isOptional: true },
             { name: 'kontext_source_id',  type: 'string', isOptional: true, isIndexed: true },
-            { name: 'kontext_segment_id', type: 'string', isOptional: true },
+            { name: 'kontext_paragraph_id', type: 'string', isOptional: true },
             { name: 'kontext_paragraph',  type: 'string', isOptional: true },
           ],
         }),
@@ -90,6 +88,17 @@ export const migrations = schemaMigrations({
             { name: 'kontext_meta', type: 'string', isOptional: true },
           ],
         }),
+      ],
+    },
+    {
+      toVersion: 6,
+      steps: [
+        // talks: action_id → personality
+        unsafeExecuteSql('ALTER TABLE talks RENAME COLUMN action_id TO personality;'),
+        // turns: action_id → personality; remove assistant_personality, is_relay
+        unsafeExecuteSql('ALTER TABLE turns RENAME COLUMN action_id TO personality;'),
+        unsafeExecuteSql('ALTER TABLE turns DROP COLUMN assistant_personality;'),
+        unsafeExecuteSql('ALTER TABLE turns DROP COLUMN is_relay;'),
       ],
     },
   ],

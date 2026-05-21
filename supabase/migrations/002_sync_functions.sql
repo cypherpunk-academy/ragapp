@@ -51,8 +51,8 @@ BEGIN
   -- -------------------------------------------------------------------------
   SELECT json_agg(row_to_json(r)) INTO v_par_created FROM (
     SELECT
-      id, source_id, book_id, language,
-      segment_type, segment_index, segment_title, paragraph_number,
+      id, source_id, language,
+      segment_index, segment_title, paragraph_number,
       text_raw, annotations::text AS annotations,
       ts_to_ms(deprecated_at) AS deprecated_at,
       ts_to_ms(created_at)    AS created_at,
@@ -63,8 +63,8 @@ BEGIN
 
   SELECT json_agg(row_to_json(r)) INTO v_par_updated FROM (
     SELECT
-      id, source_id, book_id, language,
-      segment_type, segment_index, segment_title, paragraph_number,
+      id, source_id, language,
+      segment_index, segment_title, paragraph_number,
       text_raw, annotations::text AS annotations,
       ts_to_ms(deprecated_at) AS deprecated_at,
       ts_to_ms(created_at)    AS created_at,
@@ -117,18 +117,18 @@ BEGIN
     SELECT
       talk_id::text AS id,
       collection,
-      mensch_id   AS user_id,    -- Supabase auth.uid() stored as mensch_id in ragrun
-      mensch_name AS user_name,
-      slug, title, action_id,
+      user_id,
+      user_name,
+      title, personality,
       summary, usage::text AS usage, kontext_meta::text AS kontext_meta,
-      publishing_status, bug_description,
-      kontext_source_id, kontext_segment_id, kontext_paragraph,
+      publishing_status,
+      kontext_source_id, kontext_paragraph_id, kontext_paragraph,
       ts_to_ms(created_at) AS created_at,
       ts_to_ms(updated_at) AS updated_at
     FROM rag_talks
     WHERE created_at > v_since
       AND (
-        mensch_id = v_uid::text
+        user_id = v_uid::text
         OR publishing_status IN ('peers', 'candidate', 'staged', 'published')
       )
   ) r;
@@ -137,18 +137,18 @@ BEGIN
     SELECT
       talk_id::text AS id,
       collection,
-      mensch_id   AS user_id,
-      mensch_name AS user_name,
-      slug, title, action_id,
+      user_id,
+      user_name,
+      title, personality,
       summary, usage::text AS usage, kontext_meta::text AS kontext_meta,
-      publishing_status, bug_description,
-      kontext_source_id, kontext_segment_id, kontext_paragraph,
+      publishing_status,
+      kontext_source_id, kontext_paragraph_id, kontext_paragraph,
       ts_to_ms(created_at) AS created_at,
       ts_to_ms(updated_at) AS updated_at
     FROM rag_talks
     WHERE updated_at > v_since AND created_at <= v_since
       AND (
-        mensch_id = v_uid::text
+        user_id = v_uid::text
         OR publishing_status IN ('peers', 'candidate', 'staged', 'published')
       )
   ) r;
@@ -157,7 +157,7 @@ BEGIN
   SELECT json_agg(talk_id::text) INTO v_tlk_deleted
   FROM rag_talks
   WHERE updated_at > v_since
-    AND mensch_id <> v_uid::text
+    AND user_id <> v_uid::text
     AND publishing_status NOT IN ('peers', 'candidate', 'staged', 'published');
 
   -- -------------------------------------------------------------------------
@@ -167,11 +167,10 @@ BEGIN
     SELECT
       t.turn_id::text  AS id,
       t.talk_id::text  AS talk_id,
-      t.turn_index, t.action_id, t.assistant_personality,
+      t.turn_index, t.personality,
       t.user_message, t.assistant_message,
       t.usage::text           AS usage,
       t.collection,
-      t.is_relay,
       t.chunk_index_map::text AS chunk_index_map,
       t.kontext_meta::text    AS kontext_meta,
       ts_to_ms(t.created_at)  AS created_at,
@@ -180,7 +179,7 @@ BEGIN
     JOIN rag_talks tk ON tk.talk_id = t.talk_id
     WHERE t.created_at > v_since
       AND (
-        tk.mensch_id = v_uid::text
+        tk.user_id = v_uid::text
         OR tk.publishing_status IN ('peers', 'candidate', 'staged', 'published')
       )
   ) r;
@@ -189,11 +188,10 @@ BEGIN
     SELECT
       t.turn_id::text  AS id,
       t.talk_id::text  AS talk_id,
-      t.turn_index, t.action_id, t.assistant_personality,
+      t.turn_index, t.personality,
       t.user_message, t.assistant_message,
       t.usage::text           AS usage,
       t.collection,
-      t.is_relay,
       t.chunk_index_map::text AS chunk_index_map,
       t.kontext_meta::text    AS kontext_meta,
       ts_to_ms(t.created_at)  AS created_at,
@@ -202,7 +200,7 @@ BEGIN
     JOIN rag_talks tk ON tk.talk_id = t.talk_id
     WHERE t.updated_at > v_since AND t.created_at <= v_since
       AND (
-        tk.mensch_id = v_uid::text
+        tk.user_id = v_uid::text
         OR tk.publishing_status IN ('peers', 'candidate', 'staged', 'published')
       )
   ) r;
@@ -212,7 +210,7 @@ BEGIN
   FROM rag_turns t
   JOIN rag_talks tk ON tk.talk_id = t.talk_id
   WHERE t.updated_at > v_since
-    AND tk.mensch_id <> v_uid::text
+    AND tk.user_id <> v_uid::text
     AND tk.publishing_status NOT IN ('peers', 'candidate', 'staged', 'published');
 
   -- -------------------------------------------------------------------------

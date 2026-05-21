@@ -35,7 +35,7 @@ export const TurnRepository = {
     talkId: string;
     turnIndex: number;
     userMessage: string;
-    assistantPersonality?: string;
+    personality?: string;
     assistantMessage?: string;
     chunkIndexMap?: Record<string, unknown> | null;
   }): Promise<Turn> {
@@ -44,7 +44,7 @@ export const TurnRepository = {
         turn.talkId = data.talkId;
         turn.turnIndex = data.turnIndex;
         turn.userMessage = data.userMessage;
-        turn.assistantPersonality = data.assistantPersonality ?? null;
+        turn.personality = data.personality ?? null;
         turn.assistantMessage = data.assistantMessage ?? null;
         turn.chunkIndexMap = data.chunkIndexMap ? JSON.stringify(data.chunkIndexMap) : null;
       }),
@@ -78,7 +78,7 @@ export const TurnRepository = {
           t.talkId = targetTalkId;
           t.turnIndex = turn.turnIndex;
           t.userMessage = turn.userMessage;
-          t.assistantPersonality = turn.assistantPersonality;
+          t.personality = turn.personality;
           t.assistantMessage = turn.assistantMessage;
           t.chunkIndexMap = turn.chunkIndexMap;
         });

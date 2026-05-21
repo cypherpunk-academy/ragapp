@@ -7,9 +7,7 @@ export default class Paragraph extends Model {
 
   @field('paragraph_id')   paragraphId!: string;
   @field('source_id')      sourceId!: string;
-  @field('book_id')        bookId!: string | null;
   @field('language')       language!: string | null;
-  @field('segment_type')   segmentType!: string;
   @field('segment_index')  segmentIndex!: number;
   @field('segment_title')  segmentTitle!: string;
   @field('paragraph_number') paragraphNumber!: number;
