@@ -13,8 +13,8 @@ function uuid(): string {
 }
 
 export const TalkRepository = {
-  observeByUser(menschId: string) {
-    return collection.query(Q.where('mensch_id', menschId), Q.sortBy('updated_at', Q.desc)).observe();
+  observeByUser(userId: string) {
+    return collection.query(Q.where('user_id', userId), Q.sortBy('updated_at', Q.desc)).observe();
   },
 
   async findById(talkId: string): Promise<Talk | null> {
@@ -54,7 +54,7 @@ export const TalkRepository = {
 
   async create(data: {
     talkId: string;
-    menschId: string;
+    userId: string;
     collection?: string;
     title?: string;
     summary?: string;
@@ -65,7 +65,7 @@ export const TalkRepository = {
     return database.write(async () =>
       collection.create((talk) => {
         talk.talkId = data.talkId;
-        talk.menschId = data.menschId;
+        talk.userId = data.userId;
         talk.collectionName = data.collection ?? null;
         talk.title = data.title ?? null;
         talk.summary = data.summary ?? null;
@@ -105,7 +105,7 @@ export const TalkRepository = {
     return database.write(async () => {
       const newTalk = await collection.create((talk) => {
         talk.talkId = newTalkId;
-        talk.menschId = sourceTalk.menschId;
+        talk.userId = sourceTalk.userId;
         talk.collectionName = sourceTalk.collectionName;
         talk.title = sourceTalk.title ? `${sourceTalk.title} ${titleSuffix}` : null;
         talk.summary = sourceTalk.summary;

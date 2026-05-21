@@ -17,8 +17,7 @@ type SeedParagraph = {
 
 type SeedTalk = {
   talk_id: string;
-  mensch_id?: string;
-  user_id?: string;         // legacy seed field → mapped to mensch_id
+  user_id?: string;         // Supabase auth.uid() (= mensch_id in ragrun)
   collection: string;
   title: string;
   summary?: string;
@@ -120,7 +119,7 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
     for (const t of seedTalks) {
       await talkCollection.create((talk: any) => {
         talk.talkId              = t.talk_id;
-        talk.menschId            = t.mensch_id ?? t.user_id ?? LOCAL_USER;
+        talk.userId              = t.user_id ?? LOCAL_USER;
         talk.collectionName      = t.collection;
         talk.title               = t.title;
         talk.summary             = t.summary ?? null;

@@ -67,8 +67,8 @@ export const schema = appSchema({
     tableSchema({
       name: 'talks',
       columns: [
-        { name: 'mensch_id',          type: 'string', isIndexed: true },
-        { name: 'mensch_name',        type: 'string', isOptional: true },
+        { name: 'user_id',    type: 'string', isIndexed: true },
+        { name: 'user_name',  type: 'string', isOptional: true },
         { name: 'collection',         type: 'string', isOptional: true },
         { name: 'slug',               type: 'string', isOptional: true },
         { name: 'title',              type: 'string', isOptional: true },

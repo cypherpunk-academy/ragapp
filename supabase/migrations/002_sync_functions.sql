@@ -116,7 +116,10 @@ BEGIN
   SELECT json_agg(row_to_json(r)) INTO v_tlk_created FROM (
     SELECT
       talk_id::text AS id,
-      collection, mensch_id, mensch_name, slug, title, action_id,
+      collection,
+      mensch_id   AS user_id,    -- Supabase auth.uid() stored as mensch_id in ragrun
+      mensch_name AS user_name,
+      slug, title, action_id,
       summary, usage::text AS usage, kontext_meta::text AS kontext_meta,
       publishing_status, bug_description,
       kontext_source_id, kontext_segment_id, kontext_paragraph,
@@ -133,7 +136,10 @@ BEGIN
   SELECT json_agg(row_to_json(r)) INTO v_tlk_updated FROM (
     SELECT
       talk_id::text AS id,
-      collection, mensch_id, mensch_name, slug, title, action_id,
+      collection,
+      mensch_id   AS user_id,
+      mensch_name AS user_name,
+      slug, title, action_id,
       summary, usage::text AS usage, kontext_meta::text AS kontext_meta,
       publishing_status, bug_description,
       kontext_source_id, kontext_segment_id, kontext_paragraph,

@@ -63,12 +63,12 @@ export const migrations = schemaMigrations({
             { name: 'embedded_at',   type: 'number', isOptional: true },
           ],
         }),
-        // talks: mensch_id replaces user_id; new ragrun columns
+        // talks: user_id (= Supabase auth.uid(), stored as mensch_id in ragrun) + new columns
         addColumns({
           table: 'talks',
           columns: [
-            { name: 'mensch_id',          type: 'string', isIndexed: true },
-            { name: 'mensch_name',        type: 'string', isOptional: true },
+            { name: 'user_id',    type: 'string', isIndexed: true },
+            { name: 'user_name',  type: 'string', isOptional: true },
             { name: 'slug',               type: 'string', isOptional: true },
             { name: 'action_id',          type: 'string', isOptional: true },
             { name: 'usage',              type: 'string', isOptional: true },

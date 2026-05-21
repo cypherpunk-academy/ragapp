@@ -4,8 +4,8 @@ import { field, readonly, date } from '@nozbe/watermelondb/decorators';
 export default class Talk extends Model {
   static table = 'talks';
 
-  @field('mensch_id')          menschId!: string;
-  @field('mensch_name')        menschName!: string | null;
+  @field('user_id')            userId!: string;          // = Supabase auth.uid()
+  @field('user_name')          userName!: string | null; // = Supabase display name
   @field('collection')         collectionName!: string | null;  // 'collection' conflicts with Model.collection
   @field('slug')               slug!: string | null;
   @field('title')              title!: string | null;
