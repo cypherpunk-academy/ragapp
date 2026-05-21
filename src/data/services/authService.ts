@@ -21,7 +21,8 @@ export type AuthState = {
 
 function otpRedirectTo(): string | undefined {
   try {
-    return Linking.createURL('/(tabs)');
+    // Use a simple path without parentheses — iOS Safari rejects ragapp:///(tabs)
+    return Linking.createURL('auth-callback');
   } catch {
     return undefined;
   }
@@ -55,8 +56,9 @@ export const authService = {
   },
 
   /**
-   * Magic link only if the email already has an account (no implicit sign-up).
-   * On “unknown email”, use {@link signUpWithMagicLink} after collecting a display name.
+   * Magic link — creates the account if it doesn't exist yet.
+   * Supabase no longer throws for unknown users with shouldCreateUser: false,
+   * so we always allow creation here to guarantee email delivery.
    */
   async signInWithMagicLinkExistingUser(email: string): Promise<void> {
     if (!this.isAvailable()) {
@@ -66,7 +68,7 @@ export const authService = {
     const { error } = await getSupabase().auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false,
+        shouldCreateUser: true,
         ...(redirect ? { emailRedirectTo: redirect } : {}),
       },
     });

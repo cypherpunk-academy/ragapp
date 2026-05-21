@@ -13,6 +13,7 @@ let client: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient {
   if (client) return client;
   assertSupabaseConfigured();
+  console.log('[Supabase] init url:', config.supabase.url, 'key prefix:', config.supabase.anonKey.slice(0, 12));
   client = createClient(config.supabase.url, config.supabase.anonKey, {
     auth: {
       storage: secureStoreAdapter,

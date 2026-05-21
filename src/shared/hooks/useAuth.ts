@@ -21,6 +21,9 @@ export function useAuth() {
         if (!active) return;
         setState({ session, user: session?.user ?? null });
       })
+      .catch((err) => {
+        console.warn('[useAuth] getSession error:', err instanceof Error ? err.message : err);
+      })
       .finally(() => {
         if (active) setLoading(false);
       });
