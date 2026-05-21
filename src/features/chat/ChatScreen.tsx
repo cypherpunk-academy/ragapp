@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
@@ -166,10 +167,8 @@ export default function ChatScreen() {
   if (!activeTalkId) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.selectorHeader, { paddingTop: insets.top || spacing.m }]}>
-          <Text style={[textStyles.contributionsTitle, { color: colors.onBackground }]}>
-            KI-Chat
-          </Text>
+        <AppBar title="KI-Chat" />
+        <View style={styles.selectorBody}>
           <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
             <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />
             <TextInput
@@ -217,23 +216,20 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
-      {/* AppBar */}
-      <View style={[styles.chatAppBar, { paddingTop: insets.top || spacing.s, borderBottomColor: colors.outlineVariant }]}>
-        <TouchableOpacity onPress={() => setActiveTalkId(null)} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
-        </TouchableOpacity>
-        <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          {talk?.title ?? 'Gespräch'}
-        </Text>
-        <TouchableOpacity
-          onPress={handleKopieren}
-          disabled={copying}
-          hitSlop={8}
-          style={styles.overflowBtn}
-        >
-          <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <AppBar
+        title={talk?.title ?? 'Gespräch'}
+        onBackPress={() => setActiveTalkId(null)}
+        trailing={(
+          <TouchableOpacity
+            onPress={handleKopieren}
+            disabled={copying}
+            hitSlop={8}
+            style={styles.overflowBtn}
+          >
+            <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
+          </TouchableOpacity>
+        )}
+      />
 
       {/* Turn-Liste */}
       <FlatList
@@ -323,7 +319,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  selectorHeader: {
+  selectorBody: {
     paddingHorizontal: spacing.m,
     paddingBottom: spacing.s,
     gap: spacing.s,
@@ -338,15 +334,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1 },
   listContent: { padding: spacing.m, gap: spacing.m },
-  chatAppBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.s,
-    paddingBottom: spacing.s,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: spacing.xs,
-  },
-  backBtn: { padding: spacing.xs },
   overflowBtn: { padding: spacing.xs },
   turnListContent: { padding: spacing.m, gap: spacing.l, flexGrow: 1 },
   turnBlock: { gap: spacing.s },

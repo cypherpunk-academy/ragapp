@@ -9,7 +9,6 @@ import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
 import ReadScreen from '../../src/features/read/ReadScreen';
 import ChatScreen from '../../src/features/chat/ChatScreen';
-import KontoScreen from '../../src/features/konto/KontoScreen';
 import ContributionsScreen from '../../src/features/read/ContributionsScreen';
 import ConversationDetailScreen from '../../src/features/read/ConversationDetailScreen';
 import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
@@ -49,7 +48,6 @@ function TabsInner() {
         <View key="1" style={styles.page}><ReadScreen /></View>
         <View key="2" style={styles.page}><ChatScreen /></View>
         <View key="3" style={styles.page}><SearchScreen /></View>
-        <View key="4" style={styles.page}><KontoScreen /></View>
       </PagerView>
       <TabBar activeIndex={activeIndex} onTabPress={handleTabPress} />
       {contributions && (

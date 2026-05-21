@@ -17,7 +17,11 @@ function formatSyncTime(ms: number): string {
   return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function KontoScreen() {
+type Props = {
+  variant?: 'stack';
+};
+
+export default function KontoScreen({ variant }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { user, loading, isAuthenticated, isConfigured } = useAuth();
@@ -60,9 +64,15 @@ export default function KontoScreen() {
     );
   };
 
+  const isStack = variant === 'stack';
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <AppBar title="Konto" />
+      <AppBar
+        title="Konto"
+        showUserMenu={false}
+        onBackPress={isStack ? () => router.back() : undefined}
+      />
       <ScrollView contentContainerStyle={styles.content}>
 
         {loading && (

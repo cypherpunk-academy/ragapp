@@ -6,6 +6,7 @@ import {
   type ViewToken, AppState,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import AppBar from '@/shared/components/AppBar';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICON_SIZES } from '@/shared/theme';
@@ -432,7 +433,9 @@ export default function ReadScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <AppBar title="Lesen" />
       <FlashList
+        style={styles.list}
         ref={listRef}
         data={chapterParagraphs}
         keyExtractor={(p) => p.paragraphId}
@@ -570,8 +573,8 @@ export default function ReadScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 22, paddingVertical: spacing.l },
   chapterBlock: {
     gap: spacing.s,

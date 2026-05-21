@@ -5,15 +5,25 @@ import {
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES } from '../theme';
 import AppIcon from './AppIcon';
+import UserMenuButton from './UserMenuButton';
 
 type Props = {
   title: string;
   offline?: boolean;
-  onAccountPress?: () => void;
   onBackPress?: () => void;
+  /** User-Icon mit Konto/Einstellungen-Menü (Standard: true). */
+  showUserMenu?: boolean;
+  /** Zusätzliche Aktionen rechts neben dem User-Menü. */
+  trailing?: React.ReactNode;
 };
 
-export default function AppBar({ title, offline = false, onAccountPress, onBackPress }: Props) {
+export default function AppBar({
+  title,
+  offline = false,
+  onBackPress,
+  showUserMenu = true,
+  trailing,
+}: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
@@ -42,14 +52,8 @@ export default function AppBar({ title, offline = false, onAccountPress, onBackP
       {offline ? (
         <AppIcon name={ICONS.status.offline} size={ICON_SIZES.appBar} color={colors.onSurfaceVariant} />
       ) : null}
-      <TouchableOpacity
-        onPress={onAccountPress}
-        style={[styles.avatar, { backgroundColor: colors.primary }]}
-        accessibilityRole="button"
-        accessibilityLabel="Konto"
-      >
-        <AppIcon name={ICONS.account.avatar} size={ICON_SIZES.tabHeader} color={colors.onPrimary} />
-      </TouchableOpacity>
+      {trailing}
+      {showUserMenu ? <UserMenuButton /> : null}
     </View>
   );
 }
@@ -69,12 +73,5 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

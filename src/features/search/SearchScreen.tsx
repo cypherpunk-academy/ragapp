@@ -4,6 +4,7 @@ import {
   ActivityIndicator, TouchableOpacity, ScrollView, type TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, typography, textStyles, fonts } from '@/shared/theme';
 import { fontSize as tokenFontSize } from '@/shared/theme/generated';
 import { colorWithAlpha } from '@/shared/lib/color';
@@ -441,6 +442,7 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppBar title="Suche" />
       {/* Suchleiste */}
       <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
         <Ionicons
