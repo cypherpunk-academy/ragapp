@@ -79,7 +79,7 @@ export default function ContributionsScreen({
       const withTurns: TalkWithTurn[] = [];
       for (const talk of talkList) {
         const anchorIndex = getTalkAnchorTurnIndex(talk);
-        const snippetTurn = await TurnRepository.findByTalkAndIndex(talk.talkId, anchorIndex);
+        const snippetTurn = await TurnRepository.findByTalkAndIndex(talk.id, anchorIndex);
         withTurns.push({ talk, snippetTurn });
       }
       return withTurns;
@@ -293,7 +293,7 @@ export default function ContributionsScreen({
                     talk={talk}
                     snippetTurn={snippetTurn}
                     onPress={() => openConversationDetail(
-                      talk.talkId,
+                      talk.id,
                       paragraph.paragraphId,
                       getTalkAnchorTurnIndex(talk),
                     )}

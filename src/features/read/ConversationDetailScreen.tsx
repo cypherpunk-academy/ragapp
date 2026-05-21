@@ -146,7 +146,7 @@ export default function ConversationDetailScreen({
     try {
       const newTalk = await TalkRepository.copyTalk(talkId);
       closeConversationDetail();
-      navigateToChatWithTalk(newTalk.talkId);
+      navigateToChatWithTalk(newTalk.id);
     } catch (e) {
       Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
     } finally {

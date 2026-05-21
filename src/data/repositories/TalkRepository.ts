@@ -17,12 +17,16 @@ export const TalkRepository = {
     return collection.query(Q.where('user_id', userId), Q.sortBy('updated_at', Q.desc)).observe();
   },
 
+  /** Talk per WatermelonDB-id (= talk_id) laden. */
   async findById(talkId: string): Promise<Talk | null> {
-    const results = await collection.query(Q.where('talk_id', talkId)).fetch();
-    return results[0] ?? null;
+    try {
+      return await collection.find(talkId);
+    } catch {
+      return null;
+    }
   },
 
-  /** Finds talks whose kontext_segment_id matches the given paragraph ID. */
+  /** Findet Talks deren kontext_segment_id der Absatz-ID entspricht. */
   async findByParagraph(paragraphId: string): Promise<Talk[]> {
     return collection.query(
       Q.where('kontext_segment_id', paragraphId),
@@ -53,7 +57,7 @@ export const TalkRepository = {
   },
 
   async create(data: {
-    talkId: string;
+    id?: string;           // WatermelonDB id = talk_id; auto-generated if omitted
     userId: string;
     collection?: string;
     title?: string;
@@ -63,8 +67,8 @@ export const TalkRepository = {
     kontextParagraph?: string;
   }): Promise<Talk> {
     return database.write(async () =>
-      collection.create((talk) => {
-        talk.talkId = data.talkId;
+      collection.create((talk: any) => {
+        talk._raw.id = data.id ?? uuid();
         talk.userId = data.userId;
         talk.collectionName = data.collection ?? null;
         talk.title = data.title ?? null;
@@ -79,7 +83,6 @@ export const TalkRepository = {
 
   /**
    * Kopiert ein Gespräch (inkl. aller Turns bis optional maxTurnIndex) in ein neues Gespräch.
-   * Läuft in einer einzigen database.write-Transaktion.
    */
   async copyTalk(
     sourceTalkId: string,
@@ -103,8 +106,8 @@ export const TalkRepository = {
     const titleSuffix = options?.titleSuffix ?? '(Kopie)';
 
     return database.write(async () => {
-      const newTalk = await collection.create((talk) => {
-        talk.talkId = newTalkId;
+      const newTalk = await collection.create((talk: any) => {
+        talk._raw.id = newTalkId;
         talk.userId = sourceTalk.userId;
         talk.collectionName = sourceTalk.collectionName;
         talk.title = sourceTalk.title ? `${sourceTalk.title} ${titleSuffix}` : null;
@@ -117,7 +120,7 @@ export const TalkRepository = {
 
       for (const turn of filteredTurns) {
         await turnsCollection.create((t) => {
-          t.talkId = newTalkId;
+          t.talkId = newTalk.id;
           t.turnIndex = turn.turnIndex;
           t.userMessage = turn.userMessage;
           t.assistantPersonality = turn.assistantPersonality;

@@ -279,8 +279,8 @@ export default function SearchScreen() {
       setTalksLoading(false);
       const map = new Map<string, Turn | null>();
       await Promise.all(talks.map(async (t) => {
-        const first = await TurnRepository.findFirstByTalk(t.talkId);
-        map.set(t.talkId, first);
+        const first = await TurnRepository.findFirstByTalk(t.id);
+        map.set(t.id, first);
       }));
       setSnippets(new Map(map));
     });
@@ -339,7 +339,7 @@ export default function SearchScreen() {
       .map((talk) => ({
         type: 'talk' as const,
         talk,
-        snippetTurn: snippets.get(talk.talkId) ?? null,
+        snippetTurn: snippets.get(talk.id) ?? null,
         score: talkScore(talk, q),
       }))
       .filter((item) => item.score > 0);
@@ -409,7 +409,7 @@ export default function SearchScreen() {
           talk={item.talk}
           snippetTurn={item.snippetTurn}
           relevancePercent={pct}
-          onPress={() => openConversationDetail(item.talk.talkId, null)}
+          onPress={() => openConversationDetail(item.talk.id, null)}
         />
       );
     }
@@ -590,7 +590,7 @@ export default function SearchScreen() {
         <FlatList
           data={filteredItems}
           keyExtractor={(item, i) =>
-            item.type === 'talk' ? item.talk.talkId : `chunk-${item.result.chunk_id}-${i}`
+            item.type === 'talk' ? item.talk.id : `chunk-${item.result.chunk_id}-${i}`
           }
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}

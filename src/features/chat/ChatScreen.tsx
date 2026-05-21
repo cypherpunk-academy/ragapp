@@ -64,8 +64,8 @@ export default function ChatScreen() {
       const snippets = new Map<string, Turn | null>();
       await Promise.all(
         talks.map(async (t) => {
-          const first = await TurnRepository.findFirstByTalk(t.talkId);
-          snippets.set(t.talkId, first);
+          const first = await TurnRepository.findFirstByTalk(t.id);
+          snippets.set(t.id, first);
         }),
       );
       setTalkSnippets(new Map(snippets));
@@ -142,7 +142,7 @@ export default function ChatScreen() {
     setCopying(true);
     try {
       const newTalk = await TalkRepository.copyTalk(activeTalkId);
-      navigateToChatWithTalk(newTalk.talkId);
+      navigateToChatWithTalk(newTalk.id);
     } catch {
       Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
     } finally {
@@ -155,7 +155,7 @@ export default function ChatScreen() {
     setCopying(true);
     try {
       const newTalk = await TalkRepository.copyTalk(activeTalkId, { maxTurnIndex });
-      navigateToChatWithTalk(newTalk.talkId);
+      navigateToChatWithTalk(newTalk.id);
     } catch {
       Alert.alert('Fehler', 'Konnte nicht schneiden.');
     } finally {
@@ -194,13 +194,13 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             data={filteredTalks}
-            keyExtractor={(t) => t.talkId}
+            keyExtractor={(t) => t.id}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <TalkCard
                 talk={item}
-                snippetTurn={talkSnippets.get(item.talkId) ?? null}
-                onPress={() => setActiveTalkId(item.talkId)}
+                snippetTurn={talkSnippets.get(item.id) ?? null}
+                onPress={() => setActiveTalkId(item.id)}
               />
             )}
           />

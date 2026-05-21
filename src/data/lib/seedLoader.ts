@@ -118,7 +118,7 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
   await database.write(async () => {
     for (const t of seedTalks) {
       await talkCollection.create((talk: any) => {
-        talk.talkId              = t.talk_id;
+        talk._raw.id             = t.talk_id;   // WatermelonDB id = talk_id
         talk.userId              = t.user_id ?? LOCAL_USER;
         talk.collectionName      = t.collection;
         talk.title               = t.title;
