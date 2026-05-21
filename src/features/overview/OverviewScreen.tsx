@@ -22,7 +22,7 @@ import {
 type Segment = {
   segmentIndex: number;
   segmentTitle: string;
-  segmentType: string;
+  
   paragraphs: Paragraph[];
 };
 
@@ -33,7 +33,7 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
       map.set(p.segmentIndex, {
         segmentIndex: p.segmentIndex,
         segmentTitle: p.segmentTitle,
-        segmentType: p.segmentType,
+        
         paragraphs: [],
       });
     }

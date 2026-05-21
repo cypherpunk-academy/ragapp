@@ -24,7 +24,7 @@ import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 const SOURCE_ID = 'philosophie-der-freiheit';
 const LOCAL_USER = 'local';
 
-type Segment = { segmentIndex: number; segmentTitle: string; segmentType: string };
+type Segment = { segmentIndex: number; segmentTitle: string };
 
 export default function ReadScreen() {
   const colorScheme = useColorScheme();
@@ -81,7 +81,7 @@ export default function ReadScreen() {
     const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
       const counts = new Map<string, number>();
       for (const t of talks) {
-        const pid = t.kontextSegmentId;
+        const pid = t.kontextParagraphId;
         if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
       }
       setTalkCounts(counts);
@@ -104,7 +104,7 @@ export default function ReadScreen() {
         seen.set(p.segmentIndex, {
           segmentIndex: p.segmentIndex,
           segmentTitle: p.segmentTitle,
-          segmentType: p.segmentType,
+          
         });
       }
     }
@@ -406,7 +406,7 @@ export default function ReadScreen() {
     );
   }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions]);
 
-  const typeLabel = currentSegment?.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
+  const typeLabel = 'Kapitel';
 
   const listHeader = useMemo(() => {
     if (!currentSegment) return null;

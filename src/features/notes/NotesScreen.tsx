@@ -13,7 +13,7 @@ import type Paragraph from '@/data/db/models/Paragraph';
 
 const SOURCE_ID = 'philosophie-der-freiheit';
 
-type SegmentMeta = { segmentIndex: number; segmentTitle: string; segmentType: string };
+type SegmentMeta = { segmentIndex: number; segmentTitle: string };
 
 /** Parses segmentIndex out of paragraphId ("source:segmentIndex:paragraphNumber") */
 function segmentIndexFromParagraphId(paragraphId: string | null): number | null {
@@ -67,7 +67,7 @@ export default function NotesScreen() {
         m.set(p.segmentIndex, {
           segmentIndex: p.segmentIndex,
           segmentTitle: p.segmentTitle,
-          segmentType: p.segmentType,
+          
         });
       }
     }
@@ -110,7 +110,7 @@ export default function NotesScreen() {
     );
   }
 
-  const typeLabel = (type: string) => type === 'preface' ? 'Vorwort' : 'Kapitel';
+  const typeLabel = 'Kapitel';
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -135,7 +135,7 @@ export default function NotesScreen() {
                 {meta ? (
                   <>
                     <Text style={[typography.labelSmall, { color: colors.primary }]}>
-                      {typeLabel(meta.segmentType)}
+                      {typeLabel}
                     </Text>
                     <Text style={[typography.titleSmall, { color: colors.onBackground }]}>
                       {meta.segmentTitle}

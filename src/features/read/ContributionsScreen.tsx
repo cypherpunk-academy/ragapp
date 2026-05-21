@@ -109,7 +109,7 @@ export default function ContributionsScreen({
 
   const contextLabel = useMemo(() => {
     if (!paragraph) return null;
-    const typeLabel = paragraph.segmentType === 'preface' ? 'Vorwort' : 'Kapitel';
+    const typeLabel = 'Kapitel';
     return `${typeLabel} · ${paragraph.segmentTitle} · ¶${paragraph.paragraphNumber}`;
   }, [paragraph]);
 
