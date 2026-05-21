@@ -16,13 +16,12 @@ export const NoteRepository = {
     return collection.query(Q.where('source_id', sourceId), Q.sortBy('created_at', Q.desc)).observe();
   },
 
-  async create(data: { userId: string; paragraphId?: string; segmentId?: string; sourceId?: string; content: string }): Promise<Note> {
+  async create(data: { userId: string; paragraphId?: string; sourceId?: string; content: string }): Promise<Note> {
     return database.write(async () =>
       collection.create((note) => {
         note.userId = data.userId;
-        (note as any).paragraphId = data.paragraphId ?? null;
-        (note as any).segmentId = data.segmentId ?? null;
-        (note as any).sourceId = data.sourceId ?? null;
+        note.paragraphId = data.paragraphId ?? null;
+        note.sourceId = data.sourceId ?? null;
         note.content = data.content;
         note.isPublic = false;
       }),

@@ -217,7 +217,8 @@ BEGIN
       ref_id::text  AS id,
       turn_id::text AS turn_id,
       ref_index, chunk_id, relevance, source_title, segment_title,
-      ts_to_ms(created_at) AS created_at
+      ts_to_ms(created_at) AS created_at,
+      ts_to_ms(created_at) AS updated_at   -- rag_references are never modified
     FROM rag_references
     WHERE created_at > v_since
   ) r;
@@ -359,8 +360,7 @@ BEGIN
       id, user_id, paragraph_id, source_id,
       content, is_public, created_at, updated_at
     ) VALUES (
-      rec->>'id',
-      v_uid,
+      rec->>'id', v_uid,
       NULLIF(rec->>'paragraph_id', ''),
       NULLIF(rec->>'source_id', ''),
       COALESCE(rec->>'content', ''),

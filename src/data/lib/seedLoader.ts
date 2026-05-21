@@ -17,13 +17,13 @@ type SeedParagraph = {
 
 type SeedTalk = {
   talk_id: string;
-  user_id: string;
+  mensch_id?: string;
+  user_id?: string;         // legacy seed field → mapped to mensch_id
   collection: string;
   title: string;
   summary?: string;
-  context_mode: string;
-  context_ids: Record<string, string>;
-  context_paragraph_id: string;
+  kontext_segment_id?: string;
+  context_paragraph_id?: string; // legacy seed field → mapped to kontext_segment_id
 };
 
 type SeedTurn = {
@@ -37,15 +37,12 @@ type SeedTurn = {
 
 type SeedReference = {
   ref_id: string;
-  paragraph_id: string;
   turn_id?: string;
   chunk_id?: string;
   ref_index: number;
-  ref_kind: string;
   relevance?: number;
   source_title: string;
   segment_title: string;
-  snippet?: string;
 };
 
 export async function seedIfEmpty(): Promise<void> {
@@ -122,15 +119,13 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
   await database.write(async () => {
     for (const t of seedTalks) {
       await talkCollection.create((talk: any) => {
-        talk.talkId = t.talk_id;
-        talk.userId = t.user_id ?? LOCAL_USER;
-        talk.collectionName = t.collection;
-        talk.title = t.title;
-        talk.summary = t.summary ?? null;
-        talk.contextMode = t.context_mode;
-        talk.contextIds = t.context_ids;
-        talk.contextParagraphId = t.context_paragraph_id;
-        talk.publishingStatus = 'private';
+        talk.talkId              = t.talk_id;
+        talk.menschId            = t.mensch_id ?? t.user_id ?? LOCAL_USER;
+        talk.collectionName      = t.collection;
+        talk.title               = t.title;
+        talk.summary             = t.summary ?? null;
+        talk.kontextSegmentId    = t.kontext_segment_id ?? t.context_paragraph_id ?? null;
+        talk.publishingStatus    = 'personal';
       });
     }
 
@@ -147,16 +142,12 @@ export async function seedDemoContributionsIfEmpty(): Promise<void> {
 
     for (const r of seedReferences) {
       await refCollection.create((ref: any) => {
-        ref.refId = r.ref_id;
-        ref.paragraphId = r.paragraph_id;
-        ref.turnId = r.turn_id ?? null;
-        ref.chunkId = r.chunk_id ?? null;
-        ref.refIndex = r.ref_index;
-        ref.refKind = r.ref_kind;
-        ref.relevance = r.relevance ?? null;
-        ref.sourceTitle = r.source_title;
+        ref.turnId       = r.turn_id ?? null;
+        ref.chunkId      = r.chunk_id ?? null;
+        ref.refIndex     = r.ref_index;
+        ref.relevance    = r.relevance ?? null;
+        ref.sourceTitle  = r.source_title;
         ref.segmentTitle = r.segment_title;
-        ref.snippet = r.snippet ?? null;
       });
     }
   });

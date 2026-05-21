@@ -4,16 +4,16 @@ import { database, Reference } from '../db/database';
 const collection = database.get<Reference>('references');
 
 export const ReferenceRepository = {
-  async findByParagraph(paragraphId: string): Promise<Reference[]> {
+  async findByTurn(turnId: string): Promise<Reference[]> {
     return collection.query(
-      Q.where('paragraph_id', paragraphId),
+      Q.where('turn_id', turnId),
       Q.sortBy('ref_index', Q.asc),
     ).fetch();
   },
 
-  observeByParagraph(paragraphId: string) {
+  observeByTurn(turnId: string) {
     return collection.query(
-      Q.where('paragraph_id', paragraphId),
+      Q.where('turn_id', turnId),
       Q.sortBy('ref_index', Q.asc),
     ).observe();
   },

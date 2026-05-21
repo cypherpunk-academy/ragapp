@@ -37,16 +37,16 @@ export const TurnRepository = {
     userMessage: string;
     assistantPersonality?: string;
     assistantMessage?: string;
-    chunkIndexMap?: Record<string, unknown>;
+    chunkIndexMap?: Record<string, unknown> | null;
   }): Promise<Turn> {
     return database.write(async () =>
       collection.create((turn) => {
         turn.talkId = data.talkId;
         turn.turnIndex = data.turnIndex;
         turn.userMessage = data.userMessage;
-        (turn as any).assistantPersonality = data.assistantPersonality ?? null;
-        (turn as any).assistantMessage = data.assistantMessage ?? null;
-        (turn as any).chunkIndexMap = data.chunkIndexMap ?? null;
+        turn.assistantPersonality = data.assistantPersonality ?? null;
+        turn.assistantMessage = data.assistantMessage ?? null;
+        turn.chunkIndexMap = data.chunkIndexMap ? JSON.stringify(data.chunkIndexMap) : null;
       }),
     );
   },
@@ -78,9 +78,9 @@ export const TurnRepository = {
           t.talkId = targetTalkId;
           t.turnIndex = turn.turnIndex;
           t.userMessage = turn.userMessage;
-          (t as any).assistantPersonality = turn.assistantPersonality;
-          (t as any).assistantMessage = turn.assistantMessage;
-          (t as any).chunkIndexMap = turn.chunkIndexMap;
+          t.assistantPersonality = turn.assistantPersonality;
+          t.assistantMessage = turn.assistantMessage;
+          t.chunkIndexMap = turn.chunkIndexMap;
         });
       }
     });

@@ -13,8 +13,8 @@ function uuid(): string {
 }
 
 export const TalkRepository = {
-  observeByUser(userId: string) {
-    return collection.query(Q.where('user_id', userId), Q.sortBy('updated_at', Q.desc)).observe();
+  observeByUser(menschId: string) {
+    return collection.query(Q.where('mensch_id', menschId), Q.sortBy('updated_at', Q.desc)).observe();
   },
 
   async findById(talkId: string): Promise<Talk | null> {
@@ -22,16 +22,17 @@ export const TalkRepository = {
     return results[0] ?? null;
   },
 
+  /** Finds talks whose kontext_segment_id matches the given paragraph ID. */
   async findByParagraph(paragraphId: string): Promise<Talk[]> {
     return collection.query(
-      Q.where('context_paragraph_id', paragraphId),
+      Q.where('kontext_segment_id', paragraphId),
       Q.sortBy('updated_at', Q.desc),
     ).fetch();
   },
 
   observeByParagraph(paragraphId: string) {
     return collection.query(
-      Q.where('context_paragraph_id', paragraphId),
+      Q.where('kontext_segment_id', paragraphId),
       Q.sortBy('updated_at', Q.desc),
     ).observe();
   },
@@ -53,25 +54,25 @@ export const TalkRepository = {
 
   async create(data: {
     talkId: string;
-    userId: string;
+    menschId: string;
     collection?: string;
     title?: string;
-    contextMode?: string;
-    contextIds?: Record<string, string>;
-    contextParagraphId?: string;
     summary?: string;
+    kontextSourceId?: string;
+    kontextSegmentId?: string;
+    kontextParagraph?: string;
   }): Promise<Talk> {
     return database.write(async () =>
       collection.create((talk) => {
         talk.talkId = data.talkId;
-        talk.userId = data.userId;
+        talk.menschId = data.menschId;
         talk.collectionName = data.collection ?? null;
         talk.title = data.title ?? null;
         talk.summary = data.summary ?? null;
-        talk.contextMode = data.contextMode ?? 'free';
-        talk.contextIds = data.contextIds ?? null;
-        talk.contextParagraphId = data.contextParagraphId ?? null;
-        talk.publishingStatus = 'private';
+        talk.kontextSourceId = data.kontextSourceId ?? null;
+        talk.kontextSegmentId = data.kontextSegmentId ?? null;
+        talk.kontextParagraph = data.kontextParagraph ?? null;
+        talk.publishingStatus = 'personal';
       }),
     );
   },
@@ -104,14 +105,14 @@ export const TalkRepository = {
     return database.write(async () => {
       const newTalk = await collection.create((talk) => {
         talk.talkId = newTalkId;
-        talk.userId = sourceTalk.userId;
+        talk.menschId = sourceTalk.menschId;
         talk.collectionName = sourceTalk.collectionName;
         talk.title = sourceTalk.title ? `${sourceTalk.title} ${titleSuffix}` : null;
         talk.summary = sourceTalk.summary;
-        talk.contextMode = sourceTalk.contextMode;
-        talk.contextIds = sourceTalk.contextIds;
-        talk.contextParagraphId = sourceTalk.contextParagraphId;
-        talk.publishingStatus = 'private';
+        talk.kontextSourceId = sourceTalk.kontextSourceId;
+        talk.kontextSegmentId = sourceTalk.kontextSegmentId;
+        talk.kontextParagraph = sourceTalk.kontextParagraph;
+        talk.publishingStatus = 'personal';
       });
 
       for (const turn of filteredTurns) {

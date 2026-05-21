@@ -80,7 +80,7 @@ export default function ReadScreen() {
     const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
       const counts = new Map<string, number>();
       for (const t of talks) {
-        const pid = t.contextParagraphId;
+        const pid = t.kontextSegmentId;
         if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
       }
       setTalkCounts(counts);
