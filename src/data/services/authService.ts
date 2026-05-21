@@ -130,13 +130,36 @@ export const authService = {
   /**
    * Handle a deep-link URL that Supabase redirected to after Magic Link click.
    * Call this from the root layout's Linking listener.
+   *
+   * PKCE flow (default):  ragapp://auth-callback?code=xxxx
+   * Implicit flow (legacy): ragapp://auth-callback#access_token=xxxx&refresh_token=xxxx
    */
   async handleDeepLink(url: string): Promise<void> {
     if (!this.isAvailable()) return;
-    // Supabase PKCE flow sends ?code=..., legacy OTP sends #access_token=...
-    if (!url.includes('access_token') && !url.includes('code=')) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (getSupabase().auth as any).getSessionFromUrl({ url });
+    console.log('[handleDeepLink] url:', url);
+
+    // PKCE flow — exchange the one-time code for a session
+    const codeMatch = url.match(/[?&]code=([^&#]+)/);
+    if (codeMatch) {
+      const { error } = await getSupabase().auth.exchangeCodeForSession(codeMatch[1]);
+      if (error) console.warn('[handleDeepLink] exchangeCodeForSession error:', error.message);
+      return;
+    }
+
+    // Implicit flow — tokens arrive in the URL hash fragment
+    const hashIndex = url.indexOf('#');
+    if (hashIndex !== -1) {
+      const params = new URLSearchParams(url.slice(hashIndex + 1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken && refreshToken) {
+        const { error } = await getSupabase().auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) console.warn('[handleDeepLink] setSession error:', error.message);
+      }
+    }
   },
 
   async signOut(): Promise<void> {
