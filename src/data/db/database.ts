@@ -14,7 +14,7 @@ const adapter = new SQLiteAdapter({
   schema,
   migrations,
   dbName: 'ragapp',
-  jsi: true,
+  jsi: false, // jsi: true only works in dev/production builds, not Expo Go
 });
 
 export const database = new Database({
