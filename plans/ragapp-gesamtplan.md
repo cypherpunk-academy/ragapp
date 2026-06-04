@@ -376,19 +376,19 @@ app_paragraph_chunk (
 
 | Daten | Supabase DB | expo-sqlite (WatermelonDB) | Sync via Supabase RPC |
 |---|---|---|---|
-| Texte (`rag_paragraphs`) | Ja | Ja | Ja (pull only) |
-| RAG-Chunks (`rag_chunks`, inkl. `deprecated_at`) | Ja | Ja, gefiltert nach `chunk_type` | Ja (pull only) |
+| Texte (`rag_paragraphs`) | Ja | Ja | pull only |
+| RAG-Chunks (`rag_chunks`) | Ja | Nein | Nein — on demand via `GET /app/chunks/{id}` |
 | Qdrant-Spiegel (`vector_chunks`) | Ja | Nein | Nein (nur ragrun) |
-| RAG-Referenzen (`rag_references`) | Ja | Ja | Ja (pull only) |
-| Paragraph-Chunk-Mapping (`app_paragraph_chunk`) | Ja | Ja | Ja (pull only) |
-| Notizen (`app_notes`) | Ja | Ja | Ja (bidirektional) |
-| Gesprache (`rag_talks`, `rag_turns`) | Ja | Ja | Ja (bidirektional) |
-| Lesezeichen (`app_bookmarks`) | Ja | Ja | Ja (bidirektional) |
+| RAG-Referenzen (`rag_references`) | Ja | Ja | pull only (ragrun schreibt, App liest) |
+| Paragraph-Chunk-Mapping (`app_paragraph_chunk`) | Ja | Nein | Nein — ragrun liefert `paragraph_id` in API-Antworten |
+| Notizen (`app_notes`) | Ja | Ja | **bidirektional** |
+| Gesprache (`rag_talks`, `rag_turns`) | Ja | Ja | pull only (ragrun schreibt via `POST /app/chat`) |
+| Lesezeichen (`app_bookmarks`) | Ja | Ja | **bidirektional** |
 | Nutzerprofil / Freundschaften | Ja | Nein | Nein (immer online) |
 | KI-Anfragen (live) | Log in `rag_usage` | Nein | Nein |
 | LLM-Preise (`llm_pricing`) | Ja | Nein | Nein (serverseitig) |
 
-**Hinweis `rag_chunks`-Sync:** Nicht alle ~50.000 Chunks werden synchronisiert. WatermelonDB pullt nur `chunk_type IN ('book', 'chapter_summary', 'quote', 'typology', 'Begriff')` — die fur Lesen und Kontext relevanten Typen. `quote_explanation` und interne Augmentierungstypen bleiben serverseitig.
+**Nur `app_notes` und `app_bookmarks` sind bidirektional.** Alles andere wird von ragrun (via HTTP-API) oder ragprep geschrieben und von der App nur gepullt.
 
 ### 7.2 Datenmigration: Textkorpus → Supabase
 

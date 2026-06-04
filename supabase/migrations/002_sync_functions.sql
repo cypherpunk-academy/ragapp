@@ -10,6 +10,11 @@
 --
 -- Timestamps are Unix milliseconds (WatermelonDB convention).
 --
+-- Bidirectional: app_notes, app_bookmarks  (user creates/edits/deletes locally)
+-- Pull only:     rag_paragraphs, rag_talks, rag_turns, rag_references
+--                — written server-side by ragrun (POST /app/chat) or ragprep
+-- Not synced:    rag_chunks (on demand via API), app_paragraph_chunk (server only)
+--
 -- Column mapping notes:
 --   rag_chunks:     composite PK → id = rag_partition || ':' || chunk_id
 --   rag_talks:      talk_id uuid → id (text)
