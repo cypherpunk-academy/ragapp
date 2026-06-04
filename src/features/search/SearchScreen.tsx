@@ -442,7 +442,7 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppBar title="Suche" />
+      <AppBar title="KI-Suche" />
       {/* Suchleiste */}
       <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
         <Ionicons

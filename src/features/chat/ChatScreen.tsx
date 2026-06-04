@@ -167,7 +167,7 @@ export default function ChatScreen() {
   if (!activeTalkId) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <AppBar title="KI-Chat" />
+        <AppBar title="KI-Gespräch" />
         <View style={styles.selectorBody}>
           <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
             <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />

@@ -10,8 +10,8 @@ export type TabId = 'overview' | 'read' | 'chat' | 'search';
 const TABS: { id: TabId; label: string; icon: MaterialIconName }[] = [
   { id: 'overview', label: 'ÜBERSICHT', icon: ICONS.tab.overview },
   { id: 'read',     label: 'LESEN',     icon: ICONS.tab.read },
-  { id: 'chat',     label: 'KI-CHAT',   icon: ICONS.tab.chat },
-  { id: 'search',   label: 'SUCHE',     icon: ICONS.tab.search },
+  { id: 'chat',     label: 'KI-GESPRÄCH', icon: ICONS.tab.chat },
+  { id: 'search',   label: 'KI-SUCHE',    icon: ICONS.tab.search },
 ];
 
 type Props = {
