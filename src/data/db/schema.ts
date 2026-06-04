@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: 'paragraphs',
@@ -17,25 +17,6 @@ export const schema = appSchema({
         { name: 'deprecated_at',    type: 'number', isOptional: true },
         { name: 'created_at',       type: 'number' },
         { name: 'updated_at',       type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'chunks',
-      columns: [
-        { name: 'rag_partition',  type: 'string', isIndexed: true },
-        { name: 'chunk_id',       type: 'string', isIndexed: true },
-        { name: 'source_id',      type: 'string', isIndexed: true },
-        { name: 'chunk_type',     type: 'string', isOptional: true },
-        { name: 'language',       type: 'string', isOptional: true },
-        { name: 'importance',     type: 'number', isOptional: true },
-        { name: 'content_hash',   type: 'string', isOptional: true },
-        { name: 'text',           type: 'string', isOptional: true },
-        { name: 'metadata',       type: 'string', isOptional: true }, // JSON
-        { name: 'scope',          type: 'string', isOptional: true },
-        { name: 'embedded_at',    type: 'number', isOptional: true },
-        { name: 'deprecated_at',  type: 'number', isOptional: true },
-        { name: 'created_at',     type: 'number' },
-        { name: 'updated_at',     type: 'number' },
       ],
     }),
     tableSchema({

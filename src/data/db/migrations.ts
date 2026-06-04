@@ -101,5 +101,12 @@ export const migrations = schemaMigrations({
         unsafeExecuteSql('ALTER TABLE turns DROP COLUMN is_relay;'),
       ],
     },
+    {
+      toVersion: 7,
+      steps: [
+        // chunks table removed — fetched on demand via ragrun API
+        unsafeExecuteSql('DROP TABLE IF EXISTS chunks;'),
+      ],
+    },
   ],
 });

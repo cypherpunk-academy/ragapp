@@ -3,7 +3,6 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { schema } from './schema';
 import { migrations } from './migrations';
 import Paragraph from './models/Paragraph';
-import Chunk from './models/Chunk';
 import Note from './models/Note';
 import Bookmark from './models/Bookmark';
 import Talk from './models/Talk';
@@ -19,7 +18,7 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Paragraph, Chunk, Note, Bookmark, Talk, Turn, Reference],
+  modelClasses: [Paragraph, Note, Bookmark, Talk, Turn, Reference],
 });
 
-export { Paragraph, Chunk, Note, Bookmark, Talk, Turn, Reference };
+export { Paragraph, Note, Bookmark, Talk, Turn, Reference };
