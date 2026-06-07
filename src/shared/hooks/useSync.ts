@@ -1,11 +1,13 @@
 /**
  * useSync — triggers WatermelonDB ↔ Supabase sync and exposes status.
  *
- * Usage:
- *   const { syncing, lastSyncedAt, lastError, sync } = useSync();
+ * lastSyncedAt is persisted in AsyncStorage so it survives navigation/unmount.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { runSync } from '@/data/lib/sync';
+
+const LAST_SYNCED_KEY = 'sync:lastSyncedAt';
 
 export type SyncStatus =
   | { state: 'idle' }
@@ -16,11 +18,19 @@ export type SyncStatus =
 export function useSync() {
   const [status, setStatus] = useState<SyncStatus>({ state: 'idle' });
 
+  // Load persisted timestamp on mount
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_SYNCED_KEY).then((val) => {
+      if (val) setStatus({ state: 'done', pulledAt: Number(val) });
+    });
+  }, []);
+
   const sync = useCallback(async () => {
     if (status.state === 'syncing') return;
     setStatus({ state: 'syncing' });
     const result = await runSync();
     if (result.ok) {
+      await AsyncStorage.setItem(LAST_SYNCED_KEY, String(result.pulledAt));
       setStatus({ state: 'done', pulledAt: result.pulledAt });
     } else {
       setStatus({ state: 'error', error: result.error });

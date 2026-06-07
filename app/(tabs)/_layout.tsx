@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TabBar from '@/shared/components/TabBar';
@@ -13,11 +14,22 @@ import ContributionsScreen from '../../src/features/read/ContributionsScreen';
 import ConversationDetailScreen from '../../src/features/read/ConversationDetailScreen';
 import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
 
+const LAST_TAB_KEY = 'lastActiveTab';
+
 function TabsInner() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
+  const [initialPage, setInitialPage] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_TAB_KEY).then((val) => {
+      // Nur LESEN-Tab (1) wird wiederhergestellt; alle anderen → Übersicht (0)
+      setInitialPage(Number(val) === 1 ? 1 : 0);
+    });
+  }, []);
+
   const {
     _registerTabNav,
     contributions,
@@ -36,13 +48,19 @@ function TabsInner() {
     pagerRef.current?.setPage(index);
   };
 
+  if (initialPage === null) return null;
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <PagerView
         ref={pagerRef}
         style={styles.pager}
-        initialPage={0}
-        onPageSelected={(e) => setActiveIndex(e.nativeEvent.position)}
+        initialPage={initialPage}
+        onPageSelected={(e) => {
+          const index = e.nativeEvent.position;
+          setActiveIndex(index);
+          AsyncStorage.setItem(LAST_TAB_KEY, String(index));
+        }}
       >
         <View key="0" style={styles.page}><OverviewScreen /></View>
         <View key="1" style={styles.page}><ReadScreen /></View>

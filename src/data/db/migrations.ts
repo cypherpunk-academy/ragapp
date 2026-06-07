@@ -1,5 +1,6 @@
 import { addColumns, createTable, schemaMigrations, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
 
+
 export const migrations = schemaMigrations({
   migrations: [
     {
@@ -93,9 +94,8 @@ export const migrations = schemaMigrations({
     {
       toVersion: 6,
       steps: [
-        // talks: action_id → personality
-        unsafeExecuteSql('ALTER TABLE talks RENAME COLUMN action_id TO personality;'),
         // turns: action_id → personality; remove assistant_personality, is_relay
+        // Note: talks never had action_id — personality was already added in v5
         unsafeExecuteSql('ALTER TABLE turns RENAME COLUMN action_id TO personality;'),
         unsafeExecuteSql('ALTER TABLE turns DROP COLUMN assistant_personality;'),
         unsafeExecuteSql('ALTER TABLE turns DROP COLUMN is_relay;'),
@@ -106,6 +106,45 @@ export const migrations = schemaMigrations({
       steps: [
         // chunks table removed — fetched on demand via ragrun API
         unsafeExecuteSql('DROP TABLE IF EXISTS chunks;'),
+      ],
+    },
+    {
+      toVersion: 8,
+      steps: [
+        createTable({
+          name: 'sources',
+          columns: [
+            { name: 'title',      type: 'string' },
+            { name: 'author',     type: 'string' },
+            { name: 'language',   type: 'string', isOptional: true },
+            { name: 'year',       type: 'number', isOptional: true },
+            { name: 'book_index', type: 'number', isOptional: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 9,
+      steps: [
+        addColumns({
+          table: 'sources',
+          columns: [
+            { name: 'is_primary', type: 'boolean' },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 10,
+      steps: [
+        addColumns({
+          table: 'sources',
+          columns: [
+            { name: 'sort_order', type: 'number', isOptional: true },
+          ],
+        }),
       ],
     },
   ],

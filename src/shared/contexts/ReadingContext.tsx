@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type Paragraph from '@/data/db/models/Paragraph';
 
 export type ContributionsTab = 'notes' | 'conversations';
@@ -53,14 +54,14 @@ type ReadingContextValue = {
   _registerTabNav: (fn: (index: number) => void) => void;
 };
 
-const DEFAULT_SOURCE = 'philosophie-der-freiheit';
+const LAST_SOURCE_KEY = 'lastActiveSourceId';
 
 /** Synchron zu PagerView-Reihenfolge in app/(tabs)/_layout.tsx */
 const TAB_INDEX_READ = 1;
 const TAB_INDEX_CHAT = 2;
 
 const ReadingContext = createContext<ReadingContextValue>({
-  target: { sourceId: DEFAULT_SOURCE, segmentIndex: null, paragraphId: null },
+  target: { sourceId: '', segmentIndex: null, paragraphId: null },
   contributions: null,
   conversationDetail: null,
   chunkPreview: null,
@@ -79,10 +80,19 @@ const ReadingContext = createContext<ReadingContextValue>({
 
 export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [target, setTarget] = useState<ReadingTarget>({
-    sourceId: DEFAULT_SOURCE,
+    sourceId: '',
     segmentIndex: null,
     paragraphId: null,
   });
+
+  const targetRef = useRef(target);
+  targetRef.current = target;
+
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_SOURCE_KEY).then((id) => {
+      if (id) setTarget((prev) => ({ ...prev, sourceId: id }));
+    });
+  }, []);
 
   const tabNavRef = useRef<((index: number) => void) | null>(null);
 
@@ -96,8 +106,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
 
   const navigateToRead = useCallback(
-    ({ sourceId = DEFAULT_SOURCE, segmentIndex, paragraphId }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => {
-      setTarget({ sourceId, segmentIndex, paragraphId });
+    ({ sourceId, segmentIndex, paragraphId }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => {
+      const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
+      setTarget({ sourceId: resolvedSourceId, segmentIndex, paragraphId });
+      if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
       tabNavRef.current?.(TAB_INDEX_READ);
     },
     [],
@@ -113,8 +125,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openContributions = useCallback(
-    (paragraph: Paragraph, tab: ContributionsTab = 'notes', sourceId = DEFAULT_SOURCE) => {
-      setContributions({ paragraph, tab, sourceId });
+    (paragraph: Paragraph, tab: ContributionsTab = 'notes', sourceId?: string) => {
+      setContributions({ paragraph, tab, sourceId: sourceId ?? targetRef.current.sourceId });
     },
     [],
   );

@@ -19,8 +19,56 @@ type Segment = { text: string; kind: SegmentKind; targetParagraphId?: string };
 
 type AnnotatedRange = { start: number; end: number; kind: SegmentKind; targetParagraphId?: string };
 
-function buildSegments(text: string, annotations: ParagraphAnnotations | null): Segment[] {
+/**
+ * Strip inline HTML tags (<i>, <q ...>) from text, returning clean text and
+ * derived annotation ranges. Used for books where markup is embedded in text_raw
+ * instead of the separate annotations field.
+ */
+function parseInlineHtml(rawText: string): { cleanText: string; extraRanges: AnnotatedRange[] } {
+  if (!rawText.includes('<')) return { cleanText: rawText, extraRanges: [] };
+
+  const extraRanges: AnnotatedRange[] = [];
+  let cleanText = '';
+  let i = 0;
+
+  while (i < rawText.length) {
+    if (rawText[i] === '<') {
+      const closeIdx = rawText.indexOf('>', i);
+      if (closeIdx === -1) { cleanText += rawText[i++]; continue; }
+
+      const tag = rawText.slice(i + 1, closeIdx);
+      const isClosing = tag.startsWith('/');
+      const tagName = (isClosing ? tag.slice(1) : tag.split(/[\s>]/)[0]).trim().toLowerCase();
+
+      if (tagName === 'i' || tagName === 'q') {
+        if (!isClosing) {
+          extraRanges.push({ start: cleanText.length, end: -1, kind: tagName === 'i' ? 'italic' : 'quote' });
+        } else {
+          const kind: SegmentKind = tagName === 'i' ? 'italic' : 'quote';
+          for (let j = extraRanges.length - 1; j >= 0; j--) {
+            if (extraRanges[j].kind === kind && extraRanges[j].end === -1) {
+              extraRanges[j] = { ...extraRanges[j], end: cleanText.length };
+              break;
+            }
+          }
+        }
+        i = closeIdx + 1;
+      } else {
+        cleanText += rawText[i++];
+      }
+    } else {
+      cleanText += rawText[i++];
+    }
+  }
+
+  return { cleanText, extraRanges: extraRanges.filter((r) => r.end !== -1) };
+}
+
+function buildSegments(rawText: string, annotations: ParagraphAnnotations | null): Segment[] {
+  const { cleanText: text, extraRanges } = parseInlineHtml(rawText);
+
   const ranges: AnnotatedRange[] = [
+    ...extraRanges,
     ...(annotations?.italics ?? []).map(({ start, end }) => ({ start, end, kind: 'italic' as const })),
     ...(annotations?.foreign_quotes ?? []).map(({ start, end }) => ({ start, end, kind: 'quote' as const })),
     ...(annotations?.page_refs ?? []).map(({ start, end, target_paragraph_id }) => ({
@@ -40,7 +88,8 @@ function buildSegments(text: string, annotations: ParagraphAnnotations | null): 
     const from = Math.max(0, Math.min(start, text.length));
     const to = Math.max(from, Math.min(end, text.length));
     if (cursor < from) segments.push({ text: text.slice(cursor, from), kind: 'plain' });
-    if (from < to) segments.push({ text: text.slice(from, to), kind, targetParagraphId });
+    const actualFrom = Math.max(from, cursor);
+    if (actualFrom < to) segments.push({ text: text.slice(actualFrom, to), kind, targetParagraphId });
     cursor = Math.max(cursor, to);
   }
   if (cursor < text.length) segments.push({ text: text.slice(cursor), kind: 'plain' });

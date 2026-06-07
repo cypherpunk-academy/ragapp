@@ -1,8 +1,22 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 7,
+  version: 10,
   tables: [
+    tableSchema({
+      name: 'sources',
+      columns: [
+        { name: 'title',      type: 'string' },
+        { name: 'author',     type: 'string' },
+        { name: 'language',   type: 'string', isOptional: true },
+        { name: 'year',       type: 'number', isOptional: true },
+        { name: 'book_index', type: 'number', isOptional: true },
+        { name: 'is_primary',  type: 'boolean' },
+        { name: 'sort_order',  type: 'number', isOptional: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
     tableSchema({
       name: 'paragraphs',
       columns: [

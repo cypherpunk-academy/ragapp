@@ -129,7 +129,7 @@ export default function LoginScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="name@beispiel.de"
-              placeholderTextColor={colors.onSurfaceVariant}
+              placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}

@@ -21,7 +21,6 @@ import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 
-const SOURCE_ID = 'philosophie-der-freiheit';
 const LOCAL_USER = 'local';
 
 type Segment = { segmentIndex: number; segmentTitle: string };
@@ -31,6 +30,7 @@ export default function ReadScreen() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { height: windowHeight } = useWindowDimensions();
   const { target, openContributions, navigateToRead, navigateToChat } = useReading();
+  const sourceId = target.sourceId;
   /** Begrenzt mehrzeiligen TextInput, damit Inhalt intern scrollt statt die Sheet-Höhe zu sprengen. */
   const noteInputMaxHeight = Math.round(windowHeight * 0.45);
 
@@ -59,15 +59,18 @@ export default function ReadScreen() {
   const blankTargetHydrateDoneRef = useRef(false);
 
   useEffect(() => {
-    const sub = ParagraphRepository.observeBySource(SOURCE_ID).subscribe((ps) => {
+    if (!sourceId) return;
+    setLoading(true);
+    setAllParagraphs([]);
+    const sub = ParagraphRepository.observeBySource(sourceId).subscribe((ps) => {
       setAllParagraphs(ps);
       setLoading(false);
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [sourceId]);
 
   useEffect(() => {
-    const sub = NoteRepository.observeBySource(SOURCE_ID).subscribe((notes) => {
+    const sub = NoteRepository.observeBySource(sourceId).subscribe((notes) => {
       const counts = new Map<string, number>();
       for (const n of notes) {
         if (n.paragraphId) counts.set(n.paragraphId, (counts.get(n.paragraphId) ?? 0) + 1);
@@ -75,7 +78,7 @@ export default function ReadScreen() {
       setNoteCounts(counts);
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [sourceId]);
 
   useEffect(() => {
     const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
@@ -90,11 +93,11 @@ export default function ReadScreen() {
   }, []);
 
   useEffect(() => {
-    const sub = BookmarkRepository.observeManualBookmarks(SOURCE_ID).subscribe((bms) => {
+    const sub = BookmarkRepository.observeManualBookmarks(sourceId).subscribe((bms) => {
       setBookmarkIds(new Set(bms.map((b) => b.paragraphId)));
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [sourceId]);
 
 
   const segments = useMemo<Segment[]>(() => {
@@ -114,7 +117,7 @@ export default function ReadScreen() {
   const currentSegmentIndex = useMemo(() => {
     if (target.segmentIndex !== null) return target.segmentIndex;
     if (target.paragraphId) {
-      const hit = allParagraphs.find((p) => p.paragraphId === target.paragraphId);
+      const hit = allParagraphs.find((p) => p.id === target.paragraphId);
       if (hit) return hit.segmentIndex;
     }
     return segments[0]?.segmentIndex ?? 0;
@@ -141,9 +144,9 @@ export default function ReadScreen() {
     lastReadWriteParagraphId.current = pid;
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       // eslint-disable-next-line no-console
-      console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: SOURCE_ID, paragraphId: pid });
+      console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: sourceId, paragraphId: pid });
     }
-    void BookmarkRepository.setLastRead(LOCAL_USER, SOURCE_ID, pid);
+    void BookmarkRepository.setLastRead(LOCAL_USER, sourceId, pid);
   }, []);
 
   const onViewableItemsChanged = useCallback(
@@ -154,7 +157,7 @@ export default function ReadScreen() {
         .sort((a, b) => (a.index as number) - (b.index as number));
       /** Unterster sichtbarer Absatz = Lesefortschritt (oberste Zeilen bleiben oft noch „viewable“). */
       const item = visible[visible.length - 1]?.item as Paragraph | undefined;
-      const pid = item?.paragraphId;
+      const pid = item?.id;
       if (!pid) return;
       pendingLastReadParagraphId.current = pid;
       if (lastReadDebounceTimer.current) clearTimeout(lastReadDebounceTimer.current);
@@ -171,7 +174,7 @@ export default function ReadScreen() {
     flushPendingLastRead();
   }, [flushPendingLastRead]);
 
-  const firstChapterParagraphId = chapterParagraphs[0]?.paragraphId;
+  const firstChapterParagraphId = chapterParagraphs[0]?.id;
 
   /**
    * Kapitelwechsel ohne Zielabsatz: Lesemarke sofort auf Kapitelanfang (stale Debounce vom vorherigen Kapitel).
@@ -234,10 +237,10 @@ export default function ReadScreen() {
 
     let cancelled = false;
     void (async () => {
-      const row = await BookmarkRepository.findLastRead(SOURCE_ID);
+      const row = await BookmarkRepository.findLastRead(sourceId);
       if (cancelled) return;
       if (row?.paragraphId) {
-        const hit = allParagraphsRef.current.find((p) => p.paragraphId === row.paragraphId);
+        const hit = allParagraphsRef.current.find((p) => p.id === row.paragraphId);
         if (hit) {
           navigateToRead({ segmentIndex: null, paragraphId: row.paragraphId });
           return;
@@ -282,7 +285,7 @@ export default function ReadScreen() {
 
   useEffect(() => {
     if (!target.paragraphId || chapterParagraphs.length === 0) return;
-    const idx = chapterParagraphs.findIndex((p) => p.paragraphId === target.paragraphId);
+    const idx = chapterParagraphs.findIndex((p) => p.id === target.paragraphId);
     if (idx >= 0) {
       listRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 8 });
     }
@@ -301,9 +304,9 @@ export default function ReadScreen() {
     if (trimmed && paragraph) {
       await NoteRepository.create({
         userId: LOCAL_USER,
-        paragraphId: paragraph.paragraphId,
-        segmentId: `${SOURCE_ID}:${paragraph.segmentIndex}`,
-        sourceId: SOURCE_ID,
+        paragraphId: paragraph.id,
+        segmentId: `${sourceId}:${paragraph.segmentIndex}`,
+        sourceId: sourceId,
         content: trimmed,
       });
     }
@@ -312,7 +315,7 @@ export default function ReadScreen() {
     setNoteContent('');
 
     if (trimmed && paragraph) {
-      openContributions(paragraph, 'notes', SOURCE_ID);
+      openContributions(paragraph, 'notes', sourceId);
     }
   }, [noteContent, menuParagraph, openContributions]);
 
@@ -333,24 +336,24 @@ export default function ReadScreen() {
     const p = menuParagraph;
     setMenuParagraph(null);
     setMenuMode('menu');
-    openContributions(p, 'notes', SOURCE_ID);
+    openContributions(p, 'notes', sourceId);
   }, [menuParagraph, openContributions]);
 
   const handleToggleBookmarkFromMenu = useCallback(() => {
     if (!menuParagraph) return;
-    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, SOURCE_ID, menuParagraph.paragraphId);
+    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, menuParagraph.id);
     setMenuParagraph(null);
     setMenuMode('menu');
   }, [menuParagraph]);
 
   const showContributions = useCallback((p: Paragraph, tab: ContributionsTab) => {
-    openContributions(p, tab, SOURCE_ID);
+    openContributions(p, tab, sourceId);
   }, [openContributions]);
 
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
-    const noteCount = noteCounts.get(item.paragraphId) ?? 0;
-    const conversationCount = talkCounts.get(item.paragraphId) ?? 0;
-    const isBookmarked = bookmarkIds.has(item.paragraphId);
+    const noteCount = noteCounts.get(item.id) ?? 0;
+    const conversationCount = talkCounts.get(item.id) ?? 0;
+    const isBookmarked = bookmarkIds.has(item.id);
     const hasStrip = noteCount > 0 || conversationCount > 0 || isBookmarked;
     const openTab = (tab: ContributionsTab) => showContributions(item, tab);
     const iconMeta = colors.onSurfaceVariant;
@@ -377,7 +380,7 @@ export default function ReadScreen() {
                 {isBookmarked ? (
                   <Text
                     onPress={() =>
-                      void BookmarkRepository.toggleManualBookmark(LOCAL_USER, SOURCE_ID, item.paragraphId)
+                      void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, item.id)
                     }
                     style={styles.inlineContributionHit}
                   >
@@ -438,7 +441,7 @@ export default function ReadScreen() {
         style={styles.list}
         ref={listRef}
         data={chapterParagraphs}
-        keyExtractor={(p) => p.paragraphId}
+        keyExtractor={(p) => p.id}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
@@ -494,12 +497,12 @@ export default function ReadScreen() {
                 </Text>
                 <TouchableOpacity style={styles.menuRow} onPress={handleToggleBookmarkFromMenu}>
                   <Ionicons
-                    name={menuParagraph && bookmarkIds.has(menuParagraph.paragraphId) ? 'bookmark' : 'bookmark-outline'}
+                    name={menuParagraph && bookmarkIds.has(menuParagraph.id) ? 'bookmark' : 'bookmark-outline'}
                     size={20}
                     color={colors.primary}
                   />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    {menuParagraph && bookmarkIds.has(menuParagraph.paragraphId)
+                    {menuParagraph && bookmarkIds.has(menuParagraph.id)
                       ? 'Lesezeichen entfernen'
                       : 'Lesezeichen setzen'}
                   </Text>

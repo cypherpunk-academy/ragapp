@@ -8,6 +8,7 @@ import Bookmark from './models/Bookmark';
 import Talk from './models/Talk';
 import Turn from './models/Turn';
 import Reference from './models/Reference';
+import Source from './models/Source';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -18,7 +19,7 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Paragraph, Note, Bookmark, Talk, Turn, Reference],
+  modelClasses: [Paragraph, Note, Bookmark, Talk, Turn, Reference, Source],
 });
 
-export { Paragraph, Note, Bookmark, Talk, Turn, Reference };
+export { Paragraph, Note, Bookmark, Talk, Turn, Reference, Source };
