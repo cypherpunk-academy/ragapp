@@ -574,7 +574,7 @@ export default function ReadScreen() {
                   textAlignVertical="top"
                   autoFocus
                   placeholder="Notiz eingeben..."
-                  placeholderTextColor={colors.onSurfaceVariant}
+                  placeholderTextColor={colors.outline}
                   value={noteContent}
                   onChangeText={setNoteContent}
                 />

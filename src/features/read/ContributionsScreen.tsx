@@ -87,8 +87,8 @@ export default function ContributionsScreen({
 
     const refresh = async () => {
       const [noteList, talkList] = await Promise.all([
-        NoteRepository.findByParagraph(paragraph.paragraphId),
-        TalkRepository.findByParagraph(paragraph.paragraphId),
+        NoteRepository.findByParagraph(paragraph.id),
+        TalkRepository.findByParagraph(paragraph.id),
       ]);
       if (cancelled) return;
       setNotes(noteList);
@@ -98,7 +98,7 @@ export default function ContributionsScreen({
     void refresh();
 
     const noteSub = NoteRepository.observeBySource(sourceId).subscribe(() => { void refresh(); });
-    const talkSub = TalkRepository.observeByParagraph(paragraph.paragraphId).subscribe(() => { void refresh(); });
+    const talkSub = TalkRepository.observeByParagraph(paragraph.id).subscribe(() => { void refresh(); });
 
     return () => {
       cancelled = true;
@@ -127,7 +127,7 @@ export default function ContributionsScreen({
     navigateToRead({
       sourceId,
       segmentIndex: paragraph.segmentIndex,
-      paragraphId: paragraph.paragraphId,
+      paragraphId: paragraph.id,
     });
   }, [paragraph, sourceId, onClose, navigateToRead]);
 
@@ -254,7 +254,7 @@ export default function ContributionsScreen({
                           <Ionicons name="pencil" size={18} color={colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleDelete(note)} hitSlop={8}>
-                          <Ionicons name="close" size={18} color={colors.onSurfaceVariant} />
+                          <Ionicons name="trash-outline" size={18} color={colors.onSurfaceVariant} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -294,8 +294,9 @@ export default function ContributionsScreen({
                     snippetTurn={snippetTurn}
                     onPress={() => openConversationDetail(
                       talk.id,
-                      paragraph.paragraphId,
+                      paragraph.id,
                       getTalkAnchorTurnIndex(talk),
+                      sourceId,
                     )}
                   />
                 ))}
@@ -309,7 +310,7 @@ export default function ContributionsScreen({
             onClose={() => { setEditorOpen(false); setEditNote(null); }}
             note={editNote}
             contextLabel={contextLabel}
-            paragraphId={paragraph.paragraphId}
+            paragraphId={paragraph.id}
             segmentId={`${sourceId}:${paragraph.segmentIndex}`}
             sourceId={sourceId}
             onDeleted={() => { setEditorOpen(false); setEditNote(null); }}

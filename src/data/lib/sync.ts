@@ -13,7 +13,7 @@ import { database } from '../db/database';
 import { getSupabase } from './supabase';
 import { config } from './config';
 
-const SCHEMA_VERSION = 10; // keep in sync with db/schema.ts version
+const SCHEMA_VERSION = 14; // keep in sync with db/schema.ts version
 
 export type SyncResult = {
   ok: true;

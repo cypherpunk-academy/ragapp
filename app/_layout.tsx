@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
@@ -7,9 +7,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { useColorScheme } from 'react-native';
 import { lightColors, darkColors } from '@/shared/theme';
-import { seedIfEmpty, seedDemoContributionsIfEmpty } from '@/data/lib/seedLoader';
 import { useAppFonts } from '@/shared/hooks/useAppFonts';
 import { authService } from '@/data/services/authService';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { runSync } from '@/data/lib/sync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,12 +18,14 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const [fontsLoaded] = useAppFonts();
+  const { loading: authLoading, isAuthenticated } = useAuth();
+  const hasSynced = useRef(false);
 
   useEffect(() => {
-    seedIfEmpty()
-      .then(() => seedDemoContributionsIfEmpty())
-      .catch(console.error);
-  }, []);
+    if (authLoading || !isAuthenticated || hasSynced.current) return;
+    hasSynced.current = true;
+    void runSync();
+  }, [authLoading, isAuthenticated]);
 
   // Handle Supabase Magic Link deep links (e.g. ragapp://auth/callback?code=...)
   useEffect(() => {

@@ -12,6 +12,7 @@ type ContributionsOverlay = {
 
 type ConversationDetailOverlay = {
   talkId: string;
+  sourceId: string;
   /** Absatz, von dem aus das Gespräch geöffnet wurde (Fundstelle). Null = kein Anchor (z. B. aus Suche). */
   anchorParagraphId: string | null;
   /** MVP: erste Runde (0) als Einstieg an der Fundstelle. */
@@ -53,7 +54,7 @@ type ReadingContextValue = {
   navigateToChatWithTalk: (talkId: string) => void;
   openContributions: (paragraph: Paragraph, tab?: ContributionsTab, sourceId?: string) => void;
   closeContributions: () => void;
-  openConversationDetail: (talkId: string, anchorParagraphId?: string | null, anchorTurnIndex?: number) => void;
+  openConversationDetail: (talkId: string, anchorParagraphId?: string | null, anchorTurnIndex?: number, sourceId?: string) => void;
   closeConversationDetail: () => void;
   openChunkPreview: (payload: ChunkPreviewOverlay) => void;
   closeChunkPreview: () => void;
@@ -146,8 +147,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const closeContributions = useCallback(() => setContributions(null), []);
 
   const openConversationDetail = useCallback(
-    (talkId: string, anchorParagraphId: string | null = null, anchorTurnIndex = 0) => {
-      setConversationDetail({ talkId, anchorParagraphId, anchorTurnIndex });
+    (talkId: string, anchorParagraphId: string | null = null, anchorTurnIndex = 0, sourceId = '') => {
+      setConversationDetail({ talkId, sourceId, anchorParagraphId, anchorTurnIndex });
     },
     [],
   );

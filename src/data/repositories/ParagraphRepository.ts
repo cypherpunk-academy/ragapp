@@ -4,9 +4,12 @@ import { database, Paragraph } from '../db/database';
 const collection = database.get<Paragraph>('paragraphs');
 
 export const ParagraphRepository = {
-  async findByParagraphId(paragraphId: string): Promise<Paragraph | null> {
-    const results = await collection.query(Q.where('paragraph_id', paragraphId)).fetch();
-    return results[0] ?? null;
+  async findById(id: string): Promise<Paragraph | null> {
+    try {
+      return await collection.find(id);
+    } catch {
+      return null;
+    }
   },
 
   async findBySource(sourceId: string): Promise<Paragraph[]> {

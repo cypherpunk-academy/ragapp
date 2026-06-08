@@ -86,7 +86,7 @@ export default function ConversationDetailScreen({
         TurnRepository.findAllByTalk(talkId),
       ]);
       const para = anchorParagraphId
-        ? await ParagraphRepository.findByParagraphId(anchorParagraphId)
+        ? await ParagraphRepository.findById(anchorParagraphId)
         : null;
       if (cancelled) return;
       setTalk(t);
@@ -132,7 +132,7 @@ export default function ConversationDetailScreen({
     navigateToRead({
       sourceId,
       segmentIndex: anchorParagraph.segmentIndex,
-      paragraphId: anchorParagraph.paragraphId,
+      paragraphId: anchorParagraph.id,
     });
   }, [anchorParagraph, sourceId, onClose, navigateToRead]);
 

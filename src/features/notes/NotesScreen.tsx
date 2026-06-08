@@ -11,8 +11,6 @@ import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import type Note from '@/data/db/models/Note';
 import type Paragraph from '@/data/db/models/Paragraph';
 
-const SOURCE_ID = 'philosophie-der-freiheit';
-
 type SegmentMeta = { segmentIndex: number; segmentTitle: string };
 
 /** Parses segmentIndex out of paragraphId ("source:segmentIndex:paragraphNumber") */
@@ -36,7 +34,7 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-export default function NotesScreen() {
+export default function NotesScreen({ sourceId }: { sourceId: string }) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
@@ -47,7 +45,7 @@ export default function NotesScreen() {
   const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
-    const sub = NoteRepository.observeBySource(SOURCE_ID).subscribe((ns) => {
+    const sub = NoteRepository.observeBySource(sourceId).subscribe((ns) => {
       setNotes(ns);
       setLoading(false);
     });
@@ -55,7 +53,7 @@ export default function NotesScreen() {
   }, []);
 
   useEffect(() => {
-    const sub = ParagraphRepository.observeBySource(SOURCE_ID).subscribe(setParagraphs);
+    const sub = ParagraphRepository.observeBySource(sourceId).subscribe(setParagraphs);
     return () => sub.unsubscribe();
   }, []);
 

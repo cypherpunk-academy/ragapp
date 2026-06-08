@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:theme": "node scripts/build-theme.mjs"
+    "build:theme": "node scripts/build-theme.mjs",
+    "seed:fetch": "node scripts/fetch-db-seed.mjs"
   },
   "dependencies": {
     "@babel/plugin-proposal-decorators": "^7.29.0",

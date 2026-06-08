@@ -111,7 +111,7 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
   },
   {
     chunk_id: 'demo-notiz-1',
-    source_id: 'philosophie-der-freiheit',
+    source_id: '',
     title: 'Gedanke zur Willensfreiheit',
     segment_title: 'Abschnitt 3',
     snippet: 'Der freie Wille lässt sich nicht auf kausale Ketten reduzieren, ohne das Phänomen zu verfehlen. Kant trennt intelligiblen und empirischen Charakter...',

@@ -91,7 +91,7 @@ export default function NoteEditorModal({
             textAlignVertical="top"
             autoFocus
             placeholder="Notiz eingeben..."
-            placeholderTextColor={colors.onSurfaceVariant}
+            placeholderTextColor={colors.outline}
             value={content}
             onChangeText={setContent}
           />

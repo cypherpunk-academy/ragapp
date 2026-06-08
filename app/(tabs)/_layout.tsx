@@ -85,7 +85,7 @@ function TabsInner() {
           talkId={conversationDetail.talkId}
           anchorParagraphId={conversationDetail.anchorParagraphId}
           anchorTurnIndex={conversationDetail.anchorTurnIndex}
-          sourceId={contributions?.sourceId ?? 'philosophie-der-freiheit'}
+          sourceId={conversationDetail.sourceId}
           onClose={closeConversationDetail}
         />
       )}

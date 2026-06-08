@@ -3,6 +3,7 @@ import { Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles } from '../theme';
 import type { ParagraphAnnotations } from '../types';
 import { useReading } from '../contexts/ReadingContext';
+import { parseInlineHtml } from '../lib/parseInlineHtml';
 
 /** Figma Lesen/Default — rust italic (#b25738) */
 const READING_ITALIC_COLOR = '#B25738';
@@ -18,51 +19,6 @@ type SegmentKind = 'plain' | 'italic' | 'quote' | 'page_ref';
 type Segment = { text: string; kind: SegmentKind; targetParagraphId?: string };
 
 type AnnotatedRange = { start: number; end: number; kind: SegmentKind; targetParagraphId?: string };
-
-/**
- * Strip inline HTML tags (<i>, <q ...>) from text, returning clean text and
- * derived annotation ranges. Used for books where markup is embedded in text_raw
- * instead of the separate annotations field.
- */
-function parseInlineHtml(rawText: string): { cleanText: string; extraRanges: AnnotatedRange[] } {
-  if (!rawText.includes('<')) return { cleanText: rawText, extraRanges: [] };
-
-  const extraRanges: AnnotatedRange[] = [];
-  let cleanText = '';
-  let i = 0;
-
-  while (i < rawText.length) {
-    if (rawText[i] === '<') {
-      const closeIdx = rawText.indexOf('>', i);
-      if (closeIdx === -1) { cleanText += rawText[i++]; continue; }
-
-      const tag = rawText.slice(i + 1, closeIdx);
-      const isClosing = tag.startsWith('/');
-      const tagName = (isClosing ? tag.slice(1) : tag.split(/[\s>]/)[0]).trim().toLowerCase();
-
-      if (tagName === 'i' || tagName === 'q') {
-        if (!isClosing) {
-          extraRanges.push({ start: cleanText.length, end: -1, kind: tagName === 'i' ? 'italic' : 'quote' });
-        } else {
-          const kind: SegmentKind = tagName === 'i' ? 'italic' : 'quote';
-          for (let j = extraRanges.length - 1; j >= 0; j--) {
-            if (extraRanges[j].kind === kind && extraRanges[j].end === -1) {
-              extraRanges[j] = { ...extraRanges[j], end: cleanText.length };
-              break;
-            }
-          }
-        }
-        i = closeIdx + 1;
-      } else {
-        cleanText += rawText[i++];
-      }
-    } else {
-      cleanText += rawText[i++];
-    }
-  }
-
-  return { cleanText, extraRanges: extraRanges.filter((r) => r.end !== -1) };
-}
 
 function buildSegments(rawText: string, annotations: ParagraphAnnotations | null): Segment[] {
   const { cleanText: text, extraRanges } = parseInlineHtml(rawText);

@@ -147,5 +147,48 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 11,
+      steps: [
+        // paragraph.id is now the structured paragraph_id ("source:seg:num").
+        // Existing seeded paragraphs had UUID ids → clear and re-seed.
+        // Bookmarks and notes referenced those UUIDs → also clear.
+        unsafeExecuteSql('DELETE FROM paragraphs;'),
+        unsafeExecuteSql('DELETE FROM bookmarks;'),
+        unsafeExecuteSql('DELETE FROM notes;'),
+      ],
+    },
+    {
+      toVersion: 12,
+      steps: [
+        // paragraph_id column was NOT NULL in SQLite — WatermelonDB no longer
+        // includes it in INSERT statements (removed from schema in v11).
+        // Must drop the index first, then the column, so INSERTs succeed.
+        unsafeExecuteSql('DROP INDEX IF EXISTS paragraphs_paragraph_id;'),
+        unsafeExecuteSql('ALTER TABLE paragraphs DROP COLUMN paragraph_id;'),
+        // Re-clear paragraphs so they are re-seeded with correct IDs.
+        unsafeExecuteSql('DELETE FROM paragraphs;'),
+      ],
+    },
+    {
+      toVersion: 13,
+      steps: [
+        // Seeded paragraphs had source_id = slug ("philosophie-der-freiheit").
+        // Update them to use the actual source UUID from the sources table.
+        unsafeExecuteSql(
+          "UPDATE paragraphs SET source_id = (SELECT id FROM sources WHERE title = 'Die Philosophie der Freiheit' AND is_primary = 1 LIMIT 1) WHERE source_id = 'philosophie-der-freiheit';",
+        ),
+      ],
+    },
+    {
+      toVersion: 14,
+      steps: [
+        // Paragraphs were deleted locally in v11–v13 but the server's last_pulled_at
+        // is still recent, so incremental sync won't return them again.
+        // Reset to 0 to force a full resync on next sync call.
+        unsafeExecuteSql("UPDATE local_storage SET value = '0' WHERE key = '__watermelon_last_pulled_at';"),
+        unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
+      ],
+    },
   ],
 });
