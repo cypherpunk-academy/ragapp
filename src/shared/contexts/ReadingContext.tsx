@@ -42,6 +42,13 @@ type ReadingContextValue = {
   navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => void;
   /** Wechselt zum KI-Chat-Tab ohne vorgeladenes Gespräch. */
   navigateToChat: () => void;
+  /**
+   * Zähler: wird hochgezählt wenn der User explizit auf den Übersicht-Tab tippt.
+   * OverviewScreen reagiert darauf und zeigt die Bücherübersicht (resettet selectedSource).
+   */
+  overviewResetKey: number;
+  /** Vom Layout aufgerufen wenn der Übersicht-Tab-Button gedrückt wird. */
+  resetOverview: () => void;
   /** Wechselt zum KI-Chat-Tab und lädt das angegebene Gespräch vor. */
   navigateToChatWithTalk: (talkId: string) => void;
   openContributions: (paragraph: Paragraph, tab?: ContributionsTab, sourceId?: string) => void;
@@ -76,6 +83,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   openChunkPreview: () => {},
   closeChunkPreview: () => {},
   _registerTabNav: () => {},
+  overviewResetKey: 0,
+  resetOverview: () => {},
 });
 
 export function ReadingProvider({ children }: { children: React.ReactNode }) {
@@ -99,6 +108,9 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const _registerTabNav = useCallback((fn: (index: number) => void) => {
     tabNavRef.current = fn;
   }, []);
+
+  const [overviewResetKey, setOverviewResetKey] = useState(0);
+  const resetOverview = useCallback(() => setOverviewResetKey((k) => k + 1), []);
 
   const [contributions, setContributions] = useState<ContributionsOverlay | null>(null);
   const [conversationDetail, setConversationDetail] = useState<ConversationDetailOverlay | null>(null);
@@ -166,6 +178,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         openChunkPreview,
         closeChunkPreview,
         _registerTabNav,
+        overviewResetKey,
+        resetOverview,
       }}
     >
       {children}

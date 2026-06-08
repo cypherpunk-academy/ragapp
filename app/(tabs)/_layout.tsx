@@ -32,6 +32,7 @@ function TabsInner() {
 
   const {
     _registerTabNav,
+    resetOverview,
     contributions,
     closeContributions,
     conversationDetail,
@@ -45,6 +46,7 @@ function TabsInner() {
   }, [_registerTabNav]);
 
   const handleTabPress = (index: number) => {
+    if (index === 0) resetOverview();
     pagerRef.current?.setPage(index);
   };
 

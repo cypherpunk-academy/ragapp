@@ -62,10 +62,14 @@ export const BookmarkRepository = {
       const existing = await collection
         .query(Q.where('paragraph_id', paragraphId), Q.where('source_id', sourceId))
         .fetch();
-      if (existing[0]) {
-        await existing[0].update((bm) => {
-          bm.isManual = !bm.isManual;
-        });
+      const hasManual = existing.some((b) => b.isManual);
+      if (hasManual) {
+        // Alle Manual-Flags löschen (räumt auch etwaige Duplikate auf)
+        for (const bm of existing) {
+          if (bm.isManual) await bm.update((b) => { b.isManual = false; });
+        }
+      } else if (existing[0]) {
+        await existing[0].update((bm) => { bm.isManual = true; });
       } else {
         await collection.create((bm) => {
           bm.userId = userId;
@@ -91,7 +95,7 @@ export const BookmarkRepository = {
 
       // Upsert current paragraph
       const current = await collection
-        .query(Q.where('paragraph_id', paragraphId))
+        .query(Q.where('paragraph_id', paragraphId), Q.where('source_id', sourceId))
         .fetch();
       if (current[0]) {
         await current[0].update((bm) => {

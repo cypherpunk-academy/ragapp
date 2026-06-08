@@ -31,6 +31,9 @@ export default function ReadScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const { target, openContributions, navigateToRead, navigateToChat } = useReading();
   const sourceId = target.sourceId;
+  /** Immer aktuelle sourceId für Callbacks mit leerem deps-Array (verhindert stale closure). */
+  const sourceIdRef = useRef(sourceId);
+  sourceIdRef.current = sourceId;
   /** Begrenzt mehrzeiligen TextInput, damit Inhalt intern scrollt statt die Sheet-Höhe zu sprengen. */
   const noteInputMaxHeight = Math.round(windowHeight * 0.45);
 
@@ -57,6 +60,8 @@ export default function ReadScreen() {
    */
   const lastReadCaptureEnabledRef = useRef(false);
   const blankTargetHydrateDoneRef = useRef(false);
+  /** Letzter segmentIndex für den bereits zum Anfang gescrollt wurde — verhindert doppeltes Scrollen. */
+  const lastScrolledSegmentRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!sourceId) return;
@@ -146,7 +151,7 @@ export default function ReadScreen() {
       // eslint-disable-next-line no-console
       console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: sourceId, paragraphId: pid });
     }
-    void BookmarkRepository.setLastRead(LOCAL_USER, sourceId, pid);
+    void BookmarkRepository.setLastRead(LOCAL_USER, sourceIdRef.current, pid);
   }, []);
 
   const onViewableItemsChanged = useCallback(
@@ -188,17 +193,23 @@ export default function ReadScreen() {
     }
     const prevSeg = lastReadSegmentBaselineRef.current;
     lastReadSegmentBaselineRef.current = currentSegmentIndex;
-    if (prevSeg === null) return;
     if (prevSeg === currentSegmentIndex) return;
-    if (!lastReadCaptureEnabledRef.current) return;
     if (lastReadDebounceTimer.current) {
       clearTimeout(lastReadDebounceTimer.current);
       lastReadDebounceTimer.current = null;
     }
     pendingLastReadParagraphId.current = firstChapterParagraphId;
     lastReadWriteParagraphId.current = null;
-    flushPendingLastRead();
-  }, [currentSegmentIndex, firstChapterParagraphId, target.paragraphId, flushPendingLastRead]);
+    if (target.segmentIndex !== null) {
+      // Expliziter Kapitelwechsel (aus Übersicht oder Kapitel-Nav): sofort in DB schreiben
+      void BookmarkRepository.setLastRead(LOCAL_USER, sourceId, firstChapterParagraphId);
+    } else {
+      // Impliziter Wechsel: nur wenn Capture aktiv und vorher schon ein Kapitel bekannt
+      if (prevSeg === null) return;
+      if (!lastReadCaptureEnabledRef.current) return;
+      flushPendingLastRead();
+    }
+  }, [currentSegmentIndex, firstChapterParagraphId, target.paragraphId, target.segmentIndex, flushPendingLastRead, sourceId]);
 
   /** Erster Wechsel von leerem Target → Navigation: Capture kurz sperren, bis Ziel-Kapitel gerendert ist (sonst Viewability auf Kapitel 0). */
   const hadNavigatedExplicitTargetRef = useRef(false);
@@ -284,12 +295,20 @@ export default function ReadScreen() {
   }, [flushPendingLastRead]);
 
   useEffect(() => {
-    if (!target.paragraphId || chapterParagraphs.length === 0) return;
-    const idx = chapterParagraphs.findIndex((p) => p.id === target.paragraphId);
-    if (idx >= 0) {
-      listRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 8 });
+    if (chapterParagraphs.length === 0) return;
+    if (target.paragraphId) {
+      // Lesezeichen oder letzter Lesestand: zum Absatz scrollen
+      const idx = chapterParagraphs.findIndex((p) => p.id === target.paragraphId);
+      if (idx >= 0) {
+        listRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 8 });
+      }
+      lastScrolledSegmentRef.current = null;
+    } else if (target.segmentIndex !== null && target.segmentIndex !== lastScrolledSegmentRef.current) {
+      // Expliziter Kapitelwechsel ohne Absatz-Ziel: zum Kapitelanfang scrollen
+      lastScrolledSegmentRef.current = target.segmentIndex;
+      listRef.current?.scrollToIndex({ index: 0, animated: false });
     }
-  }, [target.paragraphId, chapterParagraphs]);
+  }, [target.paragraphId, target.segmentIndex, chapterParagraphs]);
 
   const handleLongPress = useCallback((p: Paragraph) => setMenuParagraph(p), []);
 
@@ -354,7 +373,7 @@ export default function ReadScreen() {
     const noteCount = noteCounts.get(item.id) ?? 0;
     const conversationCount = talkCounts.get(item.id) ?? 0;
     const isBookmarked = bookmarkIds.has(item.id);
-    const hasStrip = noteCount > 0 || conversationCount > 0 || isBookmarked;
+    const hasStrip = noteCount > 0 || conversationCount > 0;
     const openTab = (tab: ContributionsTab) => showContributions(item, tab);
     const iconMeta = colors.onSurfaceVariant;
     const iconPx = ICON_SIZES.strip;
@@ -370,33 +389,35 @@ export default function ReadScreen() {
           annotations={item.annotations}
           style={{ color: colors.onBackground }}
           prefix={
-            <Text style={[textStyles.readingParagraphNumber, { color: colors.onSurfaceVariant }]}>
-              {item.paragraphNumber}{'| '}
-            </Text>
+            <>
+              <Text style={[textStyles.readingParagraphNumber, { color: colors.onSurfaceVariant }]}>
+                {item.paragraphNumber}{'| '}
+              </Text>
+              {isBookmarked ? (
+                <Text
+                  onPress={() =>
+                    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, item.id)
+                  }
+                  style={styles.inlineContributionHit}
+                >
+                  <MaterialIcons name="bookmark" size={iconPx} color={colors.primary} />
+                  {'\u2002'}
+                </Text>
+              ) : null}
+            </>
           }
           suffix={
             hasStrip ? (
               <Text style={[styles.inlineContributions, { color: iconMeta }]}>
-                {isBookmarked ? (
-                  <Text
-                    onPress={() =>
-                      void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, item.id)
-                    }
-                    style={styles.inlineContributionHit}
-                  >
-                    <MaterialIcons name="bookmark" size={iconPx} color={colors.primary} />
-                  </Text>
-                ) : null}
                 {noteCount > 0 ? (
                   <Text onPress={() => openTab('notes')} style={styles.inlineContributionHit}>
-                    {isBookmarked ? '\u2002' : null}
                     <MaterialIcons name={contributionIcon('notes')} size={iconPx} color={iconMeta} />
                     <Text style={styles.inlineContributionCount}>{noteCount}</Text>
                   </Text>
                 ) : null}
                 {conversationCount > 0 ? (
                   <Text onPress={() => openTab('conversations')} style={styles.inlineContributionHit}>
-                    {(isBookmarked || noteCount > 0) ? '\u2002' : null}
+                    {noteCount > 0 ? '\u2002' : null}
                     <MaterialIcons name={contributionIcon('conversations')} size={iconPx} color={iconMeta} />
                     <Text style={styles.inlineContributionCount}>{conversationCount}</Text>
                   </Text>

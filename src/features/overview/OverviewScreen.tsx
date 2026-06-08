@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, ActivityIndicator, Modal, Image,
 } from 'react-native';
-import { config } from '@/data/lib/config';
+import { coverImageUri } from '@/data/lib/coverUrl';
 import AppBar from '@/shared/components/AppBar';
 import { ICONS, ICON_SIZES } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
@@ -35,7 +35,7 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
 export default function OverviewScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { navigateToRead } = useReading();
+  const { navigateToRead, overviewResetKey } = useReading();
 
   const [failedCovers, setFailedCovers] = useState<Set<string>>(new Set());
 
@@ -48,6 +48,13 @@ export default function OverviewScreen() {
   const [loadingSources, setLoadingSources] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [bookmarkDropdownOpen, setBookmarkDropdownOpen] = useState(false);
+
+  // Expliziter Tab-Press → zurück zur Bücherübersicht
+  useEffect(() => {
+    if (overviewResetKey === 0) return;
+    setSelectedSource(null);
+    setBookmarkDropdownOpen(false);
+  }, [overviewResetKey]);
 
   // Load all sources
   useEffect(() => {
@@ -73,7 +80,7 @@ export default function OverviewScreen() {
   useEffect(() => {
     if (!selectedSource) { setBookmarkedIds([]); return; }
     const sub = BookmarkRepository.observeManualBookmarks(selectedSource.id).subscribe((bms) => {
-      setBookmarkedIds(bms.map((b) => b.paragraphId));
+      setBookmarkedIds([...new Set(bms.map((b) => b.paragraphId))]);
     });
     return () => sub.unsubscribe();
   }, [selectedSource?.id]);
@@ -147,17 +154,20 @@ export default function OverviewScreen() {
                 onPress={() => setSelectedSource(source)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.coverBox, { backgroundColor: colors.secondaryContainer }]}>
-                  {failedCovers.has(source.id) ? (
-                    <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
-                  ) : (
-                    <Image
-                      source={{ uri: `${config.supabase.url}/storage/v1/object/public/covers/${source.id}.png` }}
-                      style={StyleSheet.absoluteFill}
-                      resizeMode="cover"
-                      onError={() => setFailedCovers((prev) => new Set([...prev, source.id]))}
-                    />
-                  )}
+                <View style={[styles.coverShadow, { shadowColor: colors.shadow }]}>
+                  <View style={[styles.coverBox, { backgroundColor: colors.secondaryContainer }]}>
+                    {failedCovers.has(coverImageUri(source.id)) ? (
+                      <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
+                    ) : (
+                      <Image
+                        key={coverImageUri(source.id)}
+                        source={{ uri: coverImageUri(source.id) }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                        onError={() => setFailedCovers((prev) => new Set([...prev, coverImageUri(source.id)]))}
+                      />
+                    )}
+                  </View>
                 </View>
                 <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center' }]} numberOfLines={1}>
                   {source.author}
@@ -193,22 +203,25 @@ export default function OverviewScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={[styles.hero, { backgroundColor: colors.surfaceContainer }]}>
-          <TouchableOpacity
-            style={[styles.heroCover, { backgroundColor: colors.secondaryContainer }]}
-            onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
-            activeOpacity={0.8}
-          >
-            {failedCovers.has(selectedSource.id) ? (
-              <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
-            ) : (
-              <Image
-                source={{ uri: `${config.supabase.url}/storage/v1/object/public/covers/${selectedSource.id}.png` }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 8 }]}
-                resizeMode="cover"
-                onError={() => setFailedCovers((prev) => new Set([...prev, selectedSource.id]))}
-              />
-            )}
-          </TouchableOpacity>
+          <View style={[styles.coverShadow, { shadowColor: colors.shadow }]}>
+            <TouchableOpacity
+              style={[styles.heroCover, { backgroundColor: colors.secondaryContainer }]}
+              onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
+              activeOpacity={0.8}
+            >
+              {failedCovers.has(coverImageUri(selectedSource.id)) ? (
+                <AppIcon name={ICONS.tab.read} size={ICON_SIZES.hero} color={colors.onSecondaryContainer} />
+              ) : (
+                <Image
+                  key={coverImageUri(selectedSource.id)}
+                  source={{ uri: coverImageUri(selectedSource.id) }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                  onError={() => setFailedCovers((prev) => new Set([...prev, coverImageUri(selectedSource.id)]))}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
           <View style={styles.heroText}>
             <TouchableOpacity
               onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
@@ -325,11 +338,19 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.m, paddingTop: spacing.l, gap: spacing.m },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.m, justifyContent: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.l, justifyContent: 'center' },
   coverCard: { width: 146, gap: spacing.s },
-  coverBox: { aspectRatio: 2 / 3, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  coverShadow: {
+    borderRadius: 8,
+    marginBottom: spacing.xs,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  coverBox: { aspectRatio: 2 / 3, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   hero: { flexDirection: 'row', borderRadius: 12, padding: spacing.m, gap: spacing.m },
-  heroCover: { width: 72, height: 108, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  heroCover: { width: 72, height: 108, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   heroText: { flex: 1, gap: 6 },
   continueCard: { borderRadius: 24, overflow: 'hidden' },
   continueCardExpanded: { borderRadius: 16 },
