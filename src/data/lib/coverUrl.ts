@@ -2,7 +2,7 @@ import { config } from './config';
 
 /** Bust RN image cache after re-uploading covers (`yarn upload:covers`). Bump in .env. */
 const COVER_CACHE_VERSION =
-  process.env.EXPO_PUBLIC_COVER_CACHE_VERSION?.trim() || '4';
+  process.env.EXPO_PUBLIC_COVER_CACHE_VERSION?.trim() || '5';
 
 export function coverImageUri(sourceId: string): string {
   const base = config.supabase.url;
