@@ -25,7 +25,10 @@ export const config = {
     },
   },
   ragrun: {
-    baseUrl: requireNonEmpty(extra.ragrunBaseUrl).replace(/\/$/, ''),
+    // /app/* routes live at server root — not under /api/v1
+    baseUrl: requireNonEmpty(extra.ragrunBaseUrl)
+      .replace(/\/$/, '')
+      .replace(/\/api\/v1$/, ''),
     get isConfigured(): boolean {
       return Boolean(this.baseUrl);
     },

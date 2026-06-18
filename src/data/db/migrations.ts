@@ -190,5 +190,28 @@ export const migrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
       ],
     },
+    {
+      toVersion: 15,
+      steps: [
+        // v13 retargeted source_id on slug-id rows; v14 resync added UUID-id rows → duplicates.
+        unsafeExecuteSql(
+          "DELETE FROM bookmarks WHERE paragraph_id IN (SELECT id FROM paragraphs WHERE instr(id, source_id || ':') != 1);",
+        ),
+        unsafeExecuteSql(
+          "DELETE FROM notes WHERE paragraph_id IN (SELECT id FROM paragraphs WHERE instr(id, source_id || ':') != 1);",
+        ),
+        unsafeExecuteSql("DELETE FROM paragraphs WHERE instr(id, source_id || ':') != 1;"),
+      ],
+    },
+    {
+      toVersion: 16,
+      steps: [
+        // Server paragraph rows were hard-deleted or re-chunked; incremental sync
+        // never surfaces paragraph deletes — wipe local cache and full-pull.
+        unsafeExecuteSql('DELETE FROM paragraphs;'),
+        unsafeExecuteSql("UPDATE local_storage SET value = '0' WHERE key = '__watermelon_last_pulled_at';"),
+        unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
+      ],
+    },
   ],
 });

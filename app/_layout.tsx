@@ -10,6 +10,7 @@ import { lightColors, darkColors } from '@/shared/theme';
 import { useAppFonts } from '@/shared/hooks/useAppFonts';
 import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { seedIfEmpty } from '@/data/lib/seedLoader';
 import { runSync } from '@/data/lib/sync';
 
 SplashScreen.preventAutoHideAsync();
@@ -22,9 +23,19 @@ export default function RootLayout() {
   const hasSynced = useRef(false);
 
   useEffect(() => {
+    void seedIfEmpty().catch((e) => {
+      console.warn('[seed] failed:', e instanceof Error ? e.message : String(e));
+    });
+  }, []);
+
+  useEffect(() => {
     if (authLoading || !isAuthenticated || hasSynced.current) return;
     hasSynced.current = true;
-    void runSync();
+    void runSync().then((result) => {
+      if (!result.ok) {
+        console.warn('[sync] startup failed:', result.error);
+      }
+    });
   }, [authLoading, isAuthenticated]);
 
   // Handle Supabase Magic Link deep links (e.g. ragapp://auth/callback?code=...)

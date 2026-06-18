@@ -16,13 +16,21 @@ export async function seedIfEmpty(): Promise<void> {
   // snapshot.timestamp === 0 means the snapshot has not been generated yet
   if (snapshot.timestamp === 0) return;
 
-  const count = await database.get('sources').query().fetchCount();
-  if (count > 0) return;
+  const sourceCount = await database.get('sources').query().fetchCount();
+  const paragraphCount = await database.get('paragraphs').query().fetchCount();
+  if (sourceCount > 0 && paragraphCount > 0) return;
+
+  const changes =
+    sourceCount === 0
+      ? (snapshot.changes as Record<string, unknown>)
+      : { paragraphs: (snapshot.changes as Record<string, unknown>).paragraphs };
+
+  if (!changes || (sourceCount > 0 && !changes.paragraphs)) return;
 
   await synchronize({
     database,
     pullChanges: async () => ({
-      changes: snapshot.changes as any,
+      changes,
       timestamp: snapshot.timestamp,
     }),
     pushChanges: async () => {},

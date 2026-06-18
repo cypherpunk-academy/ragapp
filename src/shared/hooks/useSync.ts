@@ -1,5 +1,5 @@
 /**
- * useSync — triggers WatermelonDB ↔ Supabase sync and exposes status.
+ * useSync — triggers WatermelonDB ↔ ragrun sync and exposes status.
  *
  * lastSyncedAt is persisted in AsyncStorage so it survives navigation/unmount.
  */

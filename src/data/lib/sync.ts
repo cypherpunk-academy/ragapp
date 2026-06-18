@@ -1,19 +1,25 @@
 /**
- * WatermelonDB ↔ Supabase synchronisation
+ * WatermelonDB ↔ ragrun synchronisation
  *
  * Uses the WatermelonDB `synchronize()` protocol:
- *   pullChanges  → calls RPC `pull_changes(last_pulled_at, schema_version)`
- *   pushChanges  → calls RPC `push_changes(changes, last_pulled_at)`
+ *   pullChanges  → POST /app/sync/pull
+ *   pushChanges  → POST /app/sync/push
  *
  * Read-only tables (rag_*) are returned by pull but never pushed.
  * User-owned tables (app_notes, app_bookmarks) are fully bidirectional.
  */
 import { synchronize } from '@nozbe/watermelondb/sync';
 import { database } from '../db/database';
-import { getSupabase } from './supabase';
+import { ragrunRequest } from './ragrun-client';
 import { config } from './config';
+import { getAccessToken } from './supabase';
 
-const SCHEMA_VERSION = 14; // keep in sync with db/schema.ts version
+const SCHEMA_VERSION = 16; // keep in sync with db/schema.ts version
+
+type SyncPullResponse = {
+  changes: Record<string, unknown>;
+  timestamp: number;
+};
 
 export type SyncResult = {
   ok: true;
@@ -24,13 +30,12 @@ export type SyncResult = {
 };
 
 export async function runSync(): Promise<SyncResult> {
-  if (!config.supabase.isConfigured) {
-    return { ok: false, error: 'Supabase not configured' };
+  if (!config.ragrun.isConfigured) {
+    return { ok: false, error: 'ragrun not configured' };
   }
 
-  const supabase = getSupabase();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  const token = await getAccessToken();
+  if (!token) {
     return { ok: false, error: 'Not authenticated' };
   }
 
@@ -41,21 +46,25 @@ export async function runSync(): Promise<SyncResult> {
       database,
 
       pullChanges: async ({ lastPulledAt, schemaVersion }) => {
-        const { data, error } = await supabase.rpc('pull_changes', {
-          last_pulled_at: lastPulledAt ?? 0,
-          schema_version: schemaVersion ?? SCHEMA_VERSION,
+        const data = await ragrunRequest<SyncPullResponse>('/app/sync/pull', {
+          method: 'POST',
+          body: {
+            last_pulled_at: lastPulledAt ?? 0,
+            schema_version: schemaVersion ?? SCHEMA_VERSION,
+          },
         });
-        if (error) throw new Error(`pull_changes failed: ${error.message}`);
-        pulledAt = data.timestamp as number;
+        pulledAt = data.timestamp;
         return { changes: data.changes, timestamp: data.timestamp };
       },
 
       pushChanges: async ({ changes, lastPulledAt }) => {
-        const { error } = await supabase.rpc('push_changes', {
-          changes,
-          last_pulled_at: lastPulledAt ?? 0,
+        await ragrunRequest<void>('/app/sync/push', {
+          method: 'POST',
+          body: {
+            changes,
+            last_pulled_at: lastPulledAt ?? 0,
+          },
         });
-        if (error) throw new Error(`push_changes failed: ${error.message}`);
       },
 
       migrationsEnabledAtVersion: 1,
