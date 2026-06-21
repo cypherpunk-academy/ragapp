@@ -102,12 +102,21 @@ export default function EntityResultCard({
             </Text>
           ) : null}
           {headlineLarge?.trim() ? (
-            <Text
-              style={[textStyles.chapterTitle, { color: colors.onBackground, textAlign: 'left' }]}
-              numberOfLines={3}
-            >
-              {headlineLarge.trim()}
-            </Text>
+            kind === 'kapitel_zusammenfassung' ? (
+              <Text
+                style={[textStyles.noteMeta, { color: colors.onSurface, fontWeight: '700', fontSize: 13, lineHeight: 18 }]}
+                numberOfLines={3}
+              >
+                {headlineLarge.trim()}
+              </Text>
+            ) : (
+              <Text
+                style={[textStyles.chapterTitle, { color: colors.onBackground, textAlign: 'left' }]}
+                numberOfLines={3}
+              >
+                {headlineLarge.trim()}
+              </Text>
+            )
           ) : null}
         </>
       )}

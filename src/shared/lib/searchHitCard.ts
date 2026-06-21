@@ -132,20 +132,27 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       const vortrag = isVortragSource(result);
       const bookName = (result.book_title ?? result.title)?.trim()
         || sourceDisplayName(result.source_id);
-      const metaSmall = vortrag
-        ? joinMeta([result.author?.trim(), result.venue?.trim(), formatMetaDate(result.lecture_date)])
-        : joinMeta([bookName, result.segment_title?.trim()]);
-      const navTitle = vortrag
-        ? (result.title?.trim() || result.segment_title?.trim() || result.source_id)
-        : (result.segment_title?.trim() || result.title?.trim() || result.source_id);
+      let metaSmall: string | undefined;
+      if (vortrag) {
+        const venue = result.venue?.trim();
+        const date = formatMetaDate(result.lecture_date);
+        const venueStr = venue ? `in ${venue}` : undefined;
+        const dateStr = date ? `am ${date}` : undefined;
+        metaSmall = joinMeta(['Vortrag', venueStr, dateStr]);
+      } else {
+        metaSmall = bookName;
+      }
+      const chapterTitle = vortrag
+        ? (result.segment_title?.trim() || result.title?.trim() || result.source_id)
+        : (result.segment_title?.trim() || result.source_id);
       return {
         card: {
           metaSmall,
-          // headlineLarge intentionally omitted — chapter title shown in metaSmall for Buch
+          headlineLarge: chapterTitle,
           bodyMode: 'truncated_text',
           bodyText: preview,
         },
-        navigation: overlayNav(navTitle),
+        navigation: overlayNav(chapterTitle),
       };
     }
     case 'begriff': {
