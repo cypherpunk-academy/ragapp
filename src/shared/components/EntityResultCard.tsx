@@ -132,11 +132,6 @@ export default function EntityResultCard({
         )
       ) : null}
 
-      {relevancePercent != null ? (
-        <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor }]}>
-          {`Relevanz: ${relevancePercent}%`}
-        </Text>
-      ) : null}
     </TouchableOpacity>
   );
 }
