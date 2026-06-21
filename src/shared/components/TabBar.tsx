@@ -4,13 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES, type MaterialIconName } from '../theme';
+import { assistant } from '@/shared/lib/assistant';
 
 export type TabId = 'overview' | 'read' | 'chat' | 'search';
 
 const TABS: { id: TabId; label: string; icon: MaterialIconName }[] = [
   { id: 'overview', label: 'ÜBERSICHT', icon: ICONS.tab.overview },
   { id: 'read',     label: 'LESEN',     icon: ICONS.tab.read },
-  { id: 'chat',     label: 'KI-GESPRÄCH', icon: ICONS.tab.chat },
+  { id: 'chat',     label: assistant.firstName, icon: ICONS.tab.chat },
   { id: 'search',   label: 'KI-SUCHE',    icon: ICONS.tab.search },
 ];
 

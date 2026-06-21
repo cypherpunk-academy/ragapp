@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, useColorScheme,
+  type TextStyle,
 } from 'react-native';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES } from '../theme';
@@ -9,6 +10,7 @@ import UserMenuButton from './UserMenuButton';
 
 type Props = {
   title: string;
+  titleStyle?: TextStyle;
   offline?: boolean;
   onBackPress?: () => void;
   /** User-Icon mit Konto/Einstellungen-Menü (Standard: true). */
@@ -19,6 +21,7 @@ type Props = {
 
 export default function AppBar({
   title,
+  titleStyle,
   offline = false,
   onBackPress,
   showUserMenu = true,
@@ -44,7 +47,7 @@ export default function AppBar({
         </TouchableOpacity>
       ) : null}
       <Text
-        style={[textStyles.titlePage, styles.title, { color: colors.onSurface }]}
+        style={[textStyles.titlePage, titleStyle, styles.title, { color: colors.onSurface }]}
         numberOfLines={1}
       >
         {title}

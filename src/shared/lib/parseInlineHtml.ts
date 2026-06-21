@@ -2,6 +2,28 @@ export type InlineHtmlRangeKind = 'italic' | 'quote';
 
 export type InlineHtmlRange = { start: number; end: number; kind: InlineHtmlRangeKind };
 
+/** Opening/closing quote marks that belong outside italic styling, not inside. */
+const OPENING_QUOTE_RE = /^[\s«„""]+/u;
+const CLOSING_QUOTE_RE = /[»""]+\s*$/u;
+
+/** Split quote marks erroneously stored inside an italic span (e.g. <i>«als ob»</i>). */
+export function splitQuoteMarksFromItalicCore(text: string): {
+  outerBefore: string;
+  core: string;
+  outerAfter: string;
+} {
+  let core = text;
+  const openMatch = core.match(OPENING_QUOTE_RE);
+  const outerBefore = openMatch?.[0] ?? '';
+  if (outerBefore) core = core.slice(outerBefore.length);
+
+  const closeMatch = core.match(CLOSING_QUOTE_RE);
+  const outerAfter = closeMatch?.[0] ?? '';
+  if (outerAfter) core = core.slice(0, core.length - outerAfter.length);
+
+  return { outerBefore, core, outerAfter };
+}
+
 /**
  * Strip inline HTML tags (<i>, <q ...>) from text, returning clean text and
  * derived annotation ranges. Used for books where markup is embedded in text_raw
