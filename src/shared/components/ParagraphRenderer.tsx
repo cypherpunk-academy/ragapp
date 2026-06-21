@@ -116,9 +116,11 @@ type Props = {
   prefix?: React.ReactNode;
   /** Inline am Ende des Absatz-Textes (z. B. Beiträge-Zähler) — nur Text-kompatible Kinder. */
   suffix?: React.ReactNode;
+  /** ID des aktuellen Absatzes — wird als Rückkehrpunkt in den Seitenverweis-Verlauf gespeichert. */
+  paragraphId?: string;
 };
 
-export default function ParagraphRenderer({ text, annotations, style, prefix, suffix }: Props) {
+export default function ParagraphRenderer({ text, annotations, style, prefix, suffix, paragraphId }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { navigateToRead } = useReading();
@@ -160,7 +162,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
             <Text
               key={i}
               style={[styles.pageRef, { color: colors.tertiary }]}
-              onPress={() => navigateToRead({ segmentIndex: null, paragraphId: seg.targetParagraphId ?? null })}
+              onPress={() => navigateToRead({ segmentIndex: null, paragraphId: seg.targetParagraphId ?? null, pushHistory: true, fromParagraphId: paragraphId })}
             >
               {icon ? (
                 <Text style={{ fontSize: bodyFontSize * PAGE_REF_LOUPE_SCALE }}>{icon}</Text>

@@ -40,7 +40,11 @@ type ReadingContextValue = {
   chunkPreview: ChunkPreviewOverlay | null;
   chatTalkId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string }) => void;
+  /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
+  navigateBack: () => void;
+  /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
+  navigationHistory: ReadingTarget[];
   /** Wechselt zum KI-Chat-Tab ohne vorgeladenes Gespräch. */
   navigateToChat: () => void;
   /**
@@ -75,6 +79,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   chunkPreview: null,
   chatTalkId: null,
   navigateToRead: () => {},
+  navigateBack: () => {},
+  navigationHistory: [],
   navigateToChat: () => {},
   navigateToChatWithTalk: () => {},
   openContributions: () => {},
@@ -98,6 +104,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const targetRef = useRef(target);
   targetRef.current = target;
 
+  const [navigationHistory, setNavigationHistory] = useState<ReadingTarget[]>([]);
+  const navigationHistoryRef = useRef<ReadingTarget[]>([]);
+  navigationHistoryRef.current = navigationHistory;
+
   useEffect(() => {
     AsyncStorage.getItem(LAST_SOURCE_KEY).then((id) => {
       if (id) setTarget((prev) => ({ ...prev, sourceId: id }));
@@ -119,14 +129,30 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string }) => {
+    ({ sourceId, segmentIndex, paragraphId, pushHistory, fromParagraphId }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
+      if (pushHistory) {
+        const historyEntry = fromParagraphId != null
+          ? { ...targetRef.current, paragraphId: fromParagraphId }
+          : targetRef.current;
+        setNavigationHistory((prev) => [...prev, historyEntry]);
+      }
       setTarget({ sourceId: resolvedSourceId, segmentIndex, paragraphId });
       if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
       tabNavRef.current?.(TAB_INDEX_READ);
     },
     [],
   );
+
+  const navigateBack = useCallback(() => {
+    const history = navigationHistoryRef.current;
+    if (history.length === 0) return;
+    const prev = history[history.length - 1]!;
+    setNavigationHistory((h) => h.slice(0, -1));
+    setTarget(prev);
+    if (prev.sourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, prev.sourceId);
+    tabNavRef.current?.(TAB_INDEX_READ);
+  }, []);
 
   const navigateToChat = useCallback(() => {
     tabNavRef.current?.(TAB_INDEX_CHAT);
@@ -170,6 +196,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         chunkPreview,
         chatTalkId,
         navigateToRead,
+        navigateBack,
+        navigationHistory,
         navigateToChat,
         navigateToChatWithTalk,
         openContributions,

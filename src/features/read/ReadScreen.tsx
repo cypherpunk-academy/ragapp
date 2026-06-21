@@ -29,8 +29,9 @@ export default function ReadScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { height: windowHeight } = useWindowDimensions();
-  const { target, openContributions, navigateToRead, navigateToChat } = useReading();
+  const { target, openContributions, navigateToRead, navigateToChat, navigateBack, navigationHistory } = useReading();
   const sourceId = target.sourceId;
+  const hasHistory = navigationHistory.length > 0;
   /** Immer aktuelle sourceId für Callbacks mit leerem deps-Array (verhindert stale closure). */
   const sourceIdRef = useRef(sourceId);
   sourceIdRef.current = sourceId;
@@ -387,6 +388,7 @@ export default function ReadScreen() {
         <ParagraphRenderer
           text={item.textRaw}
           annotations={item.annotations}
+          paragraphId={item.id}
           style={{ color: colors.onBackground }}
           prefix={
             <>
@@ -457,7 +459,11 @@ export default function ReadScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <AppBar title="Lesen" />
+      <AppBar
+        title={hasHistory ? 'Zurück' : (currentSegment?.segmentTitle ?? 'Lesen')}
+        titleStyle={hasHistory ? textStyles.labelTab : textStyles.chapterTitle}
+        onBackPress={hasHistory ? navigateBack : undefined}
+      />
       <FlashList
         style={styles.list}
         ref={listRef}
