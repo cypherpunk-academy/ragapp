@@ -130,9 +130,11 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'kapitel_zusammenfassung': {
       const vortrag = isVortragSource(result);
+      const bookName = (result.book_title ?? result.title)?.trim()
+        || sourceDisplayName(result.source_id);
       const metaSmall = vortrag
         ? joinMeta([result.author?.trim(), result.venue?.trim(), formatMetaDate(result.lecture_date)])
-        : sourceDisplayName(result.source_id);
+        : joinMeta([bookName, result.segment_title?.trim()]);
       const navTitle = vortrag
         ? (result.title?.trim() || result.segment_title?.trim() || result.source_id)
         : (result.segment_title?.trim() || result.title?.trim() || result.source_id);
