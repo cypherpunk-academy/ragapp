@@ -11,6 +11,7 @@ import { colorWithAlpha } from '@/shared/lib/color';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
+import { RagrunApiError } from '@/data/lib/ragrun-client';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import { buildSearchHitCard, type SearchHitNavigation } from '@/shared/lib/searchHitCard';
@@ -126,6 +127,33 @@ const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
     paragraph_id: 'demo-para-notiz',
   },
 ] : [];
+
+const RAGRUN_COLLECTION = 'philo-von-freisinn';
+
+/** Maps UI EntityKind to ragrun API `types` filter values. Local-only kinds (talk, notiz) have no mapping. */
+const ENTITY_KIND_TO_API_TYPE: Partial<Record<EntityKind, string>> = {
+  chunk_buch: 'text',
+  chunk_vortrag: 'text',
+  chunk_gespraech: 'text',
+  begriff: 'concept',
+  typology: 'concept',
+  zitat: 'quote',
+  kapitel_zusammenfassung: 'chapter_summary',
+};
+
+/**
+ * Returns the API `types` array for the given selected kinds, or undefined when all types should be searched.
+ * Returns an empty array when only local-only kinds (talk, notiz) are selected.
+ */
+function computeApiTypes(selectedKinds: Set<EntityKind>): string[] | undefined {
+  if (selectedKinds.size >= ALL_FILTER_KINDS.length) return undefined;
+  const types = new Set<string>();
+  for (const kind of selectedKinds) {
+    const t = ENTITY_KIND_TO_API_TYPE[kind];
+    if (t) types.add(t);
+  }
+  return Array.from(types);
+}
 
 /** KI-Gespräche: eigene Talks (lokal) + indexierte Assistant-Talks (ragrun, chunk_type talk). */
 const GESPRAECH_FILTER_KINDS: EntityKind[] = ['talk', 'chunk_gespraech'];
@@ -263,6 +291,7 @@ export default function SearchScreen() {
   const [chunkResults, setChunkResults] = useState<SearchResult[]>([]);
   const [chunksLoading, setChunksLoading] = useState(false);
   const [chunksOffline, setChunksOffline] = useState(false);
+  const [chunksUnauthorized, setChunksUnauthorized] = useState(false);
   const searchCtrlRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   // Debounce Eingabe 300 ms
@@ -296,6 +325,7 @@ export default function SearchScreen() {
       setChunkResults([]);
       setChunksLoading(false);
       setChunksOffline(false);
+      setChunksUnauthorized(false);
       return;
     }
 
@@ -309,26 +339,49 @@ export default function SearchScreen() {
       return;
     }
 
+    const apiTypes = computeApiTypes(selectedKinds);
+
+    // If only local-only kinds (notiz, talk) are selected, skip API call
+    if (apiTypes !== undefined && apiTypes.length === 0) {
+      setChunkResults([]);
+      setChunksLoading(false);
+      setChunksOffline(false);
+      setChunksUnauthorized(false);
+      return;
+    }
+
     setChunksLoading(true);
     setChunksOffline(false);
+    setChunksUnauthorized(false);
 
-    ragrunApi.search({ query: debouncedQuery, limit: 20 })
+    ragrunApi.search({
+      query: debouncedQuery,
+      limit: 20,
+      collection: RAGRUN_COLLECTION,
+      ...(apiTypes !== undefined ? { types: apiTypes } : {}),
+    })
       .then((resp) => {
         if (!ctrl.cancelled) {
           setChunkResults(resp.results);
           setChunksLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!ctrl.cancelled) {
-          setChunksOffline(true);
+          if (err instanceof RagrunApiError && err.status === 401) {
+            setChunksUnauthorized(true);
+            setChunksOffline(false);
+          } else {
+            setChunksOffline(true);
+            setChunksUnauthorized(false);
+          }
           setChunksLoading(false);
           setChunkResults([]);
         }
       });
 
     return () => { ctrl.cancelled = true; };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, selectedKinds]);
 
   // Gemischte, relevanzbasierte Liste — leer wenn kein Suchbegriff
   const sortedItems = useMemo((): ScoredItem[] => {
@@ -488,6 +541,14 @@ export default function SearchScreen() {
             style={styles.searchBarTrailingIcon}
           />
         )}
+        {chunksUnauthorized && !chunksLoading && (
+          <Ionicons
+            name="lock-closed-outline"
+            size={16}
+            color={colors.onSurfaceVariant}
+            style={styles.searchBarTrailingIcon}
+          />
+        )}
         {/* Filter-Button */}
         <TouchableOpacity
           onPress={() => setFilterOpen((v) => !v)}
@@ -575,7 +636,7 @@ export default function SearchScreen() {
         <View style={styles.center}>
           {debouncedQuery ? (
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              Keine Treffer gefunden.
+              {chunksUnauthorized ? 'Bitte anmelden.' : 'Keine Treffer gefunden.'}
             </Text>
           ) : (
             <ScopeSearchHint
