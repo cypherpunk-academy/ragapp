@@ -27,6 +27,10 @@ export function getSupabase(): SupabaseClient {
 
 export async function getAccessToken(): Promise<string | null> {
   if (!config.supabase.isConfigured) return null;
-  const { data } = await getSupabase().auth.getSession();
-  return data.session?.access_token ?? null;
+  const supabase = getSupabase();
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.access_token) return data.session.access_token;
+
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  return refreshed.session?.access_token ?? null;
 }

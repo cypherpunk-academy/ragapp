@@ -12,8 +12,23 @@ import { synchronize } from '@nozbe/watermelondb/sync';
 import { database } from '../db/database';
 import snapshot from '../../../assets/seed/db-snapshot.json';
 
-export async function seedIfEmpty(): Promise<void> {
-  // snapshot.timestamp === 0 means the snapshot has not been generated yet
+export const seedSnapshotTimestamp = snapshot.timestamp;
+
+/** Serialize all WatermelonDB synchronize() calls — they are not re-entrant. */
+let synchronizeQueue: Promise<void> = Promise.resolve();
+
+export function withSynchronizeLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = synchronizeQueue.then(() => fn());
+  synchronizeQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+let seedPromise: Promise<void> | null = null;
+
+async function seedIfEmptyInternal(): Promise<void> {
   if (snapshot.timestamp === 0) return;
 
   const sourceCount = await database.get('sources').query().fetchCount();
@@ -37,6 +52,21 @@ export async function seedIfEmpty(): Promise<void> {
     migrationsEnabledAtVersion: 1,
     sendCreatedAsUpdated: false,
   });
+}
+
+/** Idempotent; concurrent callers share one in-flight seed. */
+export function ensureSeeded(): Promise<void> {
+  if (!seedPromise) {
+    seedPromise = withSynchronizeLock(() => seedIfEmptyInternal()).catch((e) => {
+      seedPromise = null;
+      throw e;
+    });
+  }
+  return seedPromise;
+}
+
+export async function seedIfEmpty(): Promise<void> {
+  return ensureSeeded();
 }
 
 export async function seedDemoContributionsIfEmpty(): Promise<void> {
