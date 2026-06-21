@@ -31,6 +31,17 @@ export function chunkPreviewText(r: SearchResult): string {
   return (r.text ?? r.snippet ?? '').trim();
 }
 
+/** Known source_id slugs → human-readable display names. */
+const SOURCE_DISPLAY_NAMES: Record<string, string> = {
+  'philo-von-freisinn': 'Philo von Freisinn',
+};
+
+/** Converts a source_id slug to a display name, falling back to title-casing the slug. */
+function sourceDisplayName(sourceId: string): string {
+  return SOURCE_DISPLAY_NAMES[sourceId]
+    ?? sourceId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 function isVortragSource(r: SearchResult): boolean {
   const st = r.source_type?.toLowerCase() ?? '';
   return st === 'vortrag' || st === 'lecture';
@@ -121,18 +132,18 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       const vortrag = isVortragSource(result);
       const metaSmall = vortrag
         ? joinMeta([result.author?.trim(), result.venue?.trim(), formatMetaDate(result.lecture_date)])
-        : joinMeta([result.author?.trim(), (result.book_title ?? result.title)?.trim()]);
-      const headlineLarge = vortrag
+        : sourceDisplayName(result.source_id);
+      const navTitle = vortrag
         ? (result.title?.trim() || result.segment_title?.trim() || result.source_id)
         : (result.segment_title?.trim() || result.title?.trim() || result.source_id);
       return {
         card: {
           metaSmall,
-          headlineLarge,
+          // headlineLarge intentionally omitted — chapter title shown in metaSmall for Buch
           bodyMode: 'truncated_text',
           bodyText: preview,
         },
-        navigation: overlayNav(headlineLarge),
+        navigation: overlayNav(navTitle),
       };
     }
     case 'begriff': {

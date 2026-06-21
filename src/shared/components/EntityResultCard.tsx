@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
+import { colorWithAlpha } from '@/shared/lib/color';
 import type { NotizCardRows } from '@/shared/lib/notizSearchCard';
 import type { SearchHitCardBodyMode } from '@/shared/lib/searchHitCard';
 
@@ -41,6 +42,11 @@ export default function EntityResultCard({
 
   const trimmedBody = bodyText.trim();
   const showDivider = Boolean(notizRows) || Boolean(trimmedBody);
+  const isExtendedBodyKind = kind === 'chunk_buch' || kind === 'chunk_vortrag';
+  const bodyLines = isExtendedBodyKind ? 5 : 3;
+  const bodyTextStyle = isExtendedBodyKind
+    ? [textStyles.noteBody, { fontSize: 14, lineHeight: 20 }] as const
+    : textStyles.noteBody;
 
   return (
     <TouchableOpacity
@@ -58,9 +64,11 @@ export default function EntityResultCard({
       ]}
     >
       <View style={styles.metaRow}>
-        <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor, letterSpacing: 0.8 }]}>
-          {cardStyle.label.toUpperCase()}
-        </Text>
+        <View style={[styles.lozenge, { backgroundColor: colorWithAlpha(cardStyle.accentColor, 0.15) }]}>
+          <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor, letterSpacing: 0.8 }]}>
+            {cardStyle.label.toUpperCase()}
+          </Text>
+        </View>
       </View>
 
       {notizRows ? (
@@ -110,13 +118,13 @@ export default function EntityResultCard({
 
       {trimmedBody ? (
         bodyMode === 'full_quote' ? (
-          <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
+          <Text style={[bodyTextStyle, { color: colors.onSurface }]}>
             {trimmedBody}
           </Text>
         ) : (
           <Text
-            style={[textStyles.noteBody, { color: colors.onSurface }]}
-            numberOfLines={3}
+            style={[bodyTextStyle, { color: colors.onSurface }]}
+            numberOfLines={bodyLines}
             ellipsizeMode="tail"
           >
             {trimmedBody}
@@ -136,5 +144,6 @@ export default function EntityResultCard({
 const styles = StyleSheet.create({
   card: { padding: spacing.m, gap: spacing.xs },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  lozenge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.xs, alignSelf: 'stretch' },
 });
