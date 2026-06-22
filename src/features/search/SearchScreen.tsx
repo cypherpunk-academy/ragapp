@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, FlatList, TextInput, StyleSheet, useColorScheme,
-  ActivityIndicator, TouchableOpacity, ScrollView, type TextStyle,
+  View, Text, FlatList, TextInput, StyleSheet, useColorScheme, Platform,
+  ActivityIndicator, TouchableOpacity, ScrollView,
+  type NativeSyntheticEvent, type TextInputContentSizeChangeEventData,
+  type TextLayoutEventData, type TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppBar from '@/shared/components/AppBar';
@@ -179,16 +181,35 @@ function computeApiTypes(selectedGroups: Set<FilterGroup>): string[] | undefined
 }
 
 /** Suchfeld: mehrzeilig (RAG-Anfragen), Special Elite (Figma §11.3). */
-const SEARCH_INPUT_MIN_HEIGHT = 48;
-const SEARCH_INPUT_MAX_HEIGHT = 120;
+const SEARCH_INPUT_LINE_HEIGHT = 20;
+const SEARCH_INPUT_MAX_LINES = 7;
+const SEARCH_INPUT_MIN_HEIGHT = SEARCH_INPUT_LINE_HEIGHT;
+const SEARCH_INPUT_MAX_HEIGHT = SEARCH_INPUT_LINE_HEIGHT * SEARCH_INPUT_MAX_LINES;
 const SEARCH_BAR_ICON_SIZE = 18;
 
 const SEARCH_INPUT_TEXT_STYLE: TextStyle = {
   fontFamily: fonts.derived,
   fontSize: tokenFontSize.sm,
-  lineHeight: 20,
+  lineHeight: SEARCH_INPUT_LINE_HEIGHT,
   fontWeight: '400',
 };
+
+const SEARCH_INPUT_WEB_STYLE: TextStyle | undefined = Platform.OS === 'web'
+  ? {
+    width: '100%',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    overflow: 'hidden',
+    resize: 'none',
+  } as TextStyle
+  : undefined;
+
+function clampSearchInputHeight(height: number): number {
+  return Math.min(
+    SEARCH_INPUT_MAX_HEIGHT,
+    Math.max(SEARCH_INPUT_MIN_HEIGHT, height),
+  );
+}
 
 function selectedScopeTerms(selectedGroups: Set<FilterGroup>): string[] {
   return FILTER_GROUPS
@@ -271,6 +292,10 @@ export default function SearchScreen() {
   const { openConversationDetail, navigateToRead, openChunkPreview } = useReading();
 
   const [query, setQuery] = useState('');
+  const [inputHeight, setInputHeight] = useState(SEARCH_INPUT_MIN_HEIGHT);
+  const [inputWidth, setInputWidth] = useState(0);
+  const [searchBarLayout, setSearchBarLayout] = useState({ y: 0, height: 0 });
+  const searchInputRef = useRef<TextInput>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<Set<FilterGroup>>(
     new Set(DEFAULT_GROUPS),
@@ -287,6 +312,41 @@ export default function SearchScreen() {
   const [chunksOffline, setChunksOffline] = useState(false);
   const [chunksUnauthorized, setChunksUnauthorized] = useState(false);
   const searchCtrlRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+
+  const applyInputHeight = useCallback((height: number) => {
+    const next = clampSearchInputHeight(height);
+    setInputHeight((prev) => (prev === next ? prev : next));
+  }, []);
+
+  const handleSearchMeasureTextLayout = useCallback(
+    (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+      const lineCount = Math.max(1, e.nativeEvent.lines.length);
+      applyInputHeight(lineCount * SEARCH_INPUT_LINE_HEIGHT);
+    },
+    [applyInputHeight],
+  );
+
+  const handleSearchInputContentSizeChange = useCallback(
+    (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+      if (Platform.OS === 'web') return;
+      applyInputHeight(e.nativeEvent.contentSize.height);
+    },
+    [applyInputHeight],
+  );
+
+  const measureSearchInputOnWeb = useCallback(() => {
+    if (Platform.OS !== 'web') return;
+    const node = searchInputRef.current as unknown as HTMLElement | null;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      node.style.height = '0px';
+      applyInputHeight(node.scrollHeight);
+    });
+  }, [applyInputHeight]);
+
+  useEffect(() => {
+    measureSearchInputOnWeb();
+  }, [query, inputWidth, measureSearchInputOnWeb]);
 
   // Debounce Eingabe 300 ms
   useEffect(() => {
@@ -468,6 +528,7 @@ export default function SearchScreen() {
         subHeadSmall={card.subHeadSmall}
         notizRows={card.notizRows}
         bodyMode={card.bodyMode}
+        bodyMarkdown={card.bodyMarkdown}
         bodyText={card.bodyText}
         onPress={navigation.kind !== 'none' ? () => handleSearchNavigation(navigation) : undefined}
       />
@@ -488,14 +549,38 @@ export default function SearchScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppBar title="KI-Suche" />
       {/* Suchleiste */}
-      <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
+      <View
+        style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          setSearchBarLayout({ y, height });
+        }}
+      >
         <Ionicons
           name="search"
           size={SEARCH_BAR_ICON_SIZE}
           color={colors.onSurfaceVariant}
           style={styles.searchBarIcon}
         />
-        <View style={styles.searchInputWrap}>
+        <View
+          style={[styles.searchInputWrap, { height: inputHeight }]}
+          onLayout={(e) => setInputWidth(e.nativeEvent.layout.width)}
+        >
+          {inputWidth > 0 && (
+            <Text
+              pointerEvents="none"
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              style={[
+                SEARCH_INPUT_TEXT_STYLE,
+                styles.searchMeasureText,
+                { width: inputWidth },
+              ]}
+              onTextLayout={handleSearchMeasureTextLayout}
+            >
+              {query.length > 0 ? query : ' '}
+            </Text>
+          )}
           {!query && (
             <View style={styles.placeholderOverlay} pointerEvents="none">
               <Text style={[SEARCH_INPUT_TEXT_STYLE, { color: colors.onSurfaceVariant }]}>
@@ -504,13 +589,20 @@ export default function SearchScreen() {
             </View>
           )}
           <TextInput
+            ref={searchInputRef}
             value={query}
             onChangeText={setQuery}
             placeholder=""
             multiline
-            scrollEnabled
+            scrollEnabled={inputHeight >= SEARCH_INPUT_MAX_HEIGHT}
             textAlignVertical="top"
-            style={[SEARCH_INPUT_TEXT_STYLE, styles.searchInput, { color: colors.onSurface }]}
+            onContentSizeChange={handleSearchInputContentSizeChange}
+            style={[
+              SEARCH_INPUT_TEXT_STYLE,
+              SEARCH_INPUT_WEB_STYLE,
+              styles.searchInput,
+              { color: colors.onSurface, height: inputHeight },
+            ]}
             returnKeyType="default"
             blurOnSubmit={false}
             clearButtonMode="while-editing"
@@ -570,6 +662,7 @@ export default function SearchScreen() {
             activeOpacity={1}
           />
           <View style={[styles.filterDropdown, {
+            top: searchBarLayout.y + searchBarLayout.height + spacing.xs,
             backgroundColor: colors.surfaceContainerHigh,
             shadowColor: colors.shadow,
           }]}>
@@ -681,16 +774,19 @@ const styles = StyleSheet.create({
   },
   searchInputWrap: {
     flex: 1,
-    minHeight: SEARCH_INPUT_MIN_HEIGHT,
-    maxHeight: SEARCH_INPUT_MAX_HEIGHT,
   },
   searchInput: {
-    flex: 1,
-    minHeight: SEARCH_INPUT_MIN_HEIGHT,
-    maxHeight: SEARCH_INPUT_MAX_HEIGHT,
+    width: '100%',
     paddingVertical: 0,
     paddingHorizontal: 0,
     includeFontPadding: false,
+  },
+  searchMeasureText: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    top: 0,
+    zIndex: -1,
   },
   placeholderOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -722,7 +818,6 @@ const styles = StyleSheet.create({
   },
   filterDropdown: {
     position: 'absolute',
-    top: 92,
     left: spacing.m,
     right: spacing.m,
     zIndex: 100,

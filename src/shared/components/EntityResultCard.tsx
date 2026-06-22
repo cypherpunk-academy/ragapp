@@ -1,5 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+
+import { parseMdInline } from '@/shared/lib/parseMdInline';
+
+const ITALIC_COLOR = '#B25738';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import { colorWithAlpha } from '@/shared/lib/color';
@@ -20,6 +24,7 @@ type Props = {
    */
   notizRows?: NotizCardRows;
   bodyMode?: SearchHitCardBodyMode;
+  bodyMarkdown?: boolean;
   /** Snippet / Zitat / Chunk-Anfang (nach Trennstrich). */
   bodyText?: string;
   /** Nur Suchliste: Relevanz in Akzentfarbe des Typs (0–100). */
@@ -34,6 +39,7 @@ export default function EntityResultCard({
   subHeadSmall,
   notizRows,
   bodyMode = 'truncated_text',
+  bodyMarkdown,
   bodyText = '',
   relevancePercent,
   onPress,
@@ -45,7 +51,7 @@ export default function EntityResultCard({
 
   const trimmedBody = bodyText.trim();
   const showDivider = Boolean(notizRows) || Boolean(trimmedBody);
-  const isExtendedBodyKind = kind === 'chunk_buch' || kind === 'chunk_vortrag';
+  const isExtendedBodyKind = kind === 'chunk_buch' || kind === 'chunk_vortrag' || kind === 'typology' || kind === 'begriff';
   const bodyLines = isExtendedBodyKind ? 5 : 3;
   const bodyTextStyle = isExtendedBodyKind
     ? [textStyles.noteBody, { fontSize: 14, lineHeight: 20 }] as const
@@ -137,6 +143,22 @@ export default function EntityResultCard({
         bodyMode === 'full_quote' ? (
           <Text style={[bodyTextStyle, { color: colors.onSurface }]}>
             {trimmedBody}
+          </Text>
+        ) : bodyMarkdown ? (
+          <Text
+            style={[bodyTextStyle, { color: colors.onSurface }]}
+            numberOfLines={bodyLines}
+            ellipsizeMode="tail"
+          >
+            {parseMdInline(trimmedBody).map((seg, i) =>
+              seg.bold ? (
+                <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text>
+              ) : seg.italic ? (
+                <Text key={i} style={[textStyles.readingItalic, { color: ITALIC_COLOR }]}>{seg.text}</Text>
+              ) : (
+                <Text key={i}>{seg.text}</Text>
+              )
+            )}
           </Text>
         ) : (
           <Text

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { parseMdInline } from '@/shared/lib/parseMdInline';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
@@ -48,7 +49,17 @@ export default function ChunkPreviewScreen({
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.l }]}
       >
-        <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{body}</Text>
+        <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
+          {parseMdInline(body).map((seg, i) =>
+            seg.bold ? (
+              <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text>
+            ) : seg.italic ? (
+              <Text key={i} style={[textStyles.readingItalic, { color: '#B25738' }]}>{seg.text}</Text>
+            ) : (
+              <Text key={i}>{seg.text}</Text>
+            )
+          )}
+        </Text>
       </ScrollView>
     </View>
   );

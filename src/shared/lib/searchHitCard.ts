@@ -77,6 +77,7 @@ export type SearchHitCardModel = {
     notizRows?: ReturnType<typeof buildNotizCardRows>;
     bodyMode: SearchHitCardBodyMode;
     bodyText: string;
+    bodyMarkdown?: boolean;
   };
   navigation: SearchHitNavigation;
 };
@@ -173,12 +174,13 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'begriff': {
       const headlineLarge =
-        result.title?.trim() || result.segment_title?.trim() || result.source_id;
+        result.segment_title?.trim() || result.title?.trim() || result.source_id;
       return {
         card: {
           headlineLarge,
           bodyMode: 'truncated_text',
           bodyText: preview,
+          bodyMarkdown: true,
         },
         navigation: overlayNav(headlineLarge),
       };
@@ -200,12 +202,13 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       };
     }
     case 'typology': {
-      const headlineLarge = result.title?.trim() || result.segment_title?.trim() || result.source_id;
+      const headlineLarge = result.segment_title?.trim() || result.title?.trim() || result.source_id;
       return {
         card: {
           headlineLarge,
           bodyMode: 'truncated_text',
           bodyText: preview,
+          bodyMarkdown: true,
         },
         navigation: overlayNav(headlineLarge),
       };

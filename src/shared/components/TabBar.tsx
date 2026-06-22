@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES, type MaterialIconName } from '../theme';
-import { assistant } from '@/shared/lib/assistant';
+import { assistant, assistantAccentColor } from '@/shared/lib/assistant';
 
 export type TabId = 'overview' | 'read' | 'chat' | 'search';
 
@@ -36,7 +36,10 @@ export default function TabBar({ activeIndex, onTabPress }: Props) {
     ]}>
       {TABS.map((tab, index) => {
         const isActive = index === activeIndex;
-        const color = isActive ? colors.primary : colors.onSurfaceVariant;
+        const isDark = colorScheme === 'dark';
+        const color = tab.id === 'chat'
+          ? assistantAccentColor(colors, isDark, isActive)
+          : isActive ? colors.primary : colors.onSurfaceVariant;
         return (
           <TouchableOpacity
             key={tab.id}

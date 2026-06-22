@@ -473,7 +473,12 @@ export default function ReadScreen() {
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         estimatedItemSize={150}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={(info) => {
+          const { index } = info;
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index, animated: false, viewOffset: 8 });
+          }, 150);
+        }}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
         onMomentumScrollEnd={flushScrollIdle}
