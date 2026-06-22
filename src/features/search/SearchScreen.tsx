@@ -141,35 +141,42 @@ const ENTITY_KIND_TO_API_TYPE: Partial<Record<EntityKind, string>> = {
   kapitel_zusammenfassung: 'chapter_summary',
 };
 
+/** Zusammengefasste Filter-Gruppen (5 statt 8). */
+type FilterGroup = 'texte' | 'begriffe' | 'zitate' | 'gespraeche' | 'notizen';
+
+const FILTER_GROUPS: { group: FilterGroup; label: string; subtitle?: string; kinds: EntityKind[] }[] = [
+  { group: 'texte',      label: 'Bücher / Vorträge', subtitle: 'inkl. Zusammenfassungen', kinds: ['chunk_buch', 'chunk_vortrag', 'kapitel_zusammenfassung'] },
+  { group: 'begriffe',   label: 'Begriffe',           kinds: ['begriff', 'typology'] },
+  { group: 'zitate',     label: 'Zitate',             kinds: ['zitat'] },
+  { group: 'gespraeche', label: 'Gespräche',          kinds: ['talk', 'chunk_gespraech'] },
+  { group: 'notizen',    label: 'Notizen',            kinds: ['notiz'] },
+];
+
+const DEFAULT_GROUPS: FilterGroup[] = FILTER_GROUPS.map(({ group }) => group);
+
+/** Alle EntityKinds der gewählten Gruppen als Set. */
+function kindsForGroups(selectedGroups: Set<FilterGroup>): Set<EntityKind> {
+  const kinds = new Set<EntityKind>();
+  for (const { group, kinds: gk } of FILTER_GROUPS) {
+    if (selectedGroups.has(group)) gk.forEach((k) => kinds.add(k));
+  }
+  return kinds;
+}
+
 /**
- * Returns the API `types` array for the given selected kinds, or undefined when all types should be searched.
- * Returns an empty array when only local-only kinds (talk, notiz) are selected.
+ * Returns the API `types` array for the given selected groups, or undefined when all types should be searched.
+ * Returns an empty array when only local-only groups (gespraeche, notizen) are selected.
  */
-function computeApiTypes(selectedKinds: Set<EntityKind>): string[] | undefined {
-  if (selectedKinds.size >= ALL_FILTER_KINDS.length) return undefined;
+function computeApiTypes(selectedGroups: Set<FilterGroup>): string[] | undefined {
+  if (selectedGroups.size >= FILTER_GROUPS.length) return undefined;
+  const kinds = kindsForGroups(selectedGroups);
   const types = new Set<string>();
-  for (const kind of selectedKinds) {
+  for (const kind of kinds) {
     const t = ENTITY_KIND_TO_API_TYPE[kind];
     if (t) types.add(t);
   }
   return Array.from(types);
 }
-
-/** KI-Gespräche: eigene Talks (lokal) + indexierte Assistant-Talks (ragrun, chunk_type talk). */
-const GESPRAECH_FILTER_KINDS: EntityKind[] = ['talk', 'chunk_gespraech'];
-
-const ALL_FILTER_KINDS: { kind: EntityKind; label: string }[] = [
-  { kind: 'chunk_buch', label: 'Buch' },
-  { kind: 'chunk_vortrag', label: 'Vortrag' },
-  { kind: 'kapitel_zusammenfassung', label: 'Zusammenfassung' },
-  { kind: 'begriff', label: 'Begriff' },
-  { kind: 'zitat', label: 'Zitat' },
-  { kind: 'typology', label: 'Typologie' },
-  { kind: 'talk', label: 'Gespräch' },
-  { kind: 'notiz', label: 'Notiz' },
-];
-
-const DEFAULT_KINDS: EntityKind[] = ALL_FILTER_KINDS.map(({ kind }) => kind);
 
 /** Suchfeld: mehrzeilig (RAG-Anfragen), Special Elite (Figma §11.3). */
 const SEARCH_INPUT_MIN_HEIGHT = 48;
@@ -183,30 +190,17 @@ const SEARCH_INPUT_TEXT_STYLE: TextStyle = {
   fontWeight: '400',
 };
 
-/** Pluralformen für Such-Hinweise (Placeholder, Leerzustand). */
-const SEARCH_SCOPE_PLURALS: Record<EntityKind, string> = {
-  chunk_buch: 'Bücher',
-  chunk_vortrag: 'Vorträge',
-  kapitel_zusammenfassung: 'Zusammenfassungen',
-  begriff: 'Begriffe',
-  zitat: 'Zitate',
-  typology: 'Typologien',
-  talk: 'Gespräche',
-  notiz: 'Notizen',
-  chunk_gespraech: 'Gespräche',
-};
-
-function selectedScopeTerms(selectedKinds: Set<EntityKind>): string[] {
-  return ALL_FILTER_KINDS
-    .filter(({ kind }) => selectedKinds.has(kind))
-    .map(({ kind }) => SEARCH_SCOPE_PLURALS[kind]);
+function selectedScopeTerms(selectedGroups: Set<FilterGroup>): string[] {
+  return FILTER_GROUPS
+    .filter(({ group }) => selectedGroups.has(group))
+    .map(({ label }) => label);
 }
 
 type SearchScopeParts = { prefix: string; suffix: string };
 
-/** Such-Hinweis: aktive Filter + „durchsuchen“ (einheitlicher Stil). */
-function searchScopeParts(selectedKinds: Set<EntityKind>): SearchScopeParts {
-  const terms = selectedScopeTerms(selectedKinds);
+/** Such-Hinweis: aktive Filter + „durchsuchen” (einheitlicher Stil). */
+function searchScopeParts(selectedGroups: Set<FilterGroup>): SearchScopeParts {
+  const terms = selectedScopeTerms(selectedGroups);
   if (terms.length === 0) {
     return { prefix: 'Typ auswählen und', suffix: ' durchsuchen…' };
   }
@@ -278,8 +272,8 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedKinds, setSelectedKinds] = useState<Set<EntityKind>>(
-    new Set(DEFAULT_KINDS),
+  const [selectedGroups, setSelectedGroups] = useState<Set<FilterGroup>>(
+    new Set(DEFAULT_GROUPS),
   );
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -339,9 +333,9 @@ export default function SearchScreen() {
       return;
     }
 
-    const apiTypes = computeApiTypes(selectedKinds);
+    const apiTypes = computeApiTypes(selectedGroups);
 
-    // If only local-only kinds (notiz, talk) are selected, skip API call
+    // If only local-only groups (gespraeche, notizen) are selected, skip API call
     if (apiTypes !== undefined && apiTypes.length === 0) {
       setChunkResults([]);
       setChunksLoading(false);
@@ -381,7 +375,7 @@ export default function SearchScreen() {
       });
 
     return () => { ctrl.cancelled = true; };
-  }, [debouncedQuery, selectedKinds]);
+  }, [debouncedQuery, selectedGroups]);
 
   // Gemischte, relevanzbasierte Liste — leer wenn kein Suchbegriff
   const sortedItems = useMemo((): ScoredItem[] => {
@@ -406,41 +400,41 @@ export default function SearchScreen() {
     return [...talkItems, ...chunkItems].sort((a, b) => b.score - a.score);
   }, [allTalks, snippets, chunkResults, debouncedQuery]);
 
-  const toggleKind = useCallback((kind: EntityKind) => {
-    setSelectedKinds((prev) => {
+  const toggleGroup = useCallback((group: FilterGroup) => {
+    setSelectedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(kind)) { next.delete(kind); } else { next.add(kind); }
+      if (next.has(group)) { next.delete(group); } else { next.add(group); }
       return next;
     });
   }, []);
 
   const toggleAll = useCallback(() => {
-    setSelectedKinds((prev) =>
-      prev.size === ALL_FILTER_KINDS.length
-        ? new Set<EntityKind>()
-        : new Set(ALL_FILTER_KINDS.map((f) => f.kind)),
+    setSelectedGroups((prev) =>
+      prev.size === FILTER_GROUPS.length
+        ? new Set<FilterGroup>()
+        : new Set(DEFAULT_GROUPS),
     );
   }, []);
 
   // Nach Typ gefilterte Ergebnisliste
   const filteredItems = useMemo(() => {
-    if (selectedKinds.size === ALL_FILTER_KINDS.length) return sortedItems;
-    const gespraechActive = selectedKinds.has('talk');
+    if (selectedGroups.size >= FILTER_GROUPS.length) return sortedItems;
+    const effectiveKinds = kindsForGroups(selectedGroups);
     return sortedItems.filter((item) => {
-      if (item.type === 'talk') return gespraechActive;
+      if (item.type === 'talk') return effectiveKinds.has('talk');
       const kind = entityKindFromSearchResult(item.result);
-      if (GESPRAECH_FILTER_KINDS.includes(kind)) return gespraechActive;
-      return selectedKinds.has(kind);
+      return effectiveKinds.has(kind);
     });
-  }, [sortedItems, selectedKinds]);
+  }, [sortedItems, selectedGroups]);
 
   const handleSearchNavigation = useCallback(
     (nav: SearchHitNavigation) => {
       if (nav.kind === 'read') {
         navigateToRead({
           sourceId: nav.sourceId,
-          segmentIndex: null,
+          segmentIndex: nav.segmentIndex ?? null,
           paragraphId: nav.paragraphId,
+          fromSearch: true,
         });
       } else if (nav.kind === 'overlay') {
         openChunkPreview({
@@ -471,6 +465,7 @@ export default function SearchScreen() {
         kind={kind}
         metaSmall={card.metaSmall}
         headlineLarge={card.headlineLarge}
+        subHeadSmall={card.subHeadSmall}
         notizRows={card.notizRows}
         bodyMode={card.bodyMode}
         bodyText={card.bodyText}
@@ -481,10 +476,10 @@ export default function SearchScreen() {
 
   const isLoading = talksLoading || chunksLoading;
   const isEmpty = !isLoading && filteredItems.length === 0;
-  const isFiltered = selectedKinds.size < ALL_FILTER_KINDS.length;
+  const isFiltered = selectedGroups.size < FILTER_GROUPS.length;
   const scopeParts = useMemo(
-    () => searchScopeParts(selectedKinds),
-    [selectedKinds],
+    () => searchScopeParts(selectedGroups),
+    [selectedGroups],
   );
   const scopeEmptyParts = SEARCH_EMPTY_HINT;
   const searchPlaceholderText = `${scopeParts.prefix}${scopeParts.suffix}`;
@@ -559,7 +554,7 @@ export default function SearchScreen() {
           {isFiltered && (
             <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
               <Text style={[styles.filterBadgeText, { color: colors.onPrimary }]}>
-                {selectedKinds.size}
+                {selectedGroups.size}
               </Text>
             </View>
           )}
@@ -583,26 +578,26 @@ export default function SearchScreen() {
               <View style={[
                 styles.checkbox,
                 {
-                  borderColor: selectedKinds.size === ALL_FILTER_KINDS.length
+                  borderColor: selectedGroups.size === FILTER_GROUPS.length
                     ? colors.primary : colors.outlineVariant,
-                  backgroundColor: selectedKinds.size === ALL_FILTER_KINDS.length
+                  backgroundColor: selectedGroups.size === FILTER_GROUPS.length
                     ? colors.primary : 'transparent',
                 },
               ]}>
-                {selectedKinds.size === ALL_FILTER_KINDS.length && (
+                {selectedGroups.size === FILTER_GROUPS.length && (
                   <Ionicons name="checkmark" size={12} color={colors.onPrimary} />
                 )}
               </View>
               <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Alle</Text>
             </TouchableOpacity>
             <View style={[styles.filterDivider, { backgroundColor: colors.outlineVariant }]} />
-            {/* Typ-Zeilen */}
+            {/* Gruppe-Zeilen */}
             <ScrollView style={styles.filterScroll} showsVerticalScrollIndicator={false}>
-              {ALL_FILTER_KINDS.map(({ kind, label }) => {
-                const cs = getEntityCardStyle(colors, kind, isDark);
-                const checked = selectedKinds.has(kind);
+              {FILTER_GROUPS.map(({ group, label, subtitle, kinds }) => {
+                const cs = getEntityCardStyle(colors, kinds[0]!, isDark);
+                const checked = selectedGroups.has(group);
                 return (
-                  <TouchableOpacity key={kind} onPress={() => toggleKind(kind)} style={styles.filterRow}>
+                  <TouchableOpacity key={group} onPress={() => toggleGroup(group)} style={styles.filterRow}>
                     <View style={[
                       styles.checkbox,
                       {
@@ -613,9 +608,16 @@ export default function SearchScreen() {
                     ]}>
                       {checked && <Ionicons name="checkmark" size={12} color={cs.accentColor} />}
                     </View>
-                    <Text style={[textStyles.labelSection, { color: checked ? cs.accentColor : colors.onSurfaceVariant }]}>
-                      {label}
-                    </Text>
+                    <View>
+                      <Text style={[textStyles.labelSection, { color: checked ? cs.accentColor : colors.onSurfaceVariant }]}>
+                        {label}
+                      </Text>
+                      {subtitle ? (
+                        <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, opacity: 0.6 }]}>
+                          {subtitle}
+                        </Text>
+                      ) : null}
+                    </View>
                   </TouchableOpacity>
                 );
               })}

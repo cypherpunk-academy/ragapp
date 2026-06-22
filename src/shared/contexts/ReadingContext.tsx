@@ -40,13 +40,17 @@ type ReadingContextValue = {
   chunkPreview: ChunkPreviewOverlay | null;
   chatTalkId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
   navigationHistory: ReadingTarget[];
   /** Wechselt zum KI-Chat-Tab ohne vorgeladenes Gespräch. */
   navigateToChat: () => void;
+  /** Wechselt zurück zum KI-Suche-Tab (nach Navigation aus der Suche). */
+  navigateToSearch: () => void;
+  /** true wenn die aktuelle Leseposition aus der KI-Suche geöffnet wurde. */
+  searchReturnActive: boolean;
   /**
    * Zähler: wird hochgezählt wenn der User explizit auf den Übersicht-Tab tippt.
    * OverviewScreen reagiert darauf und zeigt die Bücherübersicht (resettet selectedSource).
@@ -71,6 +75,7 @@ const LAST_SOURCE_KEY = 'lastActiveSourceId';
 /** Synchron zu PagerView-Reihenfolge in app/(tabs)/_layout.tsx */
 const TAB_INDEX_READ = 1;
 const TAB_INDEX_CHAT = 2;
+const TAB_INDEX_SEARCH = 3;
 
 const ReadingContext = createContext<ReadingContextValue>({
   target: { sourceId: '', segmentIndex: null, paragraphId: null },
@@ -82,6 +87,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   navigateBack: () => {},
   navigationHistory: [],
   navigateToChat: () => {},
+  navigateToSearch: () => {},
+  searchReturnActive: false,
   navigateToChatWithTalk: () => {},
   openContributions: () => {},
   closeContributions: () => {},
@@ -127,15 +134,22 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [conversationDetail, setConversationDetail] = useState<ConversationDetailOverlay | null>(null);
   const [chunkPreview, setChunkPreview] = useState<ChunkPreviewOverlay | null>(null);
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
+  const [searchReturnActive, setSearchReturnActive] = useState(false);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId, pushHistory, fromParagraphId }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string }) => {
+    ({ sourceId, segmentIndex, paragraphId, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
       if (pushHistory) {
         const historyEntry = fromParagraphId != null
           ? { ...targetRef.current, paragraphId: fromParagraphId }
           : targetRef.current;
         setNavigationHistory((prev) => [...prev, historyEntry]);
+      }
+      if (fromSearch) {
+        setSearchReturnActive(true);
+      } else if (!pushHistory) {
+        // Normal non-search navigation resets the search return button
+        setSearchReturnActive(false);
       }
       setTarget({ sourceId: resolvedSourceId, segmentIndex, paragraphId });
       if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
@@ -156,6 +170,11 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
   const navigateToChat = useCallback(() => {
     tabNavRef.current?.(TAB_INDEX_CHAT);
+  }, []);
+
+  const navigateToSearch = useCallback(() => {
+    setSearchReturnActive(false);
+    tabNavRef.current?.(TAB_INDEX_SEARCH);
   }, []);
 
   const navigateToChatWithTalk = useCallback((talkId: string) => {
@@ -199,6 +218,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         navigateBack,
         navigationHistory,
         navigateToChat,
+        navigateToSearch,
+        searchReturnActive,
         navigateToChatWithTalk,
         openContributions,
         closeContributions,

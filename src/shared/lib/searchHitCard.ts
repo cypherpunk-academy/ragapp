@@ -14,7 +14,7 @@ function formatMetaDate(raw?: string): string | undefined {
   if (iso) {
     const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+      return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
     }
   }
   return s;
@@ -31,24 +31,32 @@ export function chunkPreviewText(r: SearchResult): string {
   return (r.text ?? r.snippet ?? '').trim();
 }
 
-/** Known source_id slugs → human-readable display names. */
-const SOURCE_DISPLAY_NAMES: Record<string, string> = {
-  'philo-von-freisinn': 'Philo von Freisinn',
-};
-
-/** Converts a source_id slug to a display name, falling back to title-casing the slug. */
-function sourceDisplayName(sourceId: string): string {
-  return SOURCE_DISPLAY_NAMES[sourceId]
-    ?? sourceId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
 function isVortragSource(r: SearchResult): boolean {
   const st = r.source_type?.toLowerCase() ?? '';
   return st === 'vortrag' || st === 'lecture';
 }
 
+/** Augmentation assistant slug must not appear as work author on cards. */
+function displayAuthor(author?: string): string | undefined {
+  const a = author?.trim();
+  if (!a) return undefined;
+  const lower = a.toLowerCase();
+  if (lower === 'philo-von-freisinn' || lower === 'philo von freisinn') return undefined;
+  return a;
+}
+
+/** `title` from search API may equal segment_title when book_title was missing in ingest. */
+function resolveWorkTitle(result: SearchResult): string | undefined {
+  const bookTitle = result.book_title?.trim();
+  if (bookTitle) return bookTitle;
+  const title = result.title?.trim();
+  const segment = result.segment_title?.trim();
+  if (title && segment && title.toUpperCase() === segment.toUpperCase()) return undefined;
+  return title;
+}
+
 export type SearchHitNavigation =
-  | { kind: 'read'; sourceId: string; paragraphId: string }
+  | { kind: 'read'; sourceId: string; paragraphId: string | null; segmentIndex?: number | null }
   | {
       kind: 'overlay';
       sourceId: string;
@@ -65,6 +73,7 @@ export type SearchHitCardModel = {
   card: {
     metaSmall?: string;
     headlineLarge?: string;
+    subHeadSmall?: string;
     notizRows?: ReturnType<typeof buildNotizCardRows>;
     bodyMode: SearchHitCardBodyMode;
     bodyText: string;
@@ -78,10 +87,12 @@ export type SearchHitCardModel = {
  */
 export function buildSearchHitCard(result: SearchResult, kind: EntityKind): SearchHitCardModel {
   const preview = chunkPreviewText(result);
-  const readNav = (): SearchHitNavigation =>
-    result.paragraph_id
-      ? { kind: 'read', sourceId: result.source_id, paragraphId: result.paragraph_id }
-      : { kind: 'none' };
+  const readNav = (): SearchHitNavigation => ({
+    kind: 'read',
+    sourceId: result.source_id,
+    paragraphId: result.paragraph_id ?? null,
+    segmentIndex: result.source_index ?? null,
+  });
 
   const overlayNav = (title?: string | null): SearchHitNavigation => {
     const initial = (result.text ?? result.snippet ?? '').trim();
@@ -98,7 +109,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
   switch (kind) {
     case 'chunk_buch': {
       const bookTitle = (result.book_title ?? result.title)?.trim();
-      const metaSmall = joinMeta([result.author?.trim(), bookTitle]);
+      const metaSmall = joinMeta([displayAuthor(result.author), bookTitle]);
       const headlineLarge =
         result.segment_title?.trim() || result.title?.trim() || result.source_id;
       return {
@@ -112,16 +123,17 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       };
     }
     case 'chunk_vortrag': {
-      const metaSmall = joinMeta([
-        result.author?.trim(),
-        result.venue?.trim(),
-        formatMetaDate(result.lecture_date),
-      ]);
-      const headlineLarge = result.title?.trim() || result.segment_title?.trim() || result.source_id;
+      const metaSmall = displayAuthor(result.author);
+      const headlineLarge = joinMeta([result.venue?.trim(), formatMetaDate(result.lecture_date)])
+        || result.title?.trim()
+        || result.source_id;
+      const lectureTitle = result.segment_title?.trim() || result.title?.trim();
+      const subHeadSmall = lectureTitle ? `(${lectureTitle})` : undefined;
       return {
         card: {
           metaSmall,
           headlineLarge,
+          subHeadSmall,
           bodyMode: 'truncated_text',
           bodyText: preview,
         },
@@ -130,25 +142,29 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'kapitel_zusammenfassung': {
       const vortrag = isVortragSource(result);
-      const bookName = (result.book_title ?? result.title)?.trim()
-        || sourceDisplayName(result.source_id);
       let metaSmall: string | undefined;
+      let headlineLarge: string | undefined;
+      let subHeadSmall: string | undefined;
       if (vortrag) {
-        const venue = result.venue?.trim();
-        const date = formatMetaDate(result.lecture_date);
-        const venueStr = venue ? `in ${venue}` : undefined;
-        const dateStr = date ? `am ${date}` : undefined;
-        metaSmall = joinMeta(['Vortrag', venueStr, dateStr]);
+        metaSmall = displayAuthor(result.author);
+        headlineLarge = joinMeta([result.venue?.trim(), formatMetaDate(result.lecture_date)])
+          || result.title?.trim()
+          || result.source_id;
+        const lectureTitle = result.segment_title?.trim() || result.title?.trim();
+        subHeadSmall = lectureTitle ? `(${lectureTitle})` : undefined;
       } else {
-        metaSmall = bookName;
+        metaSmall = joinMeta([displayAuthor(result.author), resolveWorkTitle(result)]);
+        headlineLarge =
+          result.segment_title?.trim()
+          || result.title?.trim()
+          || result.source_id;
       }
-      const chapterTitle = vortrag
-        ? (result.segment_title?.trim() || result.title?.trim() || result.source_id)
-        : (result.segment_title?.trim() || result.source_id);
+      const chapterTitle = result.segment_title?.trim() || result.title?.trim() || result.source_id;
       return {
         card: {
           metaSmall,
-          headlineLarge: chapterTitle,
+          headlineLarge,
+          subHeadSmall,
           bodyMode: 'truncated_text',
           bodyText: preview,
         },

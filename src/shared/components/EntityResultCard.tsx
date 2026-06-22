@@ -12,6 +12,8 @@ type Props = {
   metaSmall?: string;
   /** Zeile 3 (groß) — Kapitel-, Vortrags-, Begriffstitel, … */
   headlineLarge?: string;
+  /** Zeile 4 (klein, grau) — z. B. Vortragsüberschrift in Klammern unter Ort+Datum. */
+  subHeadSmall?: string;
   /**
    * Notiz: Zeile 2 fett (Autor der Notiz, Datum), Zeile 3 optional Kontext, Zeile 4 Titel,
    * dann Trennstrich und Vorschau.
@@ -29,6 +31,7 @@ export default function EntityResultCard({
   kind,
   metaSmall,
   headlineLarge,
+  subHeadSmall,
   notizRows,
   bodyMode = 'truncated_text',
   bodyText = '',
@@ -117,6 +120,11 @@ export default function EntityResultCard({
                 {headlineLarge.trim()}
               </Text>
             )
+          ) : null}
+          {subHeadSmall?.trim() ? (
+            <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]} numberOfLines={2}>
+              {subHeadSmall.trim()}
+            </Text>
           ) : null}
         </>
       )}

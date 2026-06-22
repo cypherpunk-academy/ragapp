@@ -29,7 +29,7 @@ export default function ReadScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { height: windowHeight } = useWindowDimensions();
-  const { target, openContributions, navigateToRead, navigateToChat, navigateBack, navigationHistory } = useReading();
+  const { target, openContributions, navigateToRead, navigateToChat, navigateBack, navigationHistory, navigateToSearch, searchReturnActive } = useReading();
   const sourceId = target.sourceId;
   const hasHistory = navigationHistory.length > 0;
   /** Immer aktuelle sourceId für Callbacks mit leerem deps-Array (verhindert stale closure). */
@@ -460,9 +460,9 @@ export default function ReadScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
-        title={hasHistory ? 'Zurück' : (currentSegment?.segmentTitle ?? 'Lesen')}
-        titleStyle={hasHistory ? textStyles.labelTab : textStyles.chapterTitle}
-        onBackPress={hasHistory ? navigateBack : undefined}
+        title={hasHistory ? 'Zurück' : searchReturnActive ? 'Suche' : (currentSegment?.segmentTitle ?? 'Lesen')}
+        titleStyle={(hasHistory || searchReturnActive) ? textStyles.labelTab : textStyles.chapterTitle}
+        onBackPress={hasHistory ? navigateBack : searchReturnActive ? navigateToSearch : undefined}
       />
       <FlashList
         style={styles.list}
