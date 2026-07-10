@@ -213,5 +213,31 @@ export const migrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
       ],
     },
+    {
+      toVersion: 17,
+      steps: [
+        // UUID paragraph ids — wipe local user data tied to old semantic ids.
+        unsafeExecuteSql('DELETE FROM paragraphs;'),
+        unsafeExecuteSql('DELETE FROM bookmarks;'),
+        unsafeExecuteSql('DELETE FROM notes;'),
+        unsafeExecuteSql('DELETE FROM talks;'),
+        unsafeExecuteSql("UPDATE local_storage SET value = '0' WHERE key = '__watermelon_last_pulled_at';"),
+        unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
+      ],
+    },
+    {
+      toVersion: 18,
+      steps: [
+        // Ghost paragraphs from old seed epochs survive because pull_changes never emits
+        // paragraph deletes. Two stale ID formats accumulate alongside the correct UUID rows:
+        //   - Composite: "82dc684d-…:1:1"  (old format: source_uuid:seg:para)
+        //   - Slug:      "lecture:19211012:1:1"  (pre-UUID source_id era)
+        // Only valid UUIDs (36 chars, dashes at positions 9/14/19/24) are kept.
+        // Valid UUID records remain intact — no last_pulled_at reset needed.
+        unsafeExecuteSql(
+          "DELETE FROM paragraphs WHERE length(id) != 36 OR substr(id,9,1) != '-' OR substr(id,14,1) != '-' OR substr(id,19,1) != '-' OR substr(id,24,1) != '-';",
+        ),
+      ],
+    },
   ],
 });

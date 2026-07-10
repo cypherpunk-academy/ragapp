@@ -15,7 +15,7 @@ import { config } from './config';
 import { getAccessToken } from './supabase';
 import { ensureSeeded, seedSnapshotTimestamp, withSynchronizeLock } from './seedLoader';
 
-const SCHEMA_VERSION = 16; // keep in sync with db/schema.ts version
+const SCHEMA_VERSION = 18; // keep in sync with db/schema.ts version
 
 type SyncPullResponse = {
   changes: Record<string, unknown>;
