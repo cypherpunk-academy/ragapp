@@ -26,6 +26,67 @@ function joinMeta(parts: (string | undefined)[]): string | undefined {
   return xs.join(', ');
 }
 
+const MONTH_NAMES: Record<string, number> = {
+  januar: 1,
+  februar: 2,
+  märz: 3,
+  april: 4,
+  mai: 5,
+  juni: 6,
+  juli: 7,
+  august: 8,
+  september: 9,
+  oktober: 10,
+  november: 11,
+  dezember: 12,
+};
+
+/** Parse `D. Monat YYYY` or `DD.MM.YYYY` from a segment/heading title → ISO `YYYY-MM-DD`. */
+export function parseDateFromSegmentTitle(text?: string): string | undefined {
+  if (!text?.trim()) return undefined;
+  const s = text.trim();
+  const digitsMatch = s.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (digitsMatch) {
+    const d = digitsMatch[1]!.padStart(2, '0');
+    const m = digitsMatch[2]!.padStart(2, '0');
+    return `${digitsMatch[3]}-${m}-${d}`;
+  }
+  const monthMatch = s.match(
+    /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i,
+  );
+  if (monthMatch) {
+    const monthNum = MONTH_NAMES[monthMatch[2]!.toLowerCase()];
+    if (!monthNum) return undefined;
+    const d = monthMatch[1]!.padStart(2, '0');
+    const m = String(monthNum).padStart(2, '0');
+    return `${monthMatch[3]}-${m}-${d}`;
+  }
+  return undefined;
+}
+
+/** Prefer phase5 heading date when it conflicts with catalog `lecture_date`. */
+export function resolveLectureDisplayDate(
+  segmentTitle?: string,
+  lectureDate?: string,
+): string | undefined {
+  const fromTitle = parseDateFromSegmentTitle(segmentTitle);
+  const fromMeta = lectureDate?.trim().match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (fromTitle && fromMeta && fromTitle !== fromMeta) return fromTitle;
+  return fromTitle ?? fromMeta;
+}
+
+function buildVortragSearchCard(result: SearchResult): {
+  metaSmall?: string;
+  headlineLarge?: string;
+  subHeadSmall?: string;
+} {
+  const segment = result.segment_title?.trim();
+  const headlineLarge = segment || result.title?.trim() || result.source_id;
+  const metaSmall = joinMeta([displayAuthor(result.author), resolveWorkTitle(result)]);
+  const subHeadSmall = result.vortragstitel?.trim() || undefined;
+  return { metaSmall, headlineLarge, subHeadSmall };
+}
+
 /** Anfang Chunk-Text für Karte/Overlay: API `text`, sonst `snippet`. */
 export function chunkPreviewText(r: SearchResult): string {
   return (r.text ?? r.snippet ?? '').trim();
@@ -88,12 +149,28 @@ export type SearchHitCardModel = {
  */
 export function buildSearchHitCard(result: SearchResult, kind: EntityKind): SearchHitCardModel {
   const preview = chunkPreviewText(result);
-  const readNav = (): SearchHitNavigation => ({
-    kind: 'read',
-    sourceId: result.source_id,
-    paragraphId: result.paragraph_id ?? null,
-    segmentIndex: result.source_index ?? null,
-  });
+
+  const readNav = (): SearchHitNavigation => {
+    if (result.navigation_error) return { kind: 'none' };
+    if (!result.paragraph_id?.trim()) return { kind: 'none' };
+    return {
+      kind: 'read',
+      sourceId: result.source_id,
+      paragraphId: result.paragraph_id,
+      segmentIndex: result.source_index ?? null,
+    };
+  };
+
+  const quoteReadNav = (): SearchHitNavigation => {
+    if (result.navigation_error) return { kind: 'none' };
+    if (!result.paragraph_id?.trim()) return { kind: 'none' };
+    return {
+      kind: 'read',
+      sourceId: result.source_id,
+      paragraphId: result.paragraph_id,
+      segmentIndex: null,
+    };
+  };
 
   const overlayNav = (title?: string | null): SearchHitNavigation => {
     const initial = (result.text ?? result.snippet ?? '').trim();
@@ -124,12 +201,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       };
     }
     case 'chunk_vortrag': {
-      const metaSmall = displayAuthor(result.author);
-      const headlineLarge = joinMeta([result.venue?.trim(), formatMetaDate(result.lecture_date)])
-        || result.title?.trim()
-        || result.source_id;
-      const lectureTitle = result.segment_title?.trim() || result.title?.trim();
-      const subHeadSmall = lectureTitle ? `(${lectureTitle})` : undefined;
+      const { metaSmall, headlineLarge, subHeadSmall } = buildVortragSearchCard(result);
       return {
         card: {
           metaSmall,
@@ -147,12 +219,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       let headlineLarge: string | undefined;
       let subHeadSmall: string | undefined;
       if (vortrag) {
-        metaSmall = displayAuthor(result.author);
-        headlineLarge = joinMeta([result.venue?.trim(), formatMetaDate(result.lecture_date)])
-          || result.title?.trim()
-          || result.source_id;
-        const lectureTitle = result.segment_title?.trim() || result.title?.trim();
-        subHeadSmall = lectureTitle ? `(${lectureTitle})` : undefined;
+        ({ metaSmall, headlineLarge, subHeadSmall } = buildVortragSearchCard(result));
       } else {
         metaSmall = joinMeta([displayAuthor(result.author), resolveWorkTitle(result)]);
         headlineLarge =
@@ -198,7 +265,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
           bodyMode: 'full_quote',
           bodyText: quoteBody,
         },
-        navigation: readNav(),
+        navigation: quoteReadNav(),
       };
     }
     case 'typology': {

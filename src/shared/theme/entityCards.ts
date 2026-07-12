@@ -129,7 +129,7 @@ export function entityKindFromSearchResult(result: {
 
   if (ct === 'note' || ct === 'notiz') return 'notiz';
   if (ct === 'concept' || ct === 'term' || ct === 'begriff') return 'begriff';
-  if (ct === 'quote' || ct === 'zitat') return 'zitat';
+  if (ct === 'quote' || ct === 'zitat' || ct === 'quote_explanation') return 'zitat';
   if (ct === 'chapter_summary' || ct === 'summary') return 'kapitel_zusammenfassung';
   if (ct === 'typology' || ct === 'typologie') return 'typology';
   // Indexierte KI-Gespräche (Assistant-Exports, chunk_type talk)

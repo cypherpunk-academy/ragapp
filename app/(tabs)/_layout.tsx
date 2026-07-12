@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import TabBar from '@/shared/components/TabBar';
 import { lightColors, darkColors } from '@/shared/theme';
 import { ReadingProvider, useReading } from '@/shared/contexts/ReadingContext';
+import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
 import ReadScreen from '../../src/features/read/ReadScreen';
@@ -105,9 +106,11 @@ function TabsInner() {
 
 export default function TabsLayout() {
   return (
-    <ReadingProvider>
-      <TabsInner />
-    </ReadingProvider>
+    <WarningsProvider>
+      <ReadingProvider>
+        <TabsInner />
+      </ReadingProvider>
+    </WarningsProvider>
   );
 }
 

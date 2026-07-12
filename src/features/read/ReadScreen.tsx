@@ -20,6 +20,7 @@ import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
 import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
+import { useWarnings } from '@/shared/contexts/WarningsContext';
 
 const LOCAL_USER = 'local';
 
@@ -43,6 +44,7 @@ export default function ReadScreen() {
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
   const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set());
+  const { setWarning } = useWarnings();
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuMode, setMenuMode] = useState<'menu' | 'editor'>('menu');
@@ -105,6 +107,23 @@ export default function ReadScreen() {
     return () => sub.unsubscribe();
   }, [sourceId]);
 
+
+  useEffect(() => {
+    if (!target.paragraphId || loading) {
+      setWarning('read-nav-error', null);
+      return;
+    }
+    if (allParagraphs.length === 0) return;
+    const hit = allParagraphs.find((p) => p.id === target.paragraphId);
+    setWarning(
+      'read-nav-error',
+      hit ? null : 'Der angeforderte Absatz ist nicht mehr verfügbar — möglicherweise nach einer Textüberarbeitung.',
+    );
+  }, [target.paragraphId, allParagraphs, loading, setWarning]);
+
+  useEffect(() => {
+    return () => { setWarning('read-nav-error', null); };
+  }, [setWarning]);
 
   const segments = useMemo<Segment[]>(() => {
     const seen = new Map<number, Segment>();

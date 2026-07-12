@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, useColorScheme,
+  View, Text, TouchableOpacity, Modal, Pressable, StyleSheet, useColorScheme,
   type TextStyle,
 } from 'react-native';
-import { lightColors, darkColors, spacing, textStyles } from '../theme';
+import { lightColors, darkColors, spacing, textStyles, typography } from '../theme';
 import { ICONS, ICON_SIZES } from '../theme';
 import AppIcon from './AppIcon';
 import UserMenuButton from './UserMenuButton';
+import { useWarnings } from '../contexts/WarningsContext';
 
 type Props = {
   title: string;
@@ -29,6 +30,8 @@ export default function AppBar({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { warnings } = useWarnings();
+  const [overlayOpen, setOverlayOpen] = useState(false);
 
   return (
     <View style={[
@@ -52,11 +55,39 @@ export default function AppBar({
       >
         {title}
       </Text>
+      {warnings.length > 0 ? (
+        <TouchableOpacity
+          onPress={() => setOverlayOpen(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Warnungen anzeigen"
+        >
+          <AppIcon name="warning" size={ICON_SIZES.appBar} color={colors.error} />
+        </TouchableOpacity>
+      ) : null}
       {offline ? (
         <AppIcon name={ICONS.status.offline} size={ICON_SIZES.appBar} color={colors.onSurfaceVariant} />
       ) : null}
       {trailing}
       {showUserMenu ? <UserMenuButton /> : null}
+
+      <Modal visible={overlayOpen} transparent animationType="fade" onRequestClose={() => setOverlayOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOverlayOpen(false)} />
+          <View style={[styles.warningsPanel, { backgroundColor: colors.errorContainer, shadowColor: colors.shadow }]}>
+            <View style={styles.warningsPanelHeader}>
+              <AppIcon name="warning" size={18} color={colors.error} />
+              <Text style={[textStyles.labelSection, { color: colors.onErrorContainer }]}>Hinweise</Text>
+            </View>
+            <View style={[styles.warningsDivider, { backgroundColor: colors.error }]} />
+            {warnings.map(({ id, message }) => (
+              <Text key={id} style={[typography.bodySmall, styles.warningItem, { color: colors.onErrorContainer }]}>
+                {message}
+              </Text>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -76,5 +107,37 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+  },
+  warningsPanel: {
+    position: 'absolute',
+    top: 56,
+    right: spacing.m,
+    left: spacing.m,
+    borderRadius: 10,
+    paddingVertical: spacing.s,
+    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+  },
+  warningsPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.xs,
+  },
+  warningsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.m,
+    marginBottom: spacing.xs,
+    opacity: 0.5,
+  },
+  warningItem: {
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.s,
   },
 });

@@ -23,6 +23,8 @@ export type SearchResult = {
   venue?: string;
   /** Vortrag: Datum (ISO oder Anzeige-String) */
   lecture_date?: string;
+  /** Vortrag: Katalog-Thementitel (unter H1 auf der Karte) */
+  vortragstitel?: string;
   /** Notiz: Autor der Notiz (Zeile 2, fett) */
   note_author?: string;
   /** Notiz: Datum der Notiz — ISO oder Anzeige (Zeile 2, fett) */
@@ -33,6 +35,14 @@ export type SearchResult = {
   quote_text?: string;
   /** Leseposition / Folge-Laden (optional) */
   source_index?: number;
+  /** Zitat: kapitel-lokale Absatznummer aus Quote-Metadaten */
+  paragraph_number?: number;
+  /** Zitat: Zeichenbereich im Absatz-text_raw (Start inkl., Ende exkl.) */
+  quote_span?: { start: number; end: number };
+  /** Zitat: Wortlaut im referenzierten Absatz gefunden */
+  quote_verified?: boolean;
+  /** Set when paragraph navigation is unavailable for this hit. */
+  navigation_error?: string;
   /** Mehr-Chunk-Overlay (optional, Phase 2) */
   chunk_ids?: string[];
 };

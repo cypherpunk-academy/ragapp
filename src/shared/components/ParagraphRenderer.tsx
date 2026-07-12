@@ -7,6 +7,11 @@ import { parseInlineHtml, splitQuoteMarksFromItalicCore } from '../lib/parseInli
 
 /** Figma Lesen/Default — rust italic (#b25738) */
 const READING_ITALIC_COLOR = '#B25738';
+/** Figma Lesen/Default — Fremdzitat, leicht violett (heller als Schemes/Primary) */
+const READING_FOREIGN_QUOTE_COLOR = {
+  light: '#6B68AD',
+  dark: '#D0C6FF',
+} as const;
 
 /**
  * ~10px Abstand in Body-Schrift (18px): En (~9px) + Hair (~2px).
@@ -38,11 +43,20 @@ type Segment = {
 
 type AnnotatedRange = { start: number; end: number; kind: SegmentKind; targetParagraphId?: string };
 
+const LEGACY_INLINE_HTML_RE = /<(i|q|a)\b/i;
+
+function hasLegacyInlineHtml(text: string): boolean {
+  return LEGACY_INLINE_HTML_RE.test(text);
+}
+
 function buildSegments(rawText: string, annotations: ParagraphAnnotations | null, addGuillemetMarkers: boolean): Segment[] {
-  const { cleanText: text, extraRanges } = parseInlineHtml(rawText);
+  const legacy = hasLegacyInlineHtml(rawText);
+  const { cleanText: text, extraRanges } = legacy
+    ? parseInlineHtml(rawText)
+    : { cleanText: rawText, extraRanges: [] as ReturnType<typeof parseInlineHtml>['extraRanges'] };
 
   const allRanges: AnnotatedRange[] = [
-    ...extraRanges,
+    ...(legacy ? extraRanges : []),
     ...(annotations?.italics ?? []).map(({ start, end }) => ({ start, end, kind: 'italic' as const })),
     ...(annotations?.foreign_quotes ?? []).map(({ start, end }) => ({ start, end, kind: 'quote' as const })),
     ...(annotations?.page_refs ?? []).map(({ start, end, target_paragraph_id }) => ({
@@ -127,7 +141,8 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   const fullQuote = isFullQuoteParagraph(text, annotations);
   const segments = useMemo(() => buildSegments(text, annotations, !fullQuote), [text, annotations, fullQuote]);
 
-  const baseColor = fullQuote ? colors.primary : colors.onBackground;
+  const quoteColor = colorScheme === 'dark' ? READING_FOREIGN_QUOTE_COLOR.dark : READING_FOREIGN_QUOTE_COLOR.light;
+  const baseColor = fullQuote ? quoteColor : colors.onBackground;
 
   return (
     <Text style={[textStyles.readingBody, styles.base, { color: baseColor }, style]}>
@@ -147,7 +162,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
         }
         if (seg.kind === 'quote') {
           return (
-            <Text key={i} style={{ color: colors.primary }}>
+            <Text key={i} style={{ color: quoteColor }}>
               {seg.quoteOpener ? '«' : null}
               {seg.text}
               {seg.quoteCloser ? '»' : null}
