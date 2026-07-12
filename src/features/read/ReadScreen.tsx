@@ -325,7 +325,16 @@ export default function ReadScreen() {
       // Lesezeichen oder letzter Lesestand: zum Absatz scrollen
       const idx = chapterParagraphs.findIndex((p) => p.id === target.paragraphId);
       if (idx >= 0) {
-        listRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 8 });
+        // Bei Zitat-Sprung (markerOffset gesetzt) in der zweiten Absatzhälfte: Absatzende statt
+        // Absatzanfang an den Viewport binden, damit lange Absätze den Marker sofort sichtbar zeigen.
+        const textLen = chapterParagraphs[idx]?.textRaw?.length ?? 0;
+        const nearEnd = target.markerOffset != null && textLen > 0 && target.markerOffset / textLen > 0.5;
+        listRef.current?.scrollToIndex({
+          index: idx,
+          animated: true,
+          viewPosition: nearEnd ? 1 : 0,
+          viewOffset: nearEnd ? -8 : 8,
+        });
       }
       lastScrolledSegmentRef.current = null;
     } else if (target.segmentIndex !== null && target.segmentIndex !== lastScrolledSegmentRef.current) {
@@ -333,7 +342,7 @@ export default function ReadScreen() {
       lastScrolledSegmentRef.current = target.segmentIndex;
       listRef.current?.scrollToIndex({ index: 0, animated: false });
     }
-  }, [target.paragraphId, target.segmentIndex, chapterParagraphs]);
+  }, [target.paragraphId, target.segmentIndex, target.markerOffset, chapterParagraphs]);
 
   useEffect(() => {
     if (markerTimerRef.current) {
@@ -345,7 +354,7 @@ export default function ReadScreen() {
       return;
     }
     setMarker({ paragraphId: target.paragraphId, offset: target.markerOffset });
-    markerTimerRef.current = setTimeout(() => setMarker(null), 5000);
+    markerTimerRef.current = setTimeout(() => setMarker(null), 10000);
     return () => {
       if (markerTimerRef.current) {
         clearTimeout(markerTimerRef.current);

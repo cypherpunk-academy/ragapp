@@ -228,7 +228,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
         if (seg.kind === 'marker') {
           return (
             <Text key={i} style={{ color: colors.error }}>
-              {'\u25CF '}
+              {'\u27BD '}
             </Text>
           );
         }
