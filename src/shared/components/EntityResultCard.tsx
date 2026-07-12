@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 
 import { parseMdInline } from '@/shared/lib/parseMdInline';
+import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
 const ITALIC_COLOR = '#B25738';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
@@ -112,19 +113,17 @@ export default function EntityResultCard({
           ) : null}
           {headlineLarge?.trim() ? (
             kind === 'kapitel_zusammenfassung' ? (
-              <Text
+              <SegmentTitleText
+                title={headlineLarge.trim()}
                 style={[textStyles.noteMeta, { color: colors.onSurface, fontWeight: '700', fontSize: 13, lineHeight: 18 }]}
                 numberOfLines={3}
-              >
-                {headlineLarge.trim()}
-              </Text>
+              />
             ) : (
-              <Text
+              <SegmentTitleText
+                title={headlineLarge.trim()}
                 style={[textStyles.chapterTitle, { color: colors.onBackground, textAlign: 'left' }]}
                 numberOfLines={3}
-              >
-                {headlineLarge.trim()}
-              </Text>
+              />
             )
           ) : null}
           {subHeadSmall?.trim() ? (

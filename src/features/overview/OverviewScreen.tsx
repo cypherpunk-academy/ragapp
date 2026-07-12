@@ -14,6 +14,8 @@ import { useReading } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import type Source from '@/data/db/models/Source';
 import { continueReadingLabel } from './sourceDetail';
+import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
+import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
 type Segment = {
   segmentIndex: number;
@@ -288,8 +290,8 @@ export default function OverviewScreen() {
               >
                 <AppIcon name={ICONS.context.bookmark} size={14} color={colors.onPrimaryContainer} style={styles.continueBookmarkIcon} />
                 <View style={styles.continueBookmarkText}>
-                  <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
-                    {segmentTitle} · ¶{paragraph.paragraphNumber}
+                    <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
+                    {stripSegmentTitleHtml(segmentTitle)} · ¶{paragraph.paragraphNumber}
                   </Text>
                   <Text style={[textStyles.chapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
                     {paragraph.textRaw.replace(/\u00AD/g, '').trim()}
@@ -311,9 +313,11 @@ export default function OverviewScreen() {
                     onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: seg.segmentIndex, paragraphId: null })}
                     activeOpacity={0.7}
                   >
-                    <Text style={[textStyles.chapterTitle, { color: colors.onSurface }]} numberOfLines={3}>
-                      {seg.segmentTitle}
-                    </Text>
+                    <SegmentTitleText
+                      title={seg.segmentTitle}
+                      style={[textStyles.chapterTitle, { color: colors.onSurface }]}
+                      numberOfLines={3}
+                    />
                   </TouchableOpacity>
                 </View>
               </React.Fragment>

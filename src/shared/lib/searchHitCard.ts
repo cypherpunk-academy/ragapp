@@ -116,8 +116,13 @@ function resolveWorkTitle(result: SearchResult): string | undefined {
   return title;
 }
 
+export type SummaryReadTarget = {
+  sourceId: string;
+  segmentIndex: number | null;
+};
+
 export type SearchHitNavigation =
-  | { kind: 'read'; sourceId: string; paragraphId: string | null; segmentIndex?: number | null }
+  | { kind: 'read'; sourceId: string; paragraphId: string | null; segmentIndex?: number | null; markerOffset?: number | null }
   | {
       kind: 'overlay';
       sourceId: string;
@@ -125,8 +130,34 @@ export type SearchHitNavigation =
       title?: string | null;
       /** Volltext bevorzugt aus `result.text`, sonst Snippet. */
       initialText: string;
+      /** Zweiter Tap im Overlay: zum Kapitel-/Vortragsanfang springen. */
+      readTarget?: SummaryReadTarget;
     }
   | { kind: 'none' };
+
+/** Body-Quelle und Segment für Navigation aus Summary-Suchtreffer. */
+export function resolveSummaryReadTarget(result: SearchResult): SummaryReadTarget | undefined {
+  const summarySourceId = result.source_id?.trim();
+  if (!summarySourceId) return undefined;
+
+  const bodySourceId =
+    result.parent_id?.trim()
+    || (summarySourceId.endsWith(':summary')
+      ? summarySourceId.slice(0, -':summary'.length)
+      : summarySourceId);
+  if (!bodySourceId) return undefined;
+
+  if (isVortragSource(result)) {
+    return { sourceId: bodySourceId, segmentIndex: 0 };
+  }
+
+  const chapterIndex = result.source_index ?? result.segment_index;
+  return {
+    sourceId: bodySourceId,
+    segmentIndex:
+      typeof chapterIndex === 'number' && Number.isFinite(chapterIndex) ? chapterIndex : null,
+  };
+}
 
 export type SearchHitCardBodyMode = 'truncated_text' | 'full_quote';
 
@@ -158,6 +189,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       sourceId: result.source_id,
       paragraphId: result.paragraph_id,
       segmentIndex: result.source_index ?? null,
+      markerOffset: null,
     };
   };
 
@@ -169,10 +201,14 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       sourceId: result.source_id,
       paragraphId: result.paragraph_id,
       segmentIndex: null,
+      markerOffset: result.quote_span?.start ?? null,
     };
   };
 
-  const overlayNav = (title?: string | null): SearchHitNavigation => {
+  const overlayNav = (
+    title?: string | null,
+    readTarget?: SummaryReadTarget,
+  ): SearchHitNavigation => {
     const initial = (result.text ?? result.snippet ?? '').trim();
     if (!initial) return { kind: 'none' };
     return {
@@ -181,6 +217,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       chunkId: result.chunk_id,
       title: title ?? result.title ?? result.segment_title,
       initialText: initial,
+      readTarget,
     };
   };
 
@@ -236,7 +273,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
           bodyMode: 'truncated_text',
           bodyText: preview,
         },
-        navigation: overlayNav(chapterTitle),
+        navigation: overlayNav(chapterTitle, resolveSummaryReadTarget(result)),
       };
     }
     case 'begriff': {

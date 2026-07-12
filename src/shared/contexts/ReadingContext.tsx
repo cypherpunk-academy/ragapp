@@ -19,18 +19,29 @@ type ConversationDetailOverlay = {
   anchorTurnIndex: number;
 };
 
+type SummaryReadTarget = {
+  sourceId: string;
+  segmentIndex: number | null;
+};
+
 type ChunkPreviewOverlay = {
   sourceId: string;
   chunkId: string;
   title?: string | null;
   /** MVP: ein Chunk; Volltext aus Suche oder Folge-API. */
   initialText: string;
+  /** Zweiter Tap: zum Kapitel-/Vortragsanfang im Lesen-Tab. */
+  readTarget?: SummaryReadTarget;
 };
 
 type ReadingTarget = {
   sourceId: string;
   segmentIndex: number | null;
   paragraphId: string | null;
+  /** Zeichen-Offset des Zitatanfangs im Absatztext — nur gesetzt bei Sprung aus einer Zitat-Suche. */
+  markerOffset: number | null;
+  /** Zähler, der bei jedem navigateToRead hochzählt — erzwingt erneutes Feuern des Marker-Effekts auch bei gleichem Ziel. */
+  navSeq: number;
 };
 
 type ReadingContextValue = {
@@ -40,7 +51,7 @@ type ReadingContextValue = {
   chunkPreview: ChunkPreviewOverlay | null;
   chatTalkId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
@@ -78,7 +89,7 @@ const TAB_INDEX_CHAT = 2;
 const TAB_INDEX_SEARCH = 3;
 
 const ReadingContext = createContext<ReadingContextValue>({
-  target: { sourceId: '', segmentIndex: null, paragraphId: null },
+  target: { sourceId: '', segmentIndex: null, paragraphId: null, markerOffset: null, navSeq: 0 },
   contributions: null,
   conversationDetail: null,
   chunkPreview: null,
@@ -106,6 +117,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     sourceId: '',
     segmentIndex: null,
     paragraphId: null,
+    markerOffset: null,
+    navSeq: 0,
   });
 
   const targetRef = useRef(target);
@@ -137,12 +150,12 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [searchReturnActive, setSearchReturnActive] = useState(false);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId'> & { sourceId?: string; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => {
+    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
       if (pushHistory) {
         const historyEntry = fromParagraphId != null
-          ? { ...targetRef.current, paragraphId: fromParagraphId }
-          : targetRef.current;
+          ? { ...targetRef.current, paragraphId: fromParagraphId, markerOffset: null }
+          : { ...targetRef.current, markerOffset: null };
         setNavigationHistory((prev) => [...prev, historyEntry]);
       }
       if (fromSearch) {
@@ -151,7 +164,13 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         // Normal non-search navigation resets the search return button
         setSearchReturnActive(false);
       }
-      setTarget({ sourceId: resolvedSourceId, segmentIndex, paragraphId });
+      setTarget((prev) => ({
+        sourceId: resolvedSourceId,
+        segmentIndex,
+        paragraphId,
+        markerOffset: markerOffset ?? null,
+        navSeq: prev.navSeq + 1,
+      }));
       if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
       tabNavRef.current?.(TAB_INDEX_READ);
     },

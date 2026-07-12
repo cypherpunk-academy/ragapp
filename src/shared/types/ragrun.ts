@@ -35,6 +35,10 @@ export type SearchResult = {
   quote_text?: string;
   /** Leseposition / Folge-Laden (optional) */
   source_index?: number;
+  /** Kapitelindex innerhalb der Quelle (Summaries) */
+  segment_index?: number;
+  /** Body-Quelle bei `:summary`-Chunks (parent_id aus Ingest) */
+  parent_id?: string;
   /** Zitat: kapitel-lokale Absatznummer aus Quote-Metadaten */
   paragraph_number?: number;
   /** Zitat: Zeichenbereich im Absatz-text_raw (Start inkl., Ende exkl.) */

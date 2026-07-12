@@ -143,15 +143,16 @@ const ENTITY_KIND_TO_API_TYPE: Partial<Record<EntityKind, string>> = {
   kapitel_zusammenfassung: 'chapter_summary',
 };
 
-/** Zusammengefasste Filter-Gruppen (5 statt 8). */
-type FilterGroup = 'texte' | 'begriffe' | 'zitate' | 'gespraeche' | 'notizen';
+/** Zusammengefasste Filter-Gruppen. */
+type FilterGroup = 'texte' | 'zusammenfassungen' | 'begriffe' | 'zitate' | 'gespraeche' | 'notizen';
 
 const FILTER_GROUPS: { group: FilterGroup; label: string; subtitle?: string; kinds: EntityKind[] }[] = [
-  { group: 'texte',      label: 'Bücher / Vorträge', subtitle: 'inkl. Zusammenfassungen', kinds: ['chunk_buch', 'chunk_vortrag', 'kapitel_zusammenfassung'] },
-  { group: 'begriffe',   label: 'Begriffe',           kinds: ['begriff', 'typology'] },
-  { group: 'zitate',     label: 'Zitate',             kinds: ['zitat'] },
-  { group: 'gespraeche', label: 'Gespräche',          kinds: ['talk', 'chunk_gespraech'] },
-  { group: 'notizen',    label: 'Notizen',            kinds: ['notiz'] },
+  { group: 'texte',            label: 'Bücher / Vorträge', kinds: ['chunk_buch', 'chunk_vortrag'] },
+  { group: 'zusammenfassungen', label: 'Zusammenfassungen', kinds: ['kapitel_zusammenfassung'] },
+  { group: 'begriffe',         label: 'Begriffe',           kinds: ['begriff', 'typology'] },
+  { group: 'zitate',           label: 'Zitate',             kinds: ['zitat'] },
+  { group: 'gespraeche',       label: 'Gespräche',          kinds: ['talk', 'chunk_gespraech'] },
+  { group: 'notizen',          label: 'Notizen',            kinds: ['notiz'] },
 ];
 
 const DEFAULT_GROUPS: FilterGroup[] = FILTER_GROUPS.map(({ group }) => group);
@@ -494,6 +495,7 @@ export default function SearchScreen() {
           sourceId: nav.sourceId,
           segmentIndex: nav.segmentIndex ?? null,
           paragraphId: nav.paragraphId,
+          markerOffset: nav.markerOffset ?? null,
           fromSearch: true,
         });
       } else if (nav.kind === 'overlay') {
@@ -502,6 +504,7 @@ export default function SearchScreen() {
           chunkId: nav.chunkId,
           title: nav.title,
           initialText: nav.initialText,
+          readTarget: nav.readTarget,
         });
       }
     },

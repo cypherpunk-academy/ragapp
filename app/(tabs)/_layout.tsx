@@ -40,6 +40,7 @@ function TabsInner() {
     closeConversationDetail,
     chunkPreview,
     closeChunkPreview,
+    navigateToRead,
   } = useReading();
 
   React.useEffect(() => {
@@ -97,7 +98,17 @@ function TabsInner() {
           sourceId={chunkPreview.sourceId}
           title={chunkPreview.title}
           initialText={chunkPreview.initialText}
+          readTarget={chunkPreview.readTarget}
           onClose={closeChunkPreview}
+          onNavigateToRead={(target) => {
+            closeChunkPreview();
+            navigateToRead({
+              sourceId: target.sourceId,
+              segmentIndex: target.segmentIndex,
+              paragraphId: null,
+              fromSearch: true,
+            });
+          }}
         />
       )}
     </SafeAreaView>

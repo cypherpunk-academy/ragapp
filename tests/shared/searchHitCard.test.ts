@@ -2,6 +2,7 @@ import {
   buildSearchHitCard,
   parseDateFromSegmentTitle,
   resolveLectureDisplayDate,
+  resolveSummaryReadTarget,
 } from '@/shared/lib/searchHitCard';
 import type { SearchResult } from '@/shared/types/ragrun';
 
@@ -99,6 +100,54 @@ describe('buildSearchHitCard kapitel_zusammenfassung', () => {
     );
     expect(model.card.headlineLarge).toBe('Erster Vortrag');
     expect(model.card.subHeadSmall).toBeUndefined();
+  });
+
+  it('includes readTarget for book summary overlay navigation', () => {
+    const model = buildSearchHitCard(
+      summaryResult({
+        source_id: 'book-uuid:summary',
+        parent_id: 'book-uuid',
+        source_index: 3,
+        source_type: 'book',
+        segment_title: 'V. ANHANG <i>An das deutsche Volk und an die Kulturwelt</i>!',
+        text: 'Kapitel-Zusammenfassung',
+      }),
+      'kapitel_zusammenfassung',
+    );
+    expect(model.card.headlineLarge).toBe(
+      'V. ANHANG <i>An das deutsche Volk und an die Kulturwelt</i>!',
+    );
+    expect(model.navigation).toMatchObject({
+      kind: 'overlay',
+      readTarget: { sourceId: 'book-uuid', segmentIndex: 3 },
+    });
+  });
+
+  it('includes readTarget for lecture summary at segment 0', () => {
+    const model = buildSearchHitCard(
+      summaryResult({
+        source_id: '7879ca81-485f-5163-92c8-337d39ca904f:summary',
+        parent_id: '7879ca81-485f-5163-92c8-337d39ca904f',
+        source_index: 2,
+        source_type: 'lecture',
+        text: 'Vortrag-Zusammenfassung',
+      }),
+      'kapitel_zusammenfassung',
+    );
+    expect(model.navigation).toMatchObject({
+      kind: 'overlay',
+      readTarget: { sourceId: '7879ca81-485f-5163-92c8-337d39ca904f', segmentIndex: 0 },
+    });
+  });
+});
+
+describe('resolveSummaryReadTarget', () => {
+  it('strips :summary suffix when parent_id is missing', () => {
+    expect(
+      resolveSummaryReadTarget(
+        summaryResult({ source_id: 'book-uuid:summary', source_index: 1, source_type: 'book' }),
+      ),
+    ).toEqual({ sourceId: 'book-uuid', segmentIndex: 1 });
   });
 });
 

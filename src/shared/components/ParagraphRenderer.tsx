@@ -29,7 +29,7 @@ function splitPageRefLoupe(text: string): { icon: string; rest: string } {
   return { icon: match[1] ?? '', rest: text.slice(match[0].length) };
 }
 
-type SegmentKind = 'plain' | 'italic' | 'quote' | 'page_ref';
+type SegmentKind = 'plain' | 'italic' | 'quote' | 'page_ref' | 'marker';
 
 type Segment = {
   text: string;
@@ -118,6 +118,39 @@ function buildSegments(rawText: string, annotations: ParagraphAnnotations | null
   return segments;
 }
 
+/**
+ * Fügt an der Zeichenposition `offset` ein zero-length Marker-Segment ein (roter Punkt).
+ * Bewusst getrennt von buildSegments' Overlap-Logik, damit deren Annotation-Ranges unangetastet bleiben.
+ */
+function insertMarkerSegment(segments: Segment[], offset: number): Segment[] {
+  const result: Segment[] = [];
+  let cursor = 0;
+  let inserted = false;
+  for (const seg of segments) {
+    const segLen = seg.text.length;
+    if (!inserted && offset >= cursor && offset <= cursor + segLen) {
+      const local = offset - cursor;
+      if (local <= 0) {
+        result.push({ text: '', kind: 'marker' });
+        result.push(seg);
+      } else if (local >= segLen) {
+        result.push(seg);
+        result.push({ text: '', kind: 'marker' });
+      } else {
+        result.push({ ...seg, text: seg.text.slice(0, local), quoteCloser: false });
+        result.push({ text: '', kind: 'marker' });
+        result.push({ ...seg, text: seg.text.slice(local), quoteOpener: false });
+      }
+      inserted = true;
+    } else {
+      result.push(seg);
+    }
+    cursor += segLen;
+  }
+  if (!inserted) result.push({ text: '', kind: 'marker' });
+  return result;
+}
+
 function isFullQuoteParagraph(text: string, annotations: ParagraphAnnotations | null): boolean {
   const quotes = annotations?.foreign_quotes ?? [];
   return quotes.some((q) => q.start === 0 && q.end >= text.length);
@@ -132,14 +165,20 @@ type Props = {
   suffix?: React.ReactNode;
   /** ID des aktuellen Absatzes — wird als Rückkehrpunkt in den Seitenverweis-Verlauf gespeichert. */
   paragraphId?: string;
+  /** Zeichen-Offset für den temporären roten Punkt-Marker (Zitat-Sprung aus der Suche). */
+  markerOffset?: number | null;
 };
 
-export default function ParagraphRenderer({ text, annotations, style, prefix, suffix, paragraphId }: Props) {
+export default function ParagraphRenderer({ text, annotations, style, prefix, suffix, paragraphId, markerOffset }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { navigateToRead } = useReading();
   const fullQuote = isFullQuoteParagraph(text, annotations);
   const segments = useMemo(() => buildSegments(text, annotations, !fullQuote), [text, annotations, fullQuote]);
+  const segmentsWithMarker = useMemo(
+    () => (markerOffset == null ? segments : insertMarkerSegment(segments, markerOffset)),
+    [segments, markerOffset],
+  );
 
   const quoteColor = colorScheme === 'dark' ? READING_FOREIGN_QUOTE_COLOR.dark : READING_FOREIGN_QUOTE_COLOR.light;
   const baseColor = fullQuote ? quoteColor : colors.onBackground;
@@ -147,7 +186,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   return (
     <Text style={[textStyles.readingBody, styles.base, { color: baseColor }, style]}>
       {prefix}
-      {segments.map((seg, i) => {
+      {segmentsWithMarker.map((seg, i) => {
         if (seg.kind === 'italic') {
           const { outerBefore, core, outerAfter } = splitQuoteMarksFromItalicCore(seg.text);
           return (
@@ -183,6 +222,13 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
                 <Text style={{ fontSize: bodyFontSize * PAGE_REF_LOUPE_SCALE }}>{icon}</Text>
               ) : null}
               {rest}
+            </Text>
+          );
+        }
+        if (seg.kind === 'marker') {
+          return (
+            <Text key={i} style={{ color: colors.error }}>
+              {'\u25CF '}
             </Text>
           );
         }

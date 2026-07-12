@@ -20,6 +20,8 @@ import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
 import type { ContributionsTab } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
+import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
+import SegmentTitleText from '@/shared/components/SegmentTitleText';
 import { useWarnings } from '@/shared/contexts/WarningsContext';
 
 const LOCAL_USER = 'local';
@@ -65,6 +67,9 @@ export default function ReadScreen() {
   const blankTargetHydrateDoneRef = useRef(false);
   /** Letzter segmentIndex für den bereits zum Anfang gescrollt wurde — verhindert doppeltes Scrollen. */
   const lastScrolledSegmentRef = useRef<number | null>(null);
+  /** Temporärer roter Punkt-Marker an der Zitat-Position (nur aus Zitat-Suche, siehe target.markerOffset). */
+  const [marker, setMarker] = useState<{ paragraphId: string; offset: number } | null>(null);
+  const markerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!sourceId) return;
@@ -330,6 +335,25 @@ export default function ReadScreen() {
     }
   }, [target.paragraphId, target.segmentIndex, chapterParagraphs]);
 
+  useEffect(() => {
+    if (markerTimerRef.current) {
+      clearTimeout(markerTimerRef.current);
+      markerTimerRef.current = null;
+    }
+    if (target.markerOffset == null || !target.paragraphId) {
+      setMarker(null);
+      return;
+    }
+    setMarker({ paragraphId: target.paragraphId, offset: target.markerOffset });
+    markerTimerRef.current = setTimeout(() => setMarker(null), 5000);
+    return () => {
+      if (markerTimerRef.current) {
+        clearTimeout(markerTimerRef.current);
+        markerTimerRef.current = null;
+      }
+    };
+  }, [target.paragraphId, target.markerOffset, target.navSeq]);
+
   const handleLongPress = useCallback((p: Paragraph) => setMenuParagraph(p), []);
 
   const handleOpenNoteEditor = useCallback(() => {
@@ -408,6 +432,7 @@ export default function ReadScreen() {
           text={item.textRaw}
           annotations={item.annotations}
           paragraphId={item.id}
+          markerOffset={item.id === marker?.paragraphId ? marker.offset : null}
           style={{ color: colors.onBackground }}
           prefix={
             <>
@@ -449,7 +474,7 @@ export default function ReadScreen() {
         />
       </Pressable>
     );
-  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions]);
+  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions, marker]);
 
   const typeLabel = 'Kapitel';
 
@@ -458,12 +483,11 @@ export default function ReadScreen() {
     return (
       <View style={styles.chapterBlock}>
         <Text style={[textStyles.labelSection, { color: colors.primary }]}>{typeLabel}</Text>
-        <Text
+        <SegmentTitleText
+          title={currentSegment.segmentTitle}
           style={[textStyles.readingChapterTitle, { color: colors.onBackground }]}
           accessibilityRole="header"
-        >
-          {currentSegment.segmentTitle}
-        </Text>
+        />
       </View>
     );
   }, [currentSegment, typeLabel, colors.primary, colors.onBackground]);
@@ -479,7 +503,7 @@ export default function ReadScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
-        title={hasHistory ? 'Zurück' : searchReturnActive ? 'Suche' : (currentSegment?.segmentTitle ?? 'Lesen')}
+        title={hasHistory ? 'Zurück' : searchReturnActive ? 'Suche' : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : 'Lesen')}
         titleStyle={(hasHistory || searchReturnActive) ? textStyles.labelTab : textStyles.chapterTitle}
         onBackPress={hasHistory ? navigateBack : searchReturnActive ? navigateToSearch : undefined}
       />
@@ -512,12 +536,11 @@ export default function ReadScreen() {
           disabled={!prevSegment}
         >
           <Ionicons name="chevron-back" size={16} color={prevSegment ? colors.primary : colors.onSurfaceVariant} />
-          <Text
+          <SegmentTitleText
+            title={prevSegment?.segmentTitle ?? ''}
             style={[typography.labelMedium, styles.chapNavText, { color: prevSegment ? colors.primary : colors.onSurfaceVariant }]}
             numberOfLines={1}
-          >
-            {prevSegment?.segmentTitle ?? ''}
-          </Text>
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -525,12 +548,11 @@ export default function ReadScreen() {
           onPress={() => nextSegment && navigateToRead({ segmentIndex: nextSegment.segmentIndex, paragraphId: null })}
           disabled={!nextSegment}
         >
-          <Text
+          <SegmentTitleText
+            title={nextSegment?.segmentTitle ?? ''}
             style={[typography.labelMedium, styles.chapNavText, { color: nextSegment ? colors.primary : colors.onSurfaceVariant, textAlign: 'right' }]}
             numberOfLines={1}
-          >
-            {nextSegment?.segmentTitle ?? ''}
-          </Text>
+          />
           <Ionicons name="chevron-forward" size={16} color={nextSegment ? colors.primary : colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
