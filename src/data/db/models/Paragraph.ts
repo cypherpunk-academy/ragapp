@@ -8,6 +8,7 @@ export default class Paragraph extends Model {
   @field('source_id')      sourceId!: string;
   @field('language')       language!: string | null;
   @field('segment_index')  segmentIndex!: number;
+  @field('segment_slug')   segmentSlug!: string | null;
   @field('segment_title')  segmentTitle!: string;
   @field('paragraph_number') paragraphNumber!: number;
   @field('text_raw')       textRaw!: string;

@@ -239,5 +239,29 @@ export const migrations = schemaMigrations({
         ),
       ],
     },
+    {
+      toVersion: 19,
+      steps: [
+        // paragraph_id = rag_paragraphs.id (UUID); segment_slug for stable chapter context.
+        addColumns({
+          table: 'paragraphs',
+          columns: [
+            { name: 'segment_slug', type: 'string', isOptional: true, isIndexed: true },
+          ],
+        }),
+        addColumns({
+          table: 'notes',
+          columns: [
+            { name: 'segment_slug', type: 'string', isOptional: true, isIndexed: true },
+          ],
+        }),
+        // Fresh start for notes (aligned with server wipe in 010_notes_segment_slug.sql).
+        unsafeExecuteSql('DELETE FROM notes;'),
+        // Re-pull paragraphs so segment_slug is populated from rag_paragraphs.
+        unsafeExecuteSql('DELETE FROM paragraphs;'),
+        unsafeExecuteSql("UPDATE local_storage SET value = '0' WHERE key = '__watermelon_last_pulled_at';"),
+        unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
+      ],
+    },
   ],
 });

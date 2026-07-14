@@ -42,7 +42,7 @@ Ohne `.env` laufen lokale Features (z. B. Seed-Korpus); Online-Features sind dea
 
 Kurz: Screens → Hooks → Services (online) / Repositories (offline) → `lib/`.
 
-Ausführliche Pläne: [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md).
+Ausführliche Pläne: [plans/ragapp-gesamtplan.md](./plans/ragapp-gesamtplan.md) · [plans/new-architecture-watermelondb.md](./plans/new-architecture-watermelondb.md) (NA-Migration).
 
 ## Design
 

@@ -76,6 +76,11 @@ export default function ReadScreen() {
     setLoading(true);
     setAllParagraphs([]);
     const sub = ParagraphRepository.observeBySource(sourceId).subscribe((ps) => {
+      // #region agent log
+      if (ps.length === 0 && sourceId) {
+        fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'eecb3c'},body:JSON.stringify({sessionId:'eecb3c',runId:'lecture-nav',location:'ReadScreen.tsx:observeBySource',message:'no paragraphs for sourceId',data:{sourceId,segmentIndex:target.segmentIndex,paragraphId:target.paragraphId},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      }
+      // #endregion
       setAllParagraphs(ps);
       setLoading(false);
     });
@@ -377,7 +382,7 @@ export default function ReadScreen() {
       await NoteRepository.create({
         userId: LOCAL_USER,
         paragraphId: paragraph.id,
-        segmentId: `${sourceId}:${paragraph.segmentIndex}`,
+        segmentSlug: paragraph.segmentSlug ?? undefined,
         sourceId: sourceId,
         content: trimmed,
       });

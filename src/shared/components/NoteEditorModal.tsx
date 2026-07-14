@@ -17,7 +17,7 @@ type Props = {
   /** Label shown above the input, e.g. "Absatz 3 · Kapitel I" */
   contextLabel?: string | null;
   paragraphId?: string | null;
-  segmentId?: string | null;
+  segmentSlug?: string | null;
   sourceId?: string | null;
   /** Pre-existing note to edit (omit for new note) */
   note?: Note | null;
@@ -25,7 +25,7 @@ type Props = {
 };
 
 export default function NoteEditorModal({
-  visible, onClose, contextLabel, paragraphId, segmentId, sourceId, note, onDeleted,
+  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, note, onDeleted,
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
@@ -46,7 +46,7 @@ export default function NoteEditorModal({
       await NoteRepository.create({
         userId: LOCAL_USER,
         paragraphId: paragraphId ?? undefined,
-        segmentId: segmentId ?? undefined,
+        segmentSlug: segmentSlug ?? undefined,
         sourceId: sourceId ?? undefined,
         content: trimmed,
       });

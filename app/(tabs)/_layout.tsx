@@ -101,6 +101,9 @@ function TabsInner() {
           readTarget={chunkPreview.readTarget}
           onClose={closeChunkPreview}
           onNavigateToRead={(target) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'eecb3c'},body:JSON.stringify({sessionId:'eecb3c',runId:'lecture-nav',location:'_layout.tsx:onNavigateToRead',message:'summary overlay navigate',data:target,timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+            // #endregion
             closeChunkPreview();
             navigateToRead({
               sourceId: target.sourceId,

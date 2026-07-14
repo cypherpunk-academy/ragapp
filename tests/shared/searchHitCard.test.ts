@@ -119,11 +119,11 @@ describe('buildSearchHitCard kapitel_zusammenfassung', () => {
     );
     expect(model.navigation).toMatchObject({
       kind: 'overlay',
-      readTarget: { sourceId: 'book-uuid', segmentIndex: 3 },
+      readTarget: { sourceId: 'book-uuid', segmentIndex: 2 },
     });
   });
 
-  it('includes readTarget for lecture summary at segment 0', () => {
+  it('includes readTarget for lecture summary with band segment_index', () => {
     const model = buildSearchHitCard(
       summaryResult({
         source_id: '7879ca81-485f-5163-92c8-337d39ca904f:summary',
@@ -136,7 +136,41 @@ describe('buildSearchHitCard kapitel_zusammenfassung', () => {
     );
     expect(model.navigation).toMatchObject({
       kind: 'overlay',
-      readTarget: { sourceId: '7879ca81-485f-5163-92c8-337d39ca904f', segmentIndex: 0 },
+      readTarget: { sourceId: '7879ca81-485f-5163-92c8-337d39ca904f', segmentIndex: 1 },
+    });
+  });
+
+  it('prefers lecture UUID over band parent_id for GA lecture summaries', () => {
+    expect(
+      resolveSummaryReadTarget(
+        summaryResult({
+          source_id: 'd9e44f3a-828f-50d5-8089-7e0f0461313f:summary',
+          parent_id: '2f5760e1-2dd1-4df7-b8c8-b215bedb5509',
+          source_index: 2,
+          source_type: 'lecture',
+          segment_title: 'ERSTER VORTRAG Stuttgart, 12. Februar 1921',
+        }),
+      ),
+    ).toEqual({
+      sourceId: 'd9e44f3a-828f-50d5-8089-7e0f0461313f',
+      segmentIndex: 1,
+    });
+  });
+
+  it('maps GA338 second lecture summary to segment_index 2 (19210213a)', () => {
+    expect(
+      resolveSummaryReadTarget(
+        summaryResult({
+          source_id: '94678119-0fb1-562c-be68-b9ed02cbdf30:summary',
+          parent_id: '94678119-0fb1-562c-be68-b9ed02cbdf30',
+          source_index: 3,
+          source_type: 'lecture',
+          segment_title: 'ZWEITER VORTRAG Stuttgart, 13. Februar 2021 (nachmittags)',
+        }),
+      ),
+    ).toEqual({
+      sourceId: '94678119-0fb1-562c-be68-b9ed02cbdf30',
+      segmentIndex: 2,
     });
   });
 });
@@ -147,7 +181,21 @@ describe('resolveSummaryReadTarget', () => {
       resolveSummaryReadTarget(
         summaryResult({ source_id: 'book-uuid:summary', source_index: 1, source_type: 'book' }),
       ),
-    ).toEqual({ sourceId: 'book-uuid', segmentIndex: 1 });
+    ).toEqual({ sourceId: 'book-uuid', segmentIndex: 0 });
+  });
+
+  it('maps 1-based chapter index to 0-based segment_index (GA 31 Mommsen)', () => {
+    expect(
+      resolveSummaryReadTarget(
+        summaryResult({
+          source_id: 'ga31:summary',
+          parent_id: 'ga31',
+          source_index: 23,
+          source_type: 'book',
+          segment_title: 'THEODOR MOMMSENS BRIEF AN DIE DEUTSCHEN ÖSTERREICHS',
+        }),
+      ),
+    ).toEqual({ sourceId: 'ga31', segmentIndex: 22 });
   });
 });
 

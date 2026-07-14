@@ -8,27 +8,15 @@ import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import {
+  buildParagraphById,
+  buildSegmentMap,
+  noteParagraphNumber,
+  noteSegmentSlug,
+  type SegmentMeta,
+} from '@/shared/lib/noteContext';
 import type Note from '@/data/db/models/Note';
 import type Paragraph from '@/data/db/models/Paragraph';
-
-type SegmentMeta = { segmentIndex: number; segmentTitle: string };
-
-/** Parses segmentIndex out of paragraphId ("source:segmentIndex:paragraphNumber") */
-function segmentIndexFromParagraphId(paragraphId: string | null): number | null {
-  if (!paragraphId) return null;
-  const parts = paragraphId.split(':');
-  if (parts.length < 3) return null;
-  const idx = parseInt(parts[1], 10);
-  return isNaN(idx) ? null : idx;
-}
-
-function paragraphNumberFromId(paragraphId: string | null): number | null {
-  if (!paragraphId) return null;
-  const parts = paragraphId.split(':');
-  if (parts.length < 3) return null;
-  const n = parseInt(parts[2], 10);
-  return isNaN(n) ? null : n;
-}
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -50,45 +38,32 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
       setLoading(false);
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [sourceId]);
 
   useEffect(() => {
     const sub = ParagraphRepository.observeBySource(sourceId).subscribe(setParagraphs);
     return () => sub.unsubscribe();
-  }, []);
+  }, [sourceId]);
 
-  // Build segment metadata map
-  const segmentMap = useMemo<Map<number, SegmentMeta>>(() => {
-    const m = new Map<number, SegmentMeta>();
-    for (const p of paragraphs) {
-      if (!m.has(p.segmentIndex)) {
-        m.set(p.segmentIndex, {
-          segmentIndex: p.segmentIndex,
-          segmentTitle: p.segmentTitle,
-          
-        });
-      }
-    }
-    return m;
-  }, [paragraphs]);
+  const paragraphById = useMemo(() => buildParagraphById(paragraphs), [paragraphs]);
+  const segmentMap = useMemo(() => buildSegmentMap(paragraphs), [paragraphs]);
 
-  // Group notes by segmentIndex (null = freie Notiz)
   const grouped = useMemo(() => {
-    const map = new Map<number | null, Note[]>();
+    const map = new Map<string | null, Note[]>();
     for (const note of notes) {
-      const segIdx = segmentIndexFromParagraphId(note.paragraphId);
-      const key = segIdx;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(note);
+      const slug = noteSegmentSlug(note, paragraphById);
+      if (!map.has(slug)) map.set(slug, []);
+      map.get(slug)!.push(note);
     }
-    // Sort groups: numbered segments ascending, then null at end
     const entries = Array.from(map.entries()).sort(([a], [b]) => {
       if (a === null) return 1;
       if (b === null) return -1;
-      return a - b;
+      const metaA = segmentMap.get(a);
+      const metaB = segmentMap.get(b);
+      return (metaA?.segmentIndex ?? 0) - (metaB?.segmentIndex ?? 0);
     });
     return entries;
-  }, [notes]);
+  }, [notes, paragraphById, segmentMap]);
 
   const handleEdit = (note: Note) => {
     setEditNote(note);
@@ -98,6 +73,16 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
   const handleCloseEditor = () => {
     setEditorOpen(false);
     setEditNote(null);
+  };
+
+  const contextLabelForNote = (note: Note): string => {
+    const slug = noteSegmentSlug(note, paragraphById);
+    const meta = slug ? segmentMap.get(slug) : null;
+    const paraNum = noteParagraphNumber(note, paragraphById);
+    if (paraNum !== null && meta) {
+      return `Absatz ${paraNum} · ${meta.segmentTitle}`;
+    }
+    return 'Notiz bearbeiten';
   };
 
   if (loading) {
@@ -124,11 +109,10 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
           </View>
         )}
 
-        {grouped.map(([segIdx, segNotes]) => {
-          const meta = segIdx !== null ? segmentMap.get(segIdx) : null;
+        {grouped.map(([segmentSlug, segNotes]) => {
+          const meta: SegmentMeta | undefined = segmentSlug ? segmentMap.get(segmentSlug) : undefined;
           return (
-            <View key={segIdx ?? 'free'} style={styles.group}>
-              {/* Segment-Header */}
+            <View key={segmentSlug ?? 'free'} style={styles.group}>
               <View style={styles.groupHeader}>
                 {meta ? (
                   <>
@@ -144,10 +128,9 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
                 )}
               </View>
 
-              {/* Notiz-Karten */}
               <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
                 {segNotes.map((note, i) => {
-                  const paraNum = paragraphNumberFromId(note.paragraphId);
+                  const paraNum = noteParagraphNumber(note, paragraphById);
                   return (
                     <React.Fragment key={note.id}>
                       {i > 0 && <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />}
@@ -183,24 +166,12 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
         })}
       </ScrollView>
 
-      {/* Editor Modal */}
       <NoteEditorModal
         visible={editorOpen}
         onClose={handleCloseEditor}
         onDeleted={handleCloseEditor}
         note={editNote}
-        contextLabel={
-          editNote?.paragraphId
-            ? (() => {
-                const segIdx = segmentIndexFromParagraphId(editNote.paragraphId);
-                const meta = segIdx !== null ? segmentMap.get(segIdx) : null;
-                const paraNum = paragraphNumberFromId(editNote.paragraphId);
-                return paraNum !== null && meta
-                  ? `Absatz ${paraNum} · ${meta.segmentTitle}`
-                  : 'Notiz bearbeiten';
-              })()
-            : 'Notiz bearbeiten'
-        }
+        contextLabel={editNote ? contextLabelForNote(editNote) : 'Notiz bearbeiten'}
       />
     </View>
   );

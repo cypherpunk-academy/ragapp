@@ -311,7 +311,7 @@ export default function ContributionsScreen({
             note={editNote}
             contextLabel={contextLabel}
             paragraphId={paragraph.id}
-            segmentId={`${sourceId}:${paragraph.segmentIndex}`}
+            segmentSlug={paragraph.segmentSlug ?? undefined}
             sourceId={sourceId}
             onDeleted={() => { setEditorOpen(false); setEditNote(null); }}
           />

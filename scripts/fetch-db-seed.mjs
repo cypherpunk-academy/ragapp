@@ -66,7 +66,7 @@ const PAGE = 1000;
 while (true) {
   const { data, error } = await supabase
     .from('rag_paragraphs')
-    .select('id, source_id, language, segment_index, segment_title, paragraph_number, text_raw, annotations, deprecated_at, created_at, updated_at')
+    .select('id, source_id, language, segment_index, segment_slug, segment_title, paragraph_number, text_raw, annotations, deprecated_at, created_at, updated_at')
     .range(from, from + PAGE - 1);
   if (error) {
     console.error('rag_paragraphs query failed:', error.message);
@@ -95,6 +95,7 @@ const mapParagraph = (r) => ({
   source_id: r.source_id,
   language: r.language ?? null,
   segment_index: r.segment_index,
+  segment_slug: r.segment_slug ?? null,
   segment_title: r.segment_title,
   paragraph_number: r.paragraph_number,
   text_raw: r.text_raw,

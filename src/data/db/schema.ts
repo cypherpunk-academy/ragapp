@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 18,
+  version: 19,
   tables: [
     tableSchema({
       name: 'sources',
@@ -23,6 +23,7 @@ export const schema = appSchema({
         { name: 'source_id',        type: 'string', isIndexed: true },
         { name: 'language',         type: 'string', isOptional: true },
         { name: 'segment_index',    type: 'number' },
+        { name: 'segment_slug',     type: 'string', isOptional: true, isIndexed: true },
         { name: 'segment_title',    type: 'string' },
         { name: 'paragraph_number', type: 'number', isIndexed: true },
         { name: 'text_raw',         type: 'string' },
@@ -37,6 +38,7 @@ export const schema = appSchema({
       columns: [
         { name: 'user_id',      type: 'string', isIndexed: true },
         { name: 'paragraph_id', type: 'string', isIndexed: true, isOptional: true },
+        { name: 'segment_slug', type: 'string', isOptional: true, isIndexed: true },
         { name: 'source_id',    type: 'string', isOptional: true },
         { name: 'content',      type: 'string' },
         { name: 'is_public',    type: 'boolean' },

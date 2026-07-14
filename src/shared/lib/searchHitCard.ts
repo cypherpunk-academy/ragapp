@@ -135,28 +135,56 @@ export type SearchHitNavigation =
     }
   | { kind: 'none' };
 
+/** Summary ingest stores 1-based chapter.index; rag_paragraphs use 0-based segment_index. */
+export function summaryChapterIndexToSegmentIndex(chapterIndex: number): number {
+  return Math.max(0, chapterIndex - 1);
+}
+
 /** Body-Quelle und Segment für Navigation aus Summary-Suchtreffer. */
-export function resolveSummaryReadTarget(result: SearchResult): SummaryReadTarget | undefined {
+export function resolveSummaryBodySourceId(result: SearchResult): string | undefined {
   const summarySourceId = result.source_id?.trim();
   if (!summarySourceId) return undefined;
 
-  const bodySourceId =
+  // Lecture summaries: parent_id is often the GA band book_id; paragraphs live under lecture UUID.
+  if (isVortragSource(result) && summarySourceId.endsWith(':summary')) {
+    return summarySourceId.slice(0, -':summary'.length);
+  }
+
+  return (
     result.parent_id?.trim()
     || (summarySourceId.endsWith(':summary')
       ? summarySourceId.slice(0, -':summary'.length)
-      : summarySourceId);
+      : summarySourceId)
+  );
+}
+
+/** Body-Quelle und Segment für Navigation aus Summary-Suchtreffer. */
+export function resolveSummaryReadTarget(result: SearchResult): SummaryReadTarget | undefined {
+  const bodySourceId = resolveSummaryBodySourceId(result);
   if (!bodySourceId) return undefined;
 
   if (isVortragSource(result)) {
-    return { sourceId: bodySourceId, segmentIndex: 0 };
+    // Body lives under lecture UUID, but rag_paragraphs.segment_index is still the
+    // 0-based GA-band chapter index (same as books: source_index 1-based → segment - 1).
+    const chapterIndex = result.source_index ?? result.segment_index;
+    const segmentIndex =
+      typeof chapterIndex === 'number' && Number.isFinite(chapterIndex)
+        ? summaryChapterIndexToSegmentIndex(chapterIndex)
+        : 0;
+    const target = { sourceId: bodySourceId, segmentIndex };
+    // #region agent log
+    fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'eecb3c'},body:JSON.stringify({sessionId:'eecb3c',runId:'lecture-nav-postfix',location:'searchHitCard.ts:resolveSummaryReadTarget',message:'lecture summary nav target',data:{summarySourceId:result.source_id,parentId:result.parent_id,sourceIndex:result.source_index,target},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+    return target;
   }
 
   const chapterIndex = result.source_index ?? result.segment_index;
-  return {
-    sourceId: bodySourceId,
-    segmentIndex:
-      typeof chapterIndex === 'number' && Number.isFinite(chapterIndex) ? chapterIndex : null,
-  };
+  const segmentIndex =
+    typeof chapterIndex === 'number' && Number.isFinite(chapterIndex)
+      ? summaryChapterIndexToSegmentIndex(chapterIndex)
+      : null;
+
+  return { sourceId: bodySourceId, segmentIndex };
 }
 
 export type SearchHitCardBodyMode = 'truncated_text' | 'full_quote';
