@@ -1,10 +1,10 @@
 import { Alert } from 'react-native';
 
-/** Native Bestätigung vor dem Löschen einer Notiz. */
+/** Native Bestätigung vor dem Löschen eines Arbeitstexts. */
 export function confirmDeleteNote(onConfirm: () => void): void {
   Alert.alert(
-    'Notiz löschen?',
-    'Diese Notiz wird unwiderruflich gelöscht.',
+    'Arbeitstext löschen?',
+    'Dieser Arbeitstext wird unwiderruflich gelöscht.',
     [
       { text: 'Abbrechen', style: 'cancel' },
       { text: 'Löschen', style: 'destructive', onPress: onConfirm },

@@ -27,7 +27,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 export type { ContributionsTab };
 
 const TABS: { id: ContributionsTab; label: string }[] = [
-  { id: 'notes', label: 'Notizen' },
+  { id: 'notes', label: 'Arbeitstexte' },
   { id: 'conversations', label: 'Gespräche' },
 ];
 
@@ -118,7 +118,7 @@ export default function ContributionsScreen({
     [paragraph],
   );
 
-  /** Lange Notizen: Karteninhalt scrollbar statt unbegrenzt hoch. */
+  /** Lange Arbeitstexte: Karteninhalt scrollbar statt unbegrenzt hoch. */
   const notePreviewMaxHeight = Math.round(windowHeight * 0.38);
 
   const handleOpenInReader = useCallback(() => {
@@ -187,7 +187,7 @@ export default function ContributionsScreen({
         <View style={[styles.scroll, styles.content]}>
           <View style={[styles.authGateCard, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
-              Notizen und Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar und bearbeitbar.
+              Arbeitstexte und Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar und bearbeitbar.
             </Text>
             {!isConfigured ? (
               <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.s }]}>
@@ -231,7 +231,7 @@ export default function ContributionsScreen({
                 {notes.length === 0 && (
                   <View style={styles.emptyNotes}>
                     <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-                      Noch keine Notizen zu diesem Absatz.
+                      Noch keine Arbeitstexte zu diesem Absatz.
                     </Text>
                     <TouchableOpacity
                       style={[styles.createNoteBtn, { backgroundColor: colors.primary }]}
@@ -239,7 +239,7 @@ export default function ContributionsScreen({
                       activeOpacity={0.85}
                     >
                       <Ionicons name="pencil-outline" size={20} color={colors.onPrimary} />
-                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Notiz erstellen</Text>
+                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Arbeitstext erstellen</Text>
                     </TouchableOpacity>
                   </View>
                 )}

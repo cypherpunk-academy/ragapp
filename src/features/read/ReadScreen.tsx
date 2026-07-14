@@ -76,11 +76,6 @@ export default function ReadScreen() {
     setLoading(true);
     setAllParagraphs([]);
     const sub = ParagraphRepository.observeBySource(sourceId).subscribe((ps) => {
-      // #region agent log
-      if (ps.length === 0 && sourceId) {
-        fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'eecb3c'},body:JSON.stringify({sessionId:'eecb3c',runId:'lecture-nav',location:'ReadScreen.tsx:observeBySource',message:'no paragraphs for sourceId',data:{sourceId,segmentIndex:target.segmentIndex,paragraphId:target.paragraphId},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      }
-      // #endregion
       setAllParagraphs(ps);
       setLoading(false);
     });
@@ -597,7 +592,7 @@ export default function ReadScreen() {
                 <TouchableOpacity style={styles.menuRow} onPress={handleOpenNoteEditor}>
                   <Ionicons name="pencil-outline" size={20} color={colors.primary} />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    Notiz erstellen
+                    Arbeitstext erstellen
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={handleStartChatFromMenu}>
@@ -639,7 +634,7 @@ export default function ReadScreen() {
                   scrollEnabled
                   textAlignVertical="top"
                   autoFocus
-                  placeholder="Notiz eingeben..."
+                  placeholder="Arbeitstext eingeben..."
                   placeholderTextColor={colors.outline}
                   value={noteContent}
                   onChangeText={setNoteContent}

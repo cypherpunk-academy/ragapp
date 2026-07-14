@@ -263,5 +263,18 @@ export const migrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM local_storage WHERE key = '__watermelon_last_pulled_schema_version';"),
       ],
     },
+    {
+      toVersion: 20,
+      steps: [
+        // notes: turn_id/talk_id — Herkunft aus Chat (Filo §5.1/§5.5), unabhängig vom Korpus-Bezug.
+        addColumns({
+          table: 'notes',
+          columns: [
+            { name: 'turn_id', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'talk_id', type: 'string', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

@@ -35,6 +35,14 @@ export const ICONS = {
     quote: 'format-quote' as MaterialIconName,
     summary: 'summarize' as MaterialIconName,
     bookmark: 'bookmark' as MaterialIconName,
+    general: 'notes' as MaterialIconName,
+  },
+  arbeitstext: {
+    attach: 'attach-file' as MaterialIconName,
+    preview: 'visibility' as MaterialIconName,
+    edit: 'edit' as MaterialIconName,
+    undo: 'undo' as MaterialIconName,
+    detach: 'link-off' as MaterialIconName,
   },
   status: {
     offline: 'cloud-off' as MaterialIconName,

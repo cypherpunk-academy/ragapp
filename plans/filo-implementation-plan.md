@@ -109,7 +109,8 @@ flowchart TB
 
 **Blockiert durch:** nichts  
 **Liefert:** UI-Gerüst für alles Weitere  
-**Backend:** nicht nötig
+**Backend:** nicht nötig  
+**Status:** **erledigt** (Jul 2026, lokal uncommitted bis Commit)
 
 ---
 
@@ -128,7 +129,9 @@ Zwei **parallele Tracks**:
 | 2a.3 | `arbeitstextContext.ts` | Filo §5.1, Phase G |
 | 2a.4 | Header-📎-Sheet (verknüpfen / neu) | Filo §6, Phase G/H |
 | 2a.5 | Preview-Overlay, Rohtext-Editor, Chip (UI only) | Filo Phase H |
-| 2a.6 | `applyDocumentUpdate.ts`, `materializeDocument.ts`, `documentUndoStack` | Contract §5, Filo Phase G |
+| 2a.6 | `applyDocumentUpdate.ts`, `materializeDocument.ts`, `dispatchToolEffects`, `documentUndoStack` | Contract §5, Filo Phase G |
+
+**Status Track 2a:** **erledigt** (Jul 2026). Offen für Welle 4: `document_outline` im Chat-Request; Doppelmatrix-Fixture-Tests.
 
 #### Track 2b — ragrun
 
@@ -211,10 +214,10 @@ Reihenfolge flexibel nach Welle 3/4; untereinander weitgehend unabhängig:
 
 ## 6. Meilensteine (für Reviews)
 
-| ID | Name | Welle | Akzeptanzkriterium |
-|---|---|---|---|
-| **M1** | Filo-Shell | 1 | Filo Tab 0; CHAT/GESPRÄCHE/ARBEITSTEXTE navigierbar |
-| **M2** | Arbeitstexte manuell | 2 | Bibliothek + Vorschau + Editor; 📎 verknüpft (ohne LLM-Patch) |
+| ID | Name | Welle | Akzeptanzkriterium | Status |
+|---|---|---|---|---|
+| **M1** | Filo-Shell | 1 | Filo Tab 0; CHAT/GESPRÄCHE/ARBEITSTEXTE navigierbar | **erledigt** (lokal, Jul 2026) |
+| **M2** | Arbeitstexte manuell | 2a | Bibliothek + Vorschau + Editor; 📎 verknüpft (ohne LLM-Patch) | **erledigt** (lokal, Jul 2026) |
 | **M3** | RAG-Chat live | 3 | Stream-Antwort mit Citations; Turns in WDB |
 | **M4** | Sprach-Patch | 4 | `update_document` materialisiert lokal; Chip „aktualisiert" |
 | **M5** | MVP komplett | 5a–d | Pin, Kontext, Modi, Turn-Edit |

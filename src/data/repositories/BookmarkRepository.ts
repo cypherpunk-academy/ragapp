@@ -51,6 +51,11 @@ export const BookmarkRepository = {
       );
   },
 
+  /** Letzte Lesestelle über alle Quellen hinweg — für den WEITERLESEN-Hinweis im Filo-Tab. */
+  observeGlobalLastRead() {
+    return collection.query(Q.where('is_last_read', true)).observe();
+  },
+
   observeManualBookmarks(sourceId: string) {
     return collection
       .query(Q.where('source_id', sourceId), Q.where('is_manual', true))

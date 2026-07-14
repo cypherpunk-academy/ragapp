@@ -16,11 +16,21 @@ export const NoteRepository = {
     return collection.query(Q.where('source_id', sourceId), Q.sortBy('created_at', Q.desc)).observe();
   },
 
+  async findById(id: string): Promise<Note | null> {
+    try {
+      return await collection.find(id);
+    } catch {
+      return null;
+    }
+  },
+
   async create(data: {
     userId: string;
     paragraphId?: string;
     segmentSlug?: string;
     sourceId?: string;
+    turnId?: string;
+    talkId?: string;
     content: string;
   }): Promise<Note> {
     return database.write(async () =>
@@ -29,6 +39,8 @@ export const NoteRepository = {
         note.paragraphId = data.paragraphId ?? null;
         note.segmentSlug = data.segmentSlug ?? null;
         note.sourceId = data.sourceId ?? null;
+        note.turnId = data.turnId ?? null;
+        note.talkId = data.talkId ?? null;
         note.content = data.content;
         note.isPublic = false;
       }),

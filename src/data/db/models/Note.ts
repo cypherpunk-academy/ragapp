@@ -8,6 +8,8 @@ export default class Note extends Model {
   @field('paragraph_id') paragraphId!: string | null;
   @field('segment_slug') segmentSlug!: string | null;
   @field('source_id')    sourceId!: string | null;
+  @field('turn_id')      turnId!: string | null;
+  @field('talk_id')      talkId!: string | null;
   @field('content')      content!: string;
   @field('is_public')    isPublic!: boolean;
   @readonly @date('created_at') createdAt!: Date;

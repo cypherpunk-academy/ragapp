@@ -65,7 +65,7 @@ export default function NoteEditorModal({
 
   if (!visible) return null;
 
-  const label = contextLabel ?? (note ? 'Notiz bearbeiten' : 'Neue Notiz');
+  const label = contextLabel ?? (note ? 'Arbeitstext bearbeiten' : 'Neuer Arbeitstext');
 
   return (
     <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
@@ -90,7 +90,7 @@ export default function NoteEditorModal({
             scrollEnabled
             textAlignVertical="top"
             autoFocus
-            placeholder="Notiz eingeben..."
+            placeholder="Arbeitstext eingeben..."
             placeholderTextColor={colors.outline}
             value={content}
             onChangeText={setContent}

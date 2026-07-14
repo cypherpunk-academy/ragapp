@@ -1,18 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AppBar from '@/shared/components/AppBar';
-import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
-import { useReading } from '@/shared/contexts/ReadingContext';
+import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
-import TalkCard from '@/shared/components/TalkCard';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import AppIcon from '@/shared/components/AppIcon';
+import ArbeitstextLinkSheet from '@/shared/components/ArbeitstextLinkSheet';
+import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
+import { extractDocumentTitle } from '@/data/lib/documentTree';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
+import type Note from '@/data/db/models/Note';
 
 const LOCAL_USER = 'local';
 
@@ -29,51 +32,47 @@ function personalityLabel(slug: string | null | undefined): string {
   return PERSONALITY_LABELS[slug] ?? slug;
 }
 
-export default function ChatScreen() {
+type Props = {
+  activeTalkId: string | null;
+  onActiveTalkChange: (talkId: string) => void;
+  /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten“). */
+  linkNoteId?: string | null;
+  onLinkNoteConsumed?: () => void;
+};
+
+/** CHAT-Segment des Filo-Tabs: aktives Gespräch oder Leerzustand mit Eingabefeld. */
+export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
-  const { chatTalkId, navigateToChatWithTalk } = useReading();
 
-  const [activeTalkId, setActiveTalkId] = useState<string | null>(null);
   const [talk, setTalk] = useState<Talk | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [allTalks, setAllTalks] = useState<Talk[]>([]);
-  const [talkSnippets, setTalkSnippets] = useState<Map<string, Turn | null>>(new Map());
-  const [searchQuery, setSearchQuery] = useState('');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
-  const [loadingTalks, setLoadingTalks] = useState(true);
   const [copying, setCopying] = useState(false);
+  const [linkedNote, setLinkedNote] = useState<Note | null>(null);
+  const [linkSheetVisible, setLinkSheetVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Wenn chatTalkId aus dem Context kommt, direkt laden
+  // Arbeitstext-Verknüpfung ist chat-lokal (Filo §6, max. 1 Dokument) — beim Wechsel des Gesprächs zurücksetzen.
   useEffect(() => {
-    if (chatTalkId) {
-      setActiveTalkId(chatTalkId);
-    }
-  }, [chatTalkId]);
+    setLinkedNote(null);
+  }, [activeTalkId]);
 
-  // Alle Talks für die Dropdown-Auswahl beobachten
+  // „In Gespräch bearbeiten“ aus der Arbeitstexte-Bibliothek: Arbeitstext direkt verknüpfen.
   useEffect(() => {
-    const sub = TalkRepository.observeAll().subscribe(async (talks) => {
-      setAllTalks(talks);
-      setLoadingTalks(false);
-      // Snippet-Turns für alle Talks laden
-      const snippets = new Map<string, Turn | null>();
-      await Promise.all(
-        talks.map(async (t) => {
-          const first = await TurnRepository.findFirstByTalk(t.id);
-          snippets.set(t.id, first);
-        }),
-      );
-      setTalkSnippets(new Map(snippets));
+    if (!linkNoteId) return;
+    let cancelled = false;
+    void NoteRepository.findById(linkNoteId).then((note) => {
+      if (!cancelled && note) setLinkedNote(note);
+      onLinkNoteConsumed?.();
     });
-    return () => sub.unsubscribe();
-  }, []);
+    return () => { cancelled = true; };
+  }, [linkNoteId, onLinkNoteConsumed]);
 
-  // Aktives Gespräch + Turns laden
   useEffect(() => {
     if (!activeTalkId) {
       setTalk(null);
@@ -97,141 +96,137 @@ export default function ChatScreen() {
     };
   }, [activeTalkId]);
 
-  // Nach neuen Turns ans Ende scrollen
   useEffect(() => {
     if (turns.length > 0) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [turns.length]);
 
-  const filteredTalks = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return allTalks;
-    return allTalks.filter(
-      (t) => t.title?.toLowerCase().includes(q) || t.summary?.toLowerCase().includes(q),
-    );
-  }, [allTalks, searchQuery]);
-
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || !activeTalkId || sending) return;
+    if (!text || sending) return;
 
     setInputText('');
     setSending(true);
     try {
-      const nextIndex = turns.length;
-      // Neuen Turn lokal anlegen (API-Integration folgt in späterer Phase)
+      const isNewTalk = !activeTalkId;
+      let talkId = activeTalkId;
+      if (isNewTalk) {
+        const newTalk = await TalkRepository.create({ userId: LOCAL_USER, title: text.slice(0, 60) });
+        talkId = newTalk.id;
+        onActiveTalkChange(talkId);
+      }
       await TurnRepository.create({
-        talkId: activeTalkId,
-        turnIndex: nextIndex,
+        talkId: talkId!,
+        turnIndex: isNewTalk ? 0 : turns.length,
         userMessage: text,
         personality: 'assistant-host',
         assistantMessage: undefined,
       });
-      // TODO: ragrun-API aufrufen und assistantMessage updaten
+      // TODO: ragrun-API aufrufen und assistantMessage updaten (Welle 3a/3b)
     } catch {
       Alert.alert('Fehler', 'Nachricht konnte nicht gesendet werden.');
       setInputText(text);
     } finally {
       setSending(false);
     }
-  }, [inputText, activeTalkId, sending, turns.length]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange]);
 
   const handleKopieren = useCallback(async () => {
     if (!activeTalkId) return;
     setCopying(true);
     try {
       const newTalk = await TalkRepository.copyTalk(activeTalkId);
-      navigateToChatWithTalk(newTalk.id);
+      onActiveTalkChange(newTalk.id);
     } catch {
       Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
     } finally {
       setCopying(false);
     }
-  }, [activeTalkId, navigateToChatWithTalk]);
+  }, [activeTalkId, onActiveTalkChange]);
 
   const handleSchnittHier = useCallback(async (maxTurnIndex: number) => {
     if (!activeTalkId) return;
     setCopying(true);
     try {
       const newTalk = await TalkRepository.copyTalk(activeTalkId, { maxTurnIndex });
-      navigateToChatWithTalk(newTalk.id);
+      onActiveTalkChange(newTalk.id);
     } catch {
       Alert.alert('Fehler', 'Konnte nicht schneiden.');
     } finally {
       setCopying(false);
     }
-  }, [activeTalkId, navigateToChatWithTalk]);
+  }, [activeTalkId, onActiveTalkChange]);
 
-  // ─── Gespräch-Auswahl-Screen ─────────────────────────────────────────────
-  if (!activeTalkId) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <AppBar title="KI-Gespräch" />
-        <View style={styles.selectorBody}>
-          <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}>
-            <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Gespräch suchen…"
-              placeholderTextColor={colors.onSurfaceVariant}
-              style={[typography.bodyMedium, styles.searchInput, { color: colors.onSurface }]}
-            />
-          </View>
-        </View>
+  const handleLinkDocument = useCallback((note: Note) => {
+    setLinkedNote(note);
+    setLinkSheetVisible(false);
+  }, []);
 
-        {loadingTalks ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : filteredTalks.length === 0 ? (
-          <View style={styles.center}>
-            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              {searchQuery ? 'Keine Gespräche gefunden.' : 'Noch keine Gespräche vorhanden.'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredTalks}
-            keyExtractor={(t) => t.id}
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => (
-              <TalkCard
-                talk={item}
-                snippetTurn={talkSnippets.get(item.id) ?? null}
-                onPress={() => setActiveTalkId(item.id)}
-              />
-            )}
-          />
-        )}
-      </View>
-    );
-  }
+  const handleDetachDocument = useCallback(() => {
+    setLinkedNote(null);
+    setPreviewVisible(false);
+  }, []);
 
-  // ─── Aktives Gespräch ────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
-      <AppBar
-        title={talk?.title ?? 'Gespräch'}
-        onBackPress={() => setActiveTalkId(null)}
-        trailing={(
-          <TouchableOpacity
-            onPress={handleKopieren}
-            disabled={copying}
-            hitSlop={8}
-            style={styles.overflowBtn}
-          >
-            <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
-          </TouchableOpacity>
-        )}
-      />
+      {(activeTalkId && talk) || linkedNote ? (
+        <>
+          {activeTalkId && talk ? (
+            <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
+              <Text
+                style={[textStyles.labelSection, styles.talkTitle, { color: colors.onSurface }]}
+                numberOfLines={1}
+              >
+                {talk.title ?? 'Gespräch'}
+              </Text>
+              <TouchableOpacity onPress={() => setLinkSheetVisible(true)} hitSlop={8}>
+                <AppIcon
+                  name={ICONS.arbeitstext.attach}
+                  size={ICON_SIZES.menu}
+                  color={linkedNote ? colors.primary : colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleKopieren} disabled={copying} hitSlop={8}>
+                <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
+              <Text style={[textStyles.labelSection, styles.talkTitle, { color: colors.onSurfaceVariant }]}>
+                Neues Gespräch
+              </Text>
+              <TouchableOpacity onPress={() => setLinkSheetVisible(true)} hitSlop={8}>
+                <AppIcon
+                  name={ICONS.arbeitstext.attach}
+                  size={ICON_SIZES.menu}
+                  color={linkedNote ? colors.primary : colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          {linkedNote && (
+            <TouchableOpacity
+              style={[styles.chip, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]}
+              onPress={() => setPreviewVisible(true)}
+              activeOpacity={0.8}
+            >
+              <AppIcon name={ICONS.arbeitstext.preview} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
+              <Text style={[textStyles.noteMeta, { color: colors.onSurface, flex: 1 }]} numberOfLines={1}>
+                {extractDocumentTitle(linkedNote.content)}
+              </Text>
+              <TouchableOpacity onPress={handleDetachDocument} hitSlop={8}>
+                <AppIcon name={ICONS.arbeitstext.detach} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+        </>
+      ) : null}
 
-      {/* Turn-Liste */}
       <FlatList
         ref={flatListRef}
         data={turns}
@@ -312,6 +307,20 @@ export default function ChatScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <ArbeitstextLinkSheet
+        visible={linkSheetVisible}
+        onClose={() => setLinkSheetVisible(false)}
+        onLink={handleLinkDocument}
+        talkId={activeTalkId}
+      />
+      {previewVisible && (
+        <DocumentPreviewOverlay
+          note={linkedNote}
+          onClose={() => setPreviewVisible(false)}
+          onDetach={handleDetachDocument}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -319,22 +328,21 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  selectorBody: {
-    paddingHorizontal: spacing.m,
-    paddingBottom: spacing.s,
-    gap: spacing.s,
-  },
-  searchBar: {
+  talkHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    gap: spacing.s,
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
-    gap: spacing.s,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  searchInput: { flex: 1 },
-  listContent: { padding: spacing.m, gap: spacing.m },
-  overflowBtn: { padding: spacing.xs },
+  talkTitle: { flex: 1 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    marginHorizontal: spacing.m, marginTop: spacing.s,
+    paddingHorizontal: spacing.s, paddingVertical: spacing.xs,
+    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+  },
   turnListContent: { padding: spacing.m, gap: spacing.l, flexGrow: 1 },
   turnBlock: { gap: spacing.s },
   bubble: { borderRadius: 12, padding: spacing.m, gap: spacing.xs },

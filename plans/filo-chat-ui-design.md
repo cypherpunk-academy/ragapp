@@ -646,11 +646,11 @@ Migrationen: WDB v18 → v19 (`segment_slug`, `turn_id`, `talk_id` auf `notes`) 
 Reihenfolge nach Risiko/Abhängigkeit — **gesamtübergreifende Reihenfolge und Meilensteine:** [filo-implementation-plan.md](./filo-implementation-plan.md). Phasen-Mapping ragapp ↔ ragrun: [filo-arbeitstext-contract.md](./filo-arbeitstext-contract.md) §7.
 
 ### Phase A — Navigation & Grundgerüst
-- [ ] Tab-Reihenfolge ändern: Filo auf Index 0, `TAB_INDEX_*`-Konstanten in `ReadingContext.tsx` anpassen (inkl. neuer `TAB_INDEX_OVERVIEW`-Konstante, bisher implizit 0)
-- [ ] `TabBar.TABS` neu sortieren
-- [ ] `_layout.tsx`: `setInitialPage`-Fallback (`Number(val) === 1` → `=== TAB_INDEX_READ`) und `handleTabPress`s `index === 0`-Check (→ `index === TAB_INDEX_OVERVIEW`) auf benannte Konstanten umstellen
-- [ ] `ChatScreen.tsx` in **CHAT / GESPRÄCHE / ARBEITSTEXTE** aufteilen
-- [ ] WEITERLESEN-Hinweis im Filo-Tab einblenden (`continueReadingLabel()` wiederverwenden)
+- [x] Tab-Reihenfolge ändern: Filo auf Index 0, `TAB_INDEX_*`-Konstanten in `ReadingContext.tsx` anpassen (inkl. neuer `TAB_INDEX_OVERVIEW`-Konstante, bisher implizit 0)
+- [x] `TabBar.TABS` neu sortieren
+- [x] `_layout.tsx`: `setInitialPage`-Fallback und `handleTabPress` auf benannte Konstanten (`TAB_INDEX_READ`, `TAB_INDEX_OVERVIEW`)
+- [x] `ChatScreen.tsx` → **FiloScreen** + CHAT / GESPRÄCHE / ARBEITSTEXTE
+- [x] WEITERLESEN-Hinweis im Filo-Tab einblenden (`continueReadingLabel()` wiederverwenden)
 
 ### Phase B — Streaming-Backend & RAG-Vereinheitlichung
 - [ ] **`app_chat_stream_service.py`:** App-Adapter — `assistant_chat_graph` + Talk-Historie aus `rag_turns` + App-Inputs (`context_mode`, `mode`, `model`, …); **`mode` → `thinking.type`** via `providers.py`-Semantik
@@ -691,22 +691,23 @@ Reihenfolge nach Risiko/Abhängigkeit — **gesamtübergreifende Reihenfolge und
 
 ### Phase G — Arbeitstexte
 - [x] Schema-Migration `notes.segment_slug` (WDB v19 + Supabase `010_notes_segment_slug.sql`) — **erledigt**
-- [ ] `turn_id` / `talk_id` auf `notes` (WDB + Supabase)
-- [ ] `documentLimits.ts` — `MAX_DOCUMENT_CHARS = 50_000`
-- [ ] `documentTree.ts` — parse, outline, serialize, patch (Contract §2)
-- [ ] `ArbeitstexteScreen` (Bibliothek) + Kontext-Filter (§ 5.1) + Titelsuche + Sortierung + Aktionsmenü (Vorschau / In Gespräch bearbeiten) + `DocumentMarkdownView` (keine Tabellen)
-- [ ] `arbeitstextContext.ts` — `classifyArbeitstextContext`, `filterByContextTier`, Sortierung
-- [ ] Header-📎-Sheet: verknüpfen / neu
-- [ ] `applyDocumentUpdate.ts`, `materializeDocument.ts`, `dispatchToolEffects`, `documentUndoStack` (Contract §5)
-- [ ] `document_outline` + `linked_document_content` im Chat-Request; ragrun T1: Tool-Handler ([filo-arbeitstext-contract.md](./filo-arbeitstext-contract.md) §3–4)
+- [x] `turn_id` / `talk_id` auf `notes` (WDB v20 + Supabase `011_notes_turn_talk.sql`)
+- [x] `documentLimits.ts` — `MAX_DOCUMENT_CHARS = 50_000`
+- [x] `documentTree.ts` — parse, outline, serialize, patch (Contract §2)
+- [x] `ArbeitstexteScreen` (Bibliothek) + Kontext-Filter (§ 5.1) + Titelsuche + Sortierung + Aktionsmenü (Vorschau) + `DocumentMarkdownView` (keine Tabellen)
+- [x] `arbeitstextContext.ts` — `classifyArbeitstextContext`, `filterByContextTier`, Sortierung
+- [x] Header-📎-Sheet: verknüpfen / neu (`ArbeitstextLinkSheet` in `ChatTab`)
+- [x] `applyDocumentUpdate.ts`, `materializeDocument.ts`, `dispatchToolEffects` (`data/tools/index.ts`), `documentUndoStack`
+- [x] **In Gespräch bearbeiten** aus Bibliothek → CHAT + 📎 verdrahten (`FiloScreen` → `ChatTab.linkNoteId`)
+- [ ] `document_outline` + `linked_document_content` im Chat-Request; ragrun T1: Tool-Handler (Welle 4)
 - [ ] Doppelmatrix-Härtetest-Fixture (listenbasierte Version ohne Tabellen)
 
 ### Phase H — Arbeitstext im Chat-Kontext
-- [ ] Arbeitstext-Chip unter Header (Titel, tap → Overlay)
-- [ ] Preview-Overlay: gerendertes Markdown, Undo, Loslösen, ✏️ Bearbeiten
-- [ ] Vollbild-Rohtext-Editor (aus Vorschau-Overlay ✏️, nicht eigener Detail-Screen)
-- [ ] `linkedDocumentId` in Talk-State / `talks.kontext_meta`
-- [ ] „aktualisiert"-Chip nach Patch; Scroll zur geänderten Stelle im Overlay
+- [x] Arbeitstext-Chip unter Header (Titel, tap → Overlay) — `ChatTab`, chat-lokal
+- [x] Preview-Overlay: gerendertes Markdown, Undo, Loslösen, ✏️ Bearbeiten — `DocumentPreviewOverlay`
+- [x] Vollbild-Rohtext-Editor (aus Vorschau-Overlay ✏️) — `NoteEditorModal`
+- [ ] `linkedDocumentId` in Talk-State / `talks.kontext_meta` (persistiert; heute nur lokaler State)
+- [ ] „aktualisiert"-Chip nach Patch; Scroll zur geänderten Stelle im Overlay (Welle 4)
 
 ---
 

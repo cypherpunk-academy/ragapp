@@ -84,9 +84,10 @@ type ReadingContextValue = {
 const LAST_SOURCE_KEY = 'lastActiveSourceId';
 
 /** Synchron zu PagerView-Reihenfolge in app/(tabs)/_layout.tsx */
-const TAB_INDEX_READ = 1;
-const TAB_INDEX_CHAT = 2;
-const TAB_INDEX_SEARCH = 3;
+export const TAB_INDEX_CHAT = 0;
+export const TAB_INDEX_OVERVIEW = 1;
+export const TAB_INDEX_READ = 2;
+export const TAB_INDEX_SEARCH = 3;
 
 const ReadingContext = createContext<ReadingContextValue>({
   target: { sourceId: '', segmentIndex: null, paragraphId: null, markerOffset: null, navSeq: 0 },
