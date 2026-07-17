@@ -276,5 +276,15 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 21,
+      steps: [
+        // v19 wiped paragraphs then seedLoader re-injected legacy composite IDs from db-snapshot;
+        // sync added UUID rag_paragraphs rows → every paragraph twice (see migration v18).
+        unsafeExecuteSql(
+          "DELETE FROM paragraphs WHERE length(id) != 36 OR substr(id,9,1) != '-' OR substr(id,14,1) != '-' OR substr(id,19,1) != '-' OR substr(id,24,1) != '-';",
+        ),
+      ],
+    },
   ],
 });

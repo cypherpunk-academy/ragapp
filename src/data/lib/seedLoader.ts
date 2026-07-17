@@ -14,6 +14,19 @@ import snapshot from '../../../assets/seed/db-snapshot.json';
 
 export const seedSnapshotTimestamp = snapshot.timestamp;
 
+const UUID_PARAGRAPH_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Bundled snapshot may predate rag_paragraphs UUID ids — never seed composite `source:seg:num` rows. */
+function uuidParagraphChangesFromSnapshot(): Record<string, unknown> | undefined {
+  const raw = (snapshot.changes as { paragraphs?: { created?: { id?: string }[]; updated?: unknown[]; deleted?: unknown[] } })
+    .paragraphs;
+  if (!raw) return undefined;
+  const created = (raw.created ?? []).filter((p) => p.id && UUID_PARAGRAPH_ID.test(p.id));
+  if (created.length === 0) return undefined;
+  return { created, updated: raw.updated ?? [], deleted: raw.deleted ?? [] };
+}
+
 /** Serialize all WatermelonDB synchronize() calls — they are not re-entrant. */
 let synchronizeQueue: Promise<void> = Promise.resolve();
 
@@ -32,15 +45,15 @@ async function seedIfEmptyInternal(): Promise<void> {
   if (snapshot.timestamp === 0) return;
 
   const sourceCount = await database.get('sources').query().fetchCount();
-  const paragraphCount = await database.get('paragraphs').query().fetchCount();
-  if (sourceCount > 0 && paragraphCount > 0) return;
+  if (sourceCount > 0) return;
 
-  const changes =
-    sourceCount === 0
-      ? (snapshot.changes as Record<string, unknown>)
-      : { paragraphs: (snapshot.changes as Record<string, unknown>).paragraphs };
+  const paragraphChanges = uuidParagraphChangesFromSnapshot();
+  const changes: Record<string, unknown> = {
+    sources: (snapshot.changes as { sources: unknown }).sources,
+    ...(paragraphChanges ? { paragraphs: paragraphChanges } : {}),
+  };
 
-  if (!changes || (sourceCount > 0 && !changes.paragraphs)) return;
+  if (!changes.sources) return;
 
   await synchronize({
     database,

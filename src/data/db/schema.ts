@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 20,
+  version: 21,
   tables: [
     tableSchema({
       name: 'sources',

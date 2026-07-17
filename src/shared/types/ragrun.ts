@@ -1,3 +1,6 @@
+import type { ToolResult } from '@/data/tools';
+import type { DocumentOutline } from '@/data/lib/documentTree';
+
 export type SearchResult = {
   chunk_id: string;
   source_id: string;
@@ -125,6 +128,10 @@ export type ChatRequest = {
   model?: string;
   context_mode?: ChatContextMode;
   context_ids?: ChatContextIds;
+  /** Contract §3 — verknüpfter Arbeitstext für den App-Tool-Loop. */
+  linked_document_id?: string;
+  document_outline?: DocumentOutline;
+  linked_document_content?: string;
 };
 
 export type ChatResponse = {
@@ -180,6 +187,6 @@ export type ChatStreamEvent =
       confidence_score: number;
       intent: string;
       sufficiency: string;
-      tool_results: unknown[];
+      tool_results: ToolResult[];
     }
   | { type: 'error'; message: string };

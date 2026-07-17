@@ -68,8 +68,11 @@ export default function FiloScreen({
   }, [chatTalkId]);
 
   // Vorgemerkte Note zum Verknüpfen übernehmen (z. B. „Mit Philo bearbeiten" von Absatz/Kapitel/Buch).
+  // Erzwingt ein neues Gespräch statt Anhängen ans aktive (aktive Gespräche haben ggf. bereits
+  // einen anderen Kontext/Arbeitstext).
   useEffect(() => {
     if (chatPendingLinkNoteId) {
+      setActiveTalkId(null);
       setPendingLinkNoteId(chatPendingLinkNoteId);
       setActiveSegment('chat');
       consumeChatPendingLink();

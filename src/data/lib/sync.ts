@@ -15,7 +15,7 @@ import { config } from './config';
 import { getAccessToken } from './supabase';
 import { ensureSeeded, seedSnapshotTimestamp, withSynchronizeLock } from './seedLoader';
 
-const SCHEMA_VERSION = 19; // keep in sync with db/schema.ts version
+const SCHEMA_VERSION = 21; // keep in sync with db/schema.ts version
 
 type SyncPullResponse = {
   changes: Record<string, unknown>;
@@ -74,8 +74,8 @@ export async function runSync(): Promise<SyncResult> {
     return { ok: false, error: `Seed fehlgeschlagen: ${msg}` };
   }
 
-  const paragraphCount = await database.get('paragraphs').query().fetchCount();
-  if (paragraphCount === 0) {
+  const sourceCount = await database.get('sources').query().fetchCount();
+  if (sourceCount === 0) {
     return { ok: false, error: 'Buchkatalog fehlt — npm run seed:fetch ausführen und App neu bauen.' };
   }
 

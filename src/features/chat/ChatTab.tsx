@@ -17,7 +17,8 @@ import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import RagInsightsOverlay from '@/shared/components/RagInsightsOverlay';
 import AssistantMessageText from '@/shared/components/AssistantMessageText';
 import TurnMetaLine from '@/shared/components/TurnMetaLine';
-import { extractDocumentTitle } from '@/data/lib/documentTree';
+import { extractDocumentTitle, buildDocumentOutline } from '@/data/lib/documentTree';
+import { dispatchToolEffects } from '@/data/tools';
 import { firstWords } from '@/shared/lib/arbeitstextContext';
 import { resolveRagHitsForTurn, citationIndexToListIndex } from '@/shared/lib/ragHits';
 import { countUniqueCitations } from '@/shared/lib/citationMarkers';
@@ -67,10 +68,12 @@ export default function ChatTab({
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
   const [observedLinkedNote, setObservedLinkedNote] = useState<Note | null>(null);
+  const [metaLinkedNote, setMetaLinkedNote] = useState<Note | null>(null);
   const [pendingAttachNote, setPendingAttachNote] = useState<Note | null>(null);
   const [talkParagraphId, setTalkParagraphId] = useState<string | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [lastUpdatedNote, setLastUpdatedNote] = useState<Note | null>(null);
   const [referencesByTurnId, setReferencesByTurnId] = useState<Record<string, Reference[]>>({});
   const [insightsState, setInsightsState] = useState<{
     turn: Turn;
@@ -103,7 +106,30 @@ export default function ChatTab({
     return () => sub.unsubscribe();
   }, [activeTalkId]);
 
-  const linkedNote = activeTalkId ? observedLinkedNote : pendingAttachNote;
+  /** Fallback wenn `notes.talk_id` noch nicht gesetzt ist, `kontext_meta.note_id` aber schon. */
+  useEffect(() => {
+    if (!activeTalkId || observedLinkedNote) {
+      setMetaLinkedNote(null);
+      return;
+    }
+    let cancelled = false;
+    void TalkRepository.findById(activeTalkId).then(async (talk) => {
+      if (cancelled || !talk?.kontextMeta) return;
+      try {
+        const meta = JSON.parse(talk.kontextMeta) as { note_id?: string };
+        if (!meta.note_id) return;
+        const note = await NoteRepository.findById(meta.note_id);
+        if (!cancelled && note) setMetaLinkedNote(note);
+      } catch {
+        /* invalid kontext_meta */
+      }
+    });
+    return () => { cancelled = true; };
+  }, [activeTalkId, observedLinkedNote]);
+
+  const linkedNote = activeTalkId
+    ? (observedLinkedNote ?? metaLinkedNote)
+    : pendingAttachNote;
 
   // „Mit Philo bearbeiten“ aus Absatz/Kapitel/Buch: Arbeitstext verknüpfen — sofort, falls
   // ein Gespräch aktiv ist, sonst als pending vormerken (Persistenz erst beim ersten Senden).
@@ -114,6 +140,7 @@ export default function ChatTab({
       if (cancelled || !note) { onLinkNoteConsumed?.(); return; }
       if (activeTalkId) {
         await NoteRepository.attachToTalk(note, activeTalkId);
+        await TalkRepository.setKontextMeta(activeTalkId, { note_id: note.id });
       } else {
         setPendingAttachNote(note);
       }
@@ -194,18 +221,30 @@ export default function ChatTab({
     setPendingUserMessage(text);
     setStreamingText('');
     setStreamingStatus(null);
+    setLastUpdatedNote(null);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
     let accumulated = '';
 
     try {
+      // #region agent log
+      const outline = linkedNote ? buildDocumentOutline(linkedNote.content) : null;
+      const sectionHeadings = outline?.sections?.map((s: { heading?: string }) => s.heading).filter(Boolean) ?? [];
+      fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e82145'},body:JSON.stringify({sessionId:'e82145',hypothesisId:'H2-H3',location:'ChatTab.tsx:handleSend',message:'client send chat',data:{activeTalkId:activeTalkId??null,hasLinkedNote:!!linkedNote,linkedNoteId:linkedNote?.id??null,contentLen:linkedNote?.content?.length??0,sectionCount:sectionHeadings.length,sectionHeadingsSample:sectionHeadings.slice(0,12),userPreview:text.slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       for await (const event of ragrunApi.streamChat(
         {
           message: text,
           personality: 'assistant-host',
           talk_id: activeTalkId ?? undefined,
           mode: 'chat',
+          ...(linkedNote ? {
+            linked_document_id: linkedNote.id,
+            document_outline: outline ?? buildDocumentOutline(linkedNote.content),
+            linked_document_content: linkedNote.content,
+            context_ids: { note_id: linkedNote.id },
+          } : {}),
         },
         { signal: controller.signal },
       )) {
@@ -228,6 +267,7 @@ export default function ChatTab({
             setTalkParagraphId(null);
             if (pendingAttachNote) {
               await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
+              await TalkRepository.setKontextMeta(event.talk_id, { note_id: pendingAttachNote.id });
               setPendingAttachNote(null);
             }
             onActiveTalkChange(event.talk_id);
@@ -259,6 +299,21 @@ export default function ChatTab({
             chunkIndexMap,
             usage: event.usage,
           });
+
+          const effects = await dispatchToolEffects(event, {
+            talkId: event.talk_id,
+            turnId: event.turn_id,
+            linkedNote,
+          });
+          if (effects.updatedNote) setLastUpdatedNote(effects.updatedNote);
+          if (effects.createdNote && !linkedNote) {
+            await NoteRepository.attachToTalk(effects.createdNote, event.talk_id);
+          }
+          const noteForTalk = effects.createdNote ?? linkedNote;
+          if (noteForTalk) {
+            await NoteRepository.attachToTalk(noteForTalk, event.talk_id);
+            await TalkRepository.setKontextMeta(event.talk_id, { note_id: noteForTalk.id });
+          }
         }
       }
     } catch {
@@ -277,6 +332,7 @@ export default function ChatTab({
             setTalkParagraphId(null);
             if (pendingAttachNote) {
               await NoteRepository.attachToTalk(pendingAttachNote, talkId);
+              await TalkRepository.setKontextMeta(talkId, { note_id: pendingAttachNote.id });
               setPendingAttachNote(null);
             }
             onActiveTalkChange(talkId);
@@ -302,7 +358,7 @@ export default function ChatTab({
       setStreamingText('');
       setStreamingStatus(null);
     }
-  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, talkParagraphId]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, talkParagraphId, linkedNote]);
 
   const handleKopieren = useCallback(async () => {
     if (!activeTalkId) return;
@@ -331,10 +387,13 @@ export default function ChatTab({
   }, [activeTalkId, onActiveTalkChange]);
 
   const handleDetachDocument = useCallback(async () => {
-    if (linkedNote) await NoteRepository.attachToTalk(linkedNote, null);
+    if (linkedNote) {
+      await NoteRepository.attachToTalk(linkedNote, null);
+      if (activeTalkId) await TalkRepository.setKontextMeta(activeTalkId, null);
+    }
     setPendingAttachNote(null);
     setPreviewVisible(false);
-  }, [linkedNote]);
+  }, [linkedNote, activeTalkId]);
 
   const handleAttachPress = useCallback(() => {
     if (linkedNote) {
@@ -472,6 +531,18 @@ export default function ChatTab({
         }
       />
 
+      {lastUpdatedNote && !sending && (
+        <TouchableOpacity
+          onPress={() => setPreviewVisible(true)}
+          style={[styles.updatedChip, { backgroundColor: badgeStyle.backgroundColor }]}
+          activeOpacity={0.8}
+        >
+          <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
+            {`📄 ${firstWords(extractDocumentTitle(lastUpdatedNote.content))} aktualisiert`}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Eingabe */}
       <View style={[styles.inputRow, { borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom || spacing.m }]}>
         <TextInput
@@ -557,6 +628,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   turnListContent: { padding: spacing.m, gap: spacing.l, flexGrow: 1 },
+  updatedChip: {
+    alignSelf: 'flex-start',
+    marginHorizontal: spacing.m,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.s,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
   turnBlock: { gap: spacing.s },
   bubble: { borderRadius: 12, padding: spacing.m },
   streamingStatusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

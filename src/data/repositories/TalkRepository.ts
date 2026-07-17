@@ -81,6 +81,17 @@ export const TalkRepository = {
     );
   },
 
+  /** Setzt `kontext_meta` (JSON), z. B. `{ note_id }` beim Verknüpfen eines Arbeitstexts. */
+  async setKontextMeta(talkId: string, meta: Record<string, unknown> | null): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (!talk) return;
+    await database.write(async () =>
+      talk.update((t: any) => {
+        t.kontextMeta = meta ? JSON.stringify(meta) : null;
+      }),
+    );
+  },
+
   /**
    * Kopiert ein Gespräch (inkl. aller Turns bis optional maxTurnIndex) in ein neues Gespräch.
    */
