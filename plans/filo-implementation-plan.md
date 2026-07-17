@@ -131,7 +131,13 @@ Zwei **parallele Tracks**:
 | 2a.5 | Preview-Overlay, Rohtext-Editor, Chip (UI only) | Filo Phase H |
 | 2a.6 | `applyDocumentUpdate.ts`, `materializeDocument.ts`, `dispatchToolEffects`, `documentUndoStack` | Contract §5, Filo Phase G |
 
-**Status Track 2a:** **erledigt** (Jul 2026). Offen für Welle 4: `document_outline` im Chat-Request; Doppelmatrix-Fixture-Tests.
+**Status Track 2a:** **erledigt** (Jul 2026). Offen: Kontext-Filter UI (Chip-Leiste → Dropdown rechts, § 5.1 Plan-Ergänzung); Welle 4: `document_outline` im Chat-Request; Doppelmatrix-Fixture-Tests.
+
+| # | Aufgabe | Referenz |
+|---|---|---|
+| 2a.7 | Kontext-Filter: Dropdown rechts (`Absatz`/`Kapitel`/`Buch`/`Allgemein` + Snippet aus Lese-Kontext) | Filo §5.1 Plan-Ergänzung Jul 2026 |
+| 2a.8 | Suchtreffer-📎 (KI-Suche): `AttachTargetSheet`, Navigation-Origin, „ein Arbeitstext pro Einheit"-Lookup + Ersetzen-Dialog | Filo §6.1 Plan-Ergänzung Jul 2026 |
+| 2a.9 | Automatisierter Test für `documentTree.ts`/`DocumentMarkdownView` (existiert noch nicht) | Filo §11 Punkt 12 Plan-Ergänzung Jul 2026 |
 
 #### Track 2b — ragrun
 
@@ -141,9 +147,11 @@ Zwei **parallele Tracks**:
 | 2b.2 | T1: `create_document`, `read_blocks`, `update_document` + pytest | Contract §4, Tools §8 |
 | 2b.3 | Doppelmatrix-Fixture (ohne Tabellen) | Filo Phase G, Tools T1 |
 
-**Blockiert durch:** Welle 1 (für 📎-Platz im CHAT-Header)  
-**Backend für 2a:** nicht nötig  
+**Blockiert durch:** Welle 1 (für 📎-Platz im CHAT-Header)
+**Backend für 2a:** nicht nötig
 **Meilenstein M2:** User kann Arbeitstexte anlegen, filtern, manuell bearbeiten, im Chat verknüpfen
+
+**Hinweis (Jul 2026):** 2b.3 ist die **kleine** pytest-Fixture (`doppelmatrix_excerpt.md`, 2 Kapitel). Die **reale** Doppelmatrix (`ragrun/ragkeep/.../doppelmatrix-gesund-und-krank_matritzen.md`) wurde separat als manuelles E2E-Testdokument für Welle 4 vorbereitet, gekürzt und formatgeprüft (29.220 Zeichen, unter `MAX_DOCUMENT_CHARS`), siehe Filo §11 Punkt 12.
 
 ---
 

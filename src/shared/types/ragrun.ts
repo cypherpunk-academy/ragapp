@@ -114,10 +114,15 @@ export type ChatContextIds = {
   note_id?: string;
 };
 
+/** Filo §7.2: `chat` → `thinking.type` disabled, `nachdenken` → enabled. */
+export type ChatMode = 'chat' | 'nachdenken';
+
 export type ChatRequest = {
   message: string;
   personality: string;
   talk_id?: string;
+  mode?: ChatMode;
+  model?: string;
   context_mode?: ChatContextMode;
   context_ids?: ChatContextIds;
 };
@@ -131,3 +136,50 @@ export type ChatResponse = {
 export type ChatSummarizeResponse = {
   summary: string;
 };
+
+/** Contract §5 — Zitat aus `assistant_chat_graph.attach_citations`. */
+export type ChatCitation = {
+  chunk_id: string;
+  /** Literale [N]-Markernummer aus dem Antworttext (fehlt bei Legacy-Fallback ohne Marker). */
+  index?: number;
+  source_id?: string;
+  source_title?: string;
+  segment_title?: string;
+  segment_index?: number;
+  lecture_date?: string;
+  chunk_type?: string;
+  source_type?: string;
+  author?: string;
+  book_title?: string;
+  venue?: string;
+  vortragstitel?: string;
+  paragraph_id?: string;
+  text?: string;
+  score?: number;
+};
+
+export type ChatUsage = {
+  model?: string;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  total_tokens?: number | null;
+};
+
+/** `POST /app/chat/stream` SSE-Events (Contract §5–6). */
+export type ChatStreamEvent =
+  | { type: 'status'; step: string; label: string }
+  | { type: 'thinking'; content: string }
+  | { type: 'token'; content: string }
+  | {
+      type: 'done';
+      turn_id: string;
+      talk_id: string;
+      usage: ChatUsage | null;
+      assistant_message: string;
+      citations: ChatCitation[];
+      confidence_score: number;
+      intent: string;
+      sufficiency: string;
+      tool_results: unknown[];
+    }
+  | { type: 'error'; message: string };

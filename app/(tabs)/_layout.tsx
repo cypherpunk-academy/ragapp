@@ -29,7 +29,9 @@ function TabsInner() {
   useEffect(() => {
     AsyncStorage.getItem(LAST_TAB_KEY).then((val) => {
       // Nur LESEN-Tab wird wiederhergestellt; alle anderen → Filo (Start-Tab)
-      setInitialPage(Number(val) === TAB_INDEX_READ ? TAB_INDEX_READ : TAB_INDEX_CHAT);
+      const page = Number(val) === TAB_INDEX_READ ? TAB_INDEX_READ : TAB_INDEX_CHAT;
+      setInitialPage(page);
+      setActiveIndex(page);
     });
   }, []);
 
@@ -68,7 +70,12 @@ function TabsInner() {
           AsyncStorage.setItem(LAST_TAB_KEY, String(index));
         }}
       >
-        <View key="0" style={styles.page}><FiloScreen /></View>
+        <View key="0" style={styles.page}>
+          <FiloScreen
+            isFiloTabActive={activeIndex === TAB_INDEX_CHAT}
+            offerWeiterlesenOnLaunch={initialPage === TAB_INDEX_CHAT}
+          />
+        </View>
         <View key="1" style={styles.page}><OverviewScreen /></View>
         <View key="2" style={styles.page}><ReadScreen /></View>
         <View key="3" style={styles.page}><SearchScreen /></View>
@@ -79,7 +86,6 @@ function TabsInner() {
           visible
           paragraph={contributions.paragraph}
           sourceId={contributions.sourceId}
-          initialTab={contributions.tab}
           onClose={closeContributions}
         />
       )}

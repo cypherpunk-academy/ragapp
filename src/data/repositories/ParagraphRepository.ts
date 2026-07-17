@@ -40,4 +40,17 @@ export const ParagraphRepository = {
       Q.sortBy('paragraph_number', Q.asc),
     ).observe();
   },
+
+  /** Erster Absatz eines Kapitels/Vortrags anhand `segmentSlug` — für Kapitel-Titel/Navigation ohne bekannten `segmentIndex`. */
+  async findFirstBySegmentSlug(sourceId: string, segmentSlug: string): Promise<Paragraph | null> {
+    const rows = await collection
+      .query(
+        ...paragraphClausesForSource(sourceId),
+        Q.where('segment_slug', segmentSlug),
+        Q.sortBy('paragraph_number', Q.asc),
+        Q.take(1),
+      )
+      .fetch();
+    return rows[0] ?? null;
+  },
 };

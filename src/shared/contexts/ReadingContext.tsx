@@ -2,11 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type Paragraph from '@/data/db/models/Paragraph';
 
-export type ContributionsTab = 'notes' | 'conversations';
-
 type ContributionsOverlay = {
   paragraph: Paragraph;
-  tab: ContributionsTab;
   sourceId: string;
 };
 
@@ -50,6 +47,10 @@ type ReadingContextValue = {
   conversationDetail: ConversationDetailOverlay | null;
   chunkPreview: ChunkPreviewOverlay | null;
   chatTalkId: string | null;
+  /** Note-ID, die im Chat verknüpft werden soll, sobald ein Gespräch existiert (z. B. „Mit Philo bearbeiten" ohne aktives Gespräch). */
+  chatPendingLinkNoteId: string | null;
+  /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
+  chatPendingParagraphId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
   navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
@@ -71,7 +72,15 @@ type ReadingContextValue = {
   resetOverview: () => void;
   /** Wechselt zum KI-Chat-Tab und lädt das angegebene Gespräch vor. */
   navigateToChatWithTalk: (talkId: string) => void;
-  openContributions: (paragraph: Paragraph, tab?: ContributionsTab, sourceId?: string) => void;
+  /** Wechselt zum KI-Chat-Tab und merkt eine Note zum Verknüpfen vor („Mit Philo bearbeiten"). */
+  navigateToChatWithPendingLink: (noteId: string) => void;
+  /** Vom Chat-Tab aufgerufen, sobald `chatPendingLinkNoteId` übernommen wurde. */
+  consumeChatPendingLink: () => void;
+  /** Wechselt zum KI-Chat-Tab und merkt einen Absatz zur Verankerung eines neuen Gesprächs vor. */
+  navigateToChatWithParagraph: (paragraphId: string) => void;
+  /** Vom Chat-Tab aufgerufen, sobald `chatPendingParagraphId` übernommen wurde. */
+  consumeChatPendingParagraph: () => void;
+  openContributions: (paragraph: Paragraph, sourceId?: string) => void;
   closeContributions: () => void;
   openConversationDetail: (talkId: string, anchorParagraphId?: string | null, anchorTurnIndex?: number, sourceId?: string) => void;
   closeConversationDetail: () => void;
@@ -95,6 +104,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   conversationDetail: null,
   chunkPreview: null,
   chatTalkId: null,
+  chatPendingLinkNoteId: null,
+  chatPendingParagraphId: null,
   navigateToRead: () => {},
   navigateBack: () => {},
   navigationHistory: [],
@@ -102,6 +113,10 @@ const ReadingContext = createContext<ReadingContextValue>({
   navigateToSearch: () => {},
   searchReturnActive: false,
   navigateToChatWithTalk: () => {},
+  navigateToChatWithPendingLink: () => {},
+  consumeChatPendingLink: () => {},
+  navigateToChatWithParagraph: () => {},
+  consumeChatPendingParagraph: () => {},
   openContributions: () => {},
   closeContributions: () => {},
   openConversationDetail: () => {},
@@ -148,6 +163,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [conversationDetail, setConversationDetail] = useState<ConversationDetailOverlay | null>(null);
   const [chunkPreview, setChunkPreview] = useState<ChunkPreviewOverlay | null>(null);
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
+  const [chatPendingLinkNoteId, setChatPendingLinkNoteId] = useState<string | null>(null);
+  const [chatPendingParagraphId, setChatPendingParagraphId] = useState<string | null>(null);
   const [searchReturnActive, setSearchReturnActive] = useState(false);
 
   const navigateToRead = useCallback(
@@ -202,9 +219,23 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
+  const navigateToChatWithPendingLink = useCallback((noteId: string) => {
+    setChatPendingLinkNoteId(noteId);
+    tabNavRef.current?.(TAB_INDEX_CHAT);
+  }, []);
+
+  const consumeChatPendingLink = useCallback(() => setChatPendingLinkNoteId(null), []);
+
+  const navigateToChatWithParagraph = useCallback((paragraphId: string) => {
+    setChatPendingParagraphId(paragraphId);
+    tabNavRef.current?.(TAB_INDEX_CHAT);
+  }, []);
+
+  const consumeChatPendingParagraph = useCallback(() => setChatPendingParagraphId(null), []);
+
   const openContributions = useCallback(
-    (paragraph: Paragraph, tab: ContributionsTab = 'notes', sourceId?: string) => {
-      setContributions({ paragraph, tab, sourceId: sourceId ?? targetRef.current.sourceId });
+    (paragraph: Paragraph, sourceId?: string) => {
+      setContributions({ paragraph, sourceId: sourceId ?? targetRef.current.sourceId });
     },
     [],
   );
@@ -234,6 +265,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         conversationDetail,
         chunkPreview,
         chatTalkId,
+        chatPendingLinkNoteId,
+        chatPendingParagraphId,
         navigateToRead,
         navigateBack,
         navigationHistory,
@@ -241,6 +274,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         navigateToSearch,
         searchReturnActive,
         navigateToChatWithTalk,
+        navigateToChatWithPendingLink,
+        consumeChatPendingLink,
+        navigateToChatWithParagraph,
+        consumeChatPendingParagraph,
         openContributions,
         closeContributions,
         openConversationDetail,

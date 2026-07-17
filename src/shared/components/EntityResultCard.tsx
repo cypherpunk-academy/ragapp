@@ -30,6 +30,8 @@ type Props = {
   bodyText?: string;
   /** Nur Suchliste: Relevanz in Akzentfarbe des Typs (0–100). */
   relevancePercent?: number;
+  /** Nur KI-Suche-Overlay: `[N]`-Zitatnummer aus dem Antworttext, vor dem Lozenge angezeigt. */
+  citationIndex?: number;
   onPress?: () => void;
 };
 
@@ -43,6 +45,7 @@ export default function EntityResultCard({
   bodyMarkdown,
   bodyText = '',
   relevancePercent,
+  citationIndex,
   onPress,
 }: Props) {
   const colorScheme = useColorScheme();
@@ -74,6 +77,11 @@ export default function EntityResultCard({
       ]}
     >
       <View style={styles.metaRow}>
+        {typeof citationIndex === 'number' ? (
+          <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor, fontWeight: '700' }]}>
+            [{citationIndex}]
+          </Text>
+        ) : null}
         <View style={[styles.lozenge, { backgroundColor: colorWithAlpha(cardStyle.accentColor, 0.15) }]}>
           <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor, letterSpacing: 0.8 }]}>
             {cardStyle.label.toUpperCase()}

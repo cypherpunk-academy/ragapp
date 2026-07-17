@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, useWindowDimensions,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,30 +8,16 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { overlayStyles } from '@/shared/styles/overlays';
-import { useReading, type ContributionsTab } from '@/shared/contexts/ReadingContext';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { useReading } from '@/shared/contexts/ReadingContext';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 
-import NoteEditorModal from '@/shared/components/NoteEditorModal';
-import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
-import type Note from '@/data/db/models/Note';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
 import type Paragraph from '@/data/db/models/Paragraph';
-import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { getTalkAnchorTurnIndex } from '@/shared/lib/talkAnchor';
 import TalkCard from '@/shared/components/TalkCard';
 import { useAuth } from '@/shared/hooks/useAuth';
-
-export type { ContributionsTab };
-
-const TABS: { id: ContributionsTab; label: string }[] = [
-  { id: 'notes', label: 'Arbeitstexte' },
-  { id: 'conversations', label: 'Gespräche' },
-];
-
-
 
 type TalkWithTurn = { talk: Talk; snippetTurn: Turn | null };
 
@@ -40,36 +26,20 @@ type Props = {
   onClose: () => void;
   paragraph: Paragraph | null;
   sourceId: string;
-  initialTab?: ContributionsTab;
 };
 
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-
 export default function ContributionsScreen({
-  visible, onClose, paragraph, sourceId, initialTab = 'notes',
+  visible, onClose, paragraph, sourceId,
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { loading: authLoading, isAuthenticated, isConfigured } = useAuth();
-  const { navigateToRead, openConversationDetail } = useReading();
-  const [activeTab, setActiveTab] = useState<ContributionsTab>(initialTab);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { openConversationDetail, navigateToChatWithParagraph } = useReading();
   const [talks, setTalks] = useState<TalkWithTurn[]>([]);
-  const [editNote, setEditNote] = useState<Note | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-
-  useEffect(() => {
-    if (visible) setActiveTab(initialTab);
-  }, [visible, initialTab]);
 
   useEffect(() => {
     if (!paragraph || !visible || !isAuthenticated) {
-      setNotes([]);
       setTalks([]);
       return;
     }
@@ -86,23 +56,17 @@ export default function ContributionsScreen({
     };
 
     const refresh = async () => {
-      const [noteList, talkList] = await Promise.all([
-        NoteRepository.findByParagraph(paragraph.id),
-        TalkRepository.findByParagraph(paragraph.id),
-      ]);
+      const talkList = await TalkRepository.findByParagraph(paragraph.id);
       if (cancelled) return;
-      setNotes(noteList);
       setTalks(await loadTalks(talkList));
     };
 
     void refresh();
 
-    const noteSub = NoteRepository.observeBySource(sourceId).subscribe(() => { void refresh(); });
     const talkSub = TalkRepository.observeByParagraph(paragraph.id).subscribe(() => { void refresh(); });
 
     return () => {
       cancelled = true;
-      noteSub.unsubscribe();
       talkSub.unsubscribe();
     };
   }, [paragraph, sourceId, visible, isAuthenticated]);
@@ -113,39 +77,11 @@ export default function ContributionsScreen({
     return `${typeLabel} · ${paragraph.segmentTitle} · ¶${paragraph.paragraphNumber}`;
   }, [paragraph]);
 
-  const anchorLabel = useMemo(
-    () => (paragraph ? paragraphAnchorLabel(paragraph) : null),
-    [paragraph],
-  );
-
-  /** Lange Arbeitstexte: Karteninhalt scrollbar statt unbegrenzt hoch. */
-  const notePreviewMaxHeight = Math.round(windowHeight * 0.38);
-
-  const handleOpenInReader = useCallback(() => {
+  const handleAskPhilo = useCallback(() => {
     if (!paragraph) return;
     onClose();
-    navigateToRead({
-      sourceId,
-      segmentIndex: paragraph.segmentIndex,
-      paragraphId: paragraph.id,
-    });
-  }, [paragraph, sourceId, onClose, navigateToRead]);
-
-  const handleCreateNote = useCallback(() => {
-    setEditNote(null);
-    setEditorOpen(true);
-  }, []);
-
-  const handleEdit = (note: Note) => {
-    setEditNote(note);
-    setEditorOpen(true);
-  };
-
-  const handleDelete = (note: Note) => {
-    confirmDeleteNote(() => {
-      void NoteRepository.delete(note);
-    });
-  };
+    navigateToChatWithParagraph(paragraph.id);
+  }, [paragraph, onClose, navigateToChatWithParagraph]);
 
   if (!visible || !paragraph) return null;
 
@@ -156,7 +92,7 @@ export default function ContributionsScreen({
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Beiträge
+          Gespräche
         </Text>
       </View>
 
@@ -187,7 +123,7 @@ export default function ContributionsScreen({
         <View style={[styles.scroll, styles.content]}>
           <View style={[styles.authGateCard, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
-              Arbeitstexte und Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar und bearbeitbar.
+              Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar.
             </Text>
             {!isConfigured ? (
               <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.s }]}>
@@ -206,116 +142,37 @@ export default function ContributionsScreen({
       )}
 
       {!authLoading && isAuthenticated && (
-        <>
-          <View style={[styles.tabRow, { borderBottomColor: colors.outlineVariant }]}>
-            {TABS.map((tab) => {
-              const active = tab.id === activeTab;
-              return (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={styles.tab}
-                  onPress={() => setActiveTab(tab.id)}
-                >
-                  <Text style={[textStyles.contributionsTab, { color: active ? colors.primary : colors.onSurfaceVariant }]}>
-                    {tab.label}
-                  </Text>
-                  {active && <View style={[styles.tabUnderline, { backgroundColor: colors.primary }]} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-            {activeTab === 'notes' && (
-              <>
-                {notes.length === 0 && (
-                  <View style={styles.emptyNotes}>
-                    <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-                      Noch keine Arbeitstexte zu diesem Absatz.
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.createNoteBtn, { backgroundColor: colors.primary }]}
-                      onPress={handleCreateNote}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="pencil-outline" size={20} color={colors.onPrimary} />
-                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Arbeitstext erstellen</Text>
-                    </TouchableOpacity>
-                  </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          {talks.length === 0 ? (
+            <View style={styles.emptyNotes}>
+              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
+                Noch keine Gespräche zu diesem Absatz.
+              </Text>
+              <TouchableOpacity
+                style={[styles.createNoteBtn, { backgroundColor: colors.primary }]}
+                onPress={handleAskPhilo}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="chatbubble-outline" size={20} color={colors.onPrimary} />
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Philo zu diesem Absatz fragen</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            talks.map(({ talk, snippetTurn }) => (
+              <TalkCard
+                key={talk.id}
+                talk={talk}
+                snippetTurn={snippetTurn}
+                onPress={() => openConversationDetail(
+                  talk.id,
+                  paragraph.id,
+                  getTalkAnchorTurnIndex(talk),
+                  sourceId,
                 )}
-                {notes.map((note) => (
-                  <View key={note.id} style={[styles.noteCard, { backgroundColor: colors.surfaceContainer }]}>
-                    <View style={styles.noteCardHeader}>
-                      <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-                        {formatDate(note.createdAt)} · ICH
-                      </Text>
-                      <View style={styles.noteActions}>
-                        <TouchableOpacity onPress={() => handleEdit(note)} hitSlop={8}>
-                          <Ionicons name="pencil" size={18} color={colors.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDelete(note)} hitSlop={8}>
-                          <Ionicons name="trash-outline" size={18} color={colors.onSurfaceVariant} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    {anchorLabel ? (
-                      <View style={[styles.noteCardAnchor, { borderBottomColor: colors.outlineVariant }]}>
-                        <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, textTransform: 'none' }]}>
-                          {anchorLabel}
-                        </Text>
-                      </View>
-                    ) : null}
-                    <ScrollView
-                      style={[styles.noteBodyScroll, { maxHeight: notePreviewMaxHeight }]}
-                      nestedScrollEnabled
-                      keyboardShouldPersistTaps="handled"
-                      showsVerticalScrollIndicator
-                    >
-                      <Pressable onPress={handleOpenInReader} accessibilityRole="link">
-                        <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{note.content}</Text>
-                      </Pressable>
-                    </ScrollView>
-                  </View>
-                ))}
-              </>
-            )}
-
-            {activeTab === 'conversations' && (
-              <>
-                {talks.length === 0 && (
-                  <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.l }]}>
-                    Noch keine Gespräche zu diesem Absatz.
-                  </Text>
-                )}
-                {talks.map(({ talk, snippetTurn }) => (
-                  <TalkCard
-                    key={talk.id}
-                    talk={talk}
-                    snippetTurn={snippetTurn}
-                    onPress={() => openConversationDetail(
-                      talk.id,
-                      paragraph.id,
-                      getTalkAnchorTurnIndex(talk),
-                      sourceId,
-                    )}
-                  />
-                ))}
-              </>
-            )}
-
-          </ScrollView>
-
-          <NoteEditorModal
-            visible={editorOpen}
-            onClose={() => { setEditorOpen(false); setEditNote(null); }}
-            note={editNote}
-            contextLabel={contextLabel}
-            paragraphId={paragraph.id}
-            segmentSlug={paragraph.segmentSlug ?? undefined}
-            sourceId={sourceId}
-            onDeleted={() => { setEditorOpen(false); setEditNote(null); }}
-          />
-        </>
+              />
+            ))
+          )}
+        </ScrollView>
       )}
     </View>
   );
@@ -333,27 +190,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   backBtn: { padding: spacing.xs },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.s,
-    gap: 4,
-  },
-  tabUnderline: { height: 2, width: '60%', borderRadius: 1 },
   content: { padding: spacing.m, gap: spacing.m, paddingBottom: spacing.xxl },
-  noteCard: { borderRadius: 12, padding: spacing.m, gap: spacing.xs },
-  noteCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  noteCardAnchor: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  noteBodyScroll: { flexGrow: 0 },
-  noteActions: { flexDirection: 'row', gap: spacing.m },
   authLoading: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
   authGateCard: { borderRadius: 12, padding: spacing.l, gap: spacing.m },
   authCta: {

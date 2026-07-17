@@ -24,6 +24,8 @@ export {
   type IconColorRole,
 } from './icons';
 
+export { getNoteBadgeStyle, type NoteBadgeStyle } from './noteBadge';
+
 import { lightColors, darkColors, spacing, borderRadius } from './generated';
 import { fonts, textStyles, typography } from './semantic';
 

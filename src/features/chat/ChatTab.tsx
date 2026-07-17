@@ -5,17 +5,25 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
+import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { ragrunApi } from '@/data/services/ragrunApi';
 import AppIcon from '@/shared/components/AppIcon';
-import ArbeitstextLinkSheet from '@/shared/components/ArbeitstextLinkSheet';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
+import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import RagInsightsOverlay from '@/shared/components/RagInsightsOverlay';
+import AssistantMessageText from '@/shared/components/AssistantMessageText';
+import TurnMetaLine from '@/shared/components/TurnMetaLine';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
-import type Talk from '@/data/db/models/Talk';
+import { firstWords } from '@/shared/lib/arbeitstextContext';
+import { resolveRagHitsForTurn, citationIndexToListIndex } from '@/shared/lib/ragHits';
+import { countUniqueCitations } from '@/shared/lib/citationMarkers';
 import type Turn from '@/data/db/models/Turn';
 import type Note from '@/data/db/models/Note';
+import type Reference from '@/data/db/models/Reference';
 
 const LOCAL_USER = 'local';
 
@@ -23,7 +31,7 @@ const PERSONALITY_LABELS: Record<string, string> = {
   sokrates: 'Sokrates',
   socrates: 'Sokrates',
   'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': 'Assistant Host',
+  'assistant-host': 'Philo',
   'assistant-host-deep': 'Assistant Host Deep',
 };
 
@@ -38,53 +46,97 @@ type Props = {
   /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten“). */
   linkNoteId?: string | null;
   onLinkNoteConsumed?: () => void;
+  /** Absatz, mit dem ein neu gestartetes Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen“). */
+  pendingParagraphId?: string | null;
+  onParagraphConsumed?: () => void;
 };
 
 /** CHAT-Segment des Filo-Tabs: aktives Gespräch oder Leerzustand mit Eingabefeld. */
-export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed }: Props) {
+export default function ChatTab({
+  activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed,
+  pendingParagraphId, onParagraphConsumed,
+}: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
+  const badgeStyle = getNoteBadgeStyle(isDark);
   const insets = useSafeAreaInsets();
 
-  const [talk, setTalk] = useState<Talk | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [copying, setCopying] = useState(false);
-  const [linkedNote, setLinkedNote] = useState<Note | null>(null);
-  const [linkSheetVisible, setLinkSheetVisible] = useState(false);
+  const [observedLinkedNote, setObservedLinkedNote] = useState<Note | null>(null);
+  const [pendingAttachNote, setPendingAttachNote] = useState<Note | null>(null);
+  const [talkParagraphId, setTalkParagraphId] = useState<string | null>(null);
+  const [creatingNote, setCreatingNote] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [referencesByTurnId, setReferencesByTurnId] = useState<Record<string, Reference[]>>({});
+  const [insightsState, setInsightsState] = useState<{
+    turn: Turn;
+    scrollToIndex?: number;
+  } | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Arbeitstext-Verknüpfung ist chat-lokal (Filo §6, max. 1 Dokument) — beim Wechsel des Gesprächs zurücksetzen.
+  const openInsights = useCallback((turn: Turn, citationIndex?: number) => {
+    const refs = referencesByTurnId[turn.id] ?? [];
+    const hits = resolveRagHitsForTurn(turn, refs);
+    const scrollToIndex = citationIndex != null
+      ? citationIndexToListIndex(citationIndex, hits)
+      : undefined;
+    setInsightsState({ turn, scrollToIndex });
+  }, [referencesByTurnId]);
+
+  // Arbeitstext-Verknüpfung des aktiven Gesprächs (Filo §6, max. 1 Dokument) — DB-backed, reaktiv.
   useEffect(() => {
-    setLinkedNote(null);
+    if (!activeTalkId) {
+      setObservedLinkedNote(null);
+      return;
+    }
+    const sub = NoteRepository.observeByTalk(activeTalkId).subscribe((notes) => {
+      setObservedLinkedNote(notes[0] ?? null);
+    });
+    return () => sub.unsubscribe();
   }, [activeTalkId]);
 
-  // „In Gespräch bearbeiten“ aus der Arbeitstexte-Bibliothek: Arbeitstext direkt verknüpfen.
+  const linkedNote = activeTalkId ? observedLinkedNote : pendingAttachNote;
+
+  // „Mit Philo bearbeiten“ aus Absatz/Kapitel/Buch: Arbeitstext verknüpfen — sofort, falls
+  // ein Gespräch aktiv ist, sonst als pending vormerken (Persistenz erst beim ersten Senden).
   useEffect(() => {
     if (!linkNoteId) return;
     let cancelled = false;
-    void NoteRepository.findById(linkNoteId).then((note) => {
-      if (!cancelled && note) setLinkedNote(note);
+    void NoteRepository.findById(linkNoteId).then(async (note) => {
+      if (cancelled || !note) { onLinkNoteConsumed?.(); return; }
+      if (activeTalkId) {
+        await NoteRepository.attachToTalk(note, activeTalkId);
+      } else {
+        setPendingAttachNote(note);
+      }
       onLinkNoteConsumed?.();
     });
     return () => { cancelled = true; };
-  }, [linkNoteId, onLinkNoteConsumed]);
+  }, [linkNoteId, activeTalkId, onLinkNoteConsumed]);
+
+  // „Philo zu diesem Absatz fragen“: Absatz vormerken, um das nächste neue Gespräch zu verankern
+  // (nur relevant ohne aktives Gespräch — ein bestehendes Gespräch hat bereits seinen Kontext).
+  useEffect(() => {
+    if (!pendingParagraphId) return;
+    if (!activeTalkId) setTalkParagraphId(pendingParagraphId);
+    onParagraphConsumed?.();
+  }, [pendingParagraphId, activeTalkId, onParagraphConsumed]);
 
   useEffect(() => {
     if (!activeTalkId) {
-      setTalk(null);
       setTurns([]);
       return;
     }
 
     let cancelled = false;
-
-    void TalkRepository.findById(activeTalkId).then((t) => {
-      if (!cancelled) setTalk(t);
-    });
 
     const sub = TurnRepository.observeByTalk(activeTalkId).subscribe((list) => {
       if (!cancelled) setTurns(list);
@@ -102,35 +154,155 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
     }
   }, [turns.length]);
 
+  useEffect(() => {
+    if (pendingUserMessage) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+    }
+  }, [pendingUserMessage, streamingText]);
+
+  // RAG-Referenzen pro Turn (Sync → WDB `references`; Fallback wenn kein chunk_index_map).
+  useEffect(() => {
+    if (turns.length === 0) {
+      setReferencesByTurnId({});
+      return;
+    }
+    let cancelled = false;
+    const turnIds = turns.map((t) => t.id);
+    void ReferenceRepository.findByTurnIds(turnIds).then((refs) => {
+      if (cancelled) return;
+      const grouped: Record<string, Reference[]> = {};
+      for (const ref of refs) {
+        const list = grouped[ref.turnId] ?? [];
+        list.push(ref);
+        grouped[ref.turnId] = list;
+      }
+      setReferencesByTurnId(grouped);
+    });
+    return () => { cancelled = true; };
+  }, [turns]);
+
+  const handleStop = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text || sending) return;
 
     setInputText('');
     setSending(true);
+    setPendingUserMessage(text);
+    setStreamingText('');
+    setStreamingStatus(null);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    let accumulated = '';
+
     try {
-      const isNewTalk = !activeTalkId;
-      let talkId = activeTalkId;
-      if (isNewTalk) {
-        const newTalk = await TalkRepository.create({ userId: LOCAL_USER, title: text.slice(0, 60) });
-        talkId = newTalk.id;
-        onActiveTalkChange(talkId);
+      for await (const event of ragrunApi.streamChat(
+        {
+          message: text,
+          personality: 'assistant-host',
+          talk_id: activeTalkId ?? undefined,
+          mode: 'chat',
+        },
+        { signal: controller.signal },
+      )) {
+        if (event.type === 'status') {
+          setStreamingStatus(event.label);
+        } else if (event.type === 'token') {
+          accumulated += event.content;
+          setStreamingText(accumulated);
+        } else if (event.type === 'error') {
+          throw new Error(event.message);
+        } else if (event.type === 'done') {
+          const isNewTalk = !activeTalkId;
+          if (isNewTalk) {
+            await TalkRepository.create({
+              id: event.talk_id,
+              userId: LOCAL_USER,
+              title: text.slice(0, 60),
+              kontextParagraphId: talkParagraphId ?? undefined,
+            });
+            setTalkParagraphId(null);
+            if (pendingAttachNote) {
+              await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
+              setPendingAttachNote(null);
+            }
+            onActiveTalkChange(event.talk_id);
+          }
+          const chunkIndexMap = event.citations.length
+            ? event.citations.map((c, idx) => ({
+                index: c.index ?? idx + 1,
+                chunk_id: c.chunk_id,
+                text: c.text,
+                source_title: c.source_title,
+                segment_title: c.segment_title,
+                source_id: c.source_id,
+                chunk_type: c.chunk_type,
+                source_type: c.source_type,
+                author: c.author,
+                book_title: c.book_title,
+                paragraph_id: c.paragraph_id,
+                segment_index: c.segment_index,
+                score: c.score,
+              }))
+            : null;
+          await TurnRepository.create({
+            id: event.turn_id,
+            talkId: event.talk_id,
+            turnIndex: isNewTalk ? 0 : turns.length,
+            userMessage: text,
+            personality: 'assistant-host',
+            assistantMessage: event.assistant_message,
+            chunkIndexMap,
+            usage: event.usage,
+          });
+        }
       }
-      await TurnRepository.create({
-        talkId: talkId!,
-        turnIndex: isNewTalk ? 0 : turns.length,
-        userMessage: text,
-        personality: 'assistant-host',
-        assistantMessage: undefined,
-      });
-      // TODO: ragrun-API aufrufen und assistantMessage updaten (Welle 3a/3b)
     } catch {
-      Alert.alert('Fehler', 'Nachricht konnte nicht gesendet werden.');
-      setInputText(text);
+      if (controller.signal.aborted) {
+        // Abbruch: kein Server-Turn wurde erzeugt — Teilantwort lokal-only persistieren.
+        try {
+          const isNewTalk = !activeTalkId;
+          let talkId = activeTalkId;
+          if (isNewTalk) {
+            const newTalk = await TalkRepository.create({
+              userId: LOCAL_USER,
+              title: text.slice(0, 60),
+              kontextParagraphId: talkParagraphId ?? undefined,
+            });
+            talkId = newTalk.id;
+            setTalkParagraphId(null);
+            if (pendingAttachNote) {
+              await NoteRepository.attachToTalk(pendingAttachNote, talkId);
+              setPendingAttachNote(null);
+            }
+            onActiveTalkChange(talkId);
+          }
+          await TurnRepository.create({
+            talkId: talkId!,
+            turnIndex: isNewTalk ? 0 : turns.length,
+            userMessage: text,
+            personality: 'assistant-host',
+            assistantMessage: accumulated || undefined,
+          });
+        } catch {
+          Alert.alert('Fehler', 'Antwort konnte nicht gespeichert werden.');
+        }
+      } else {
+        Alert.alert('Fehler', 'Nachricht konnte nicht gesendet werden.');
+        setInputText(text);
+      }
     } finally {
+      abortControllerRef.current = null;
       setSending(false);
+      setPendingUserMessage(null);
+      setStreamingText('');
+      setStreamingStatus(null);
     }
-  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, talkParagraphId]);
 
   const handleKopieren = useCallback(async () => {
     if (!activeTalkId) return;
@@ -158,15 +330,19 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
     }
   }, [activeTalkId, onActiveTalkChange]);
 
-  const handleLinkDocument = useCallback((note: Note) => {
-    setLinkedNote(note);
-    setLinkSheetVisible(false);
-  }, []);
-
-  const handleDetachDocument = useCallback(() => {
-    setLinkedNote(null);
+  const handleDetachDocument = useCallback(async () => {
+    if (linkedNote) await NoteRepository.attachToTalk(linkedNote, null);
+    setPendingAttachNote(null);
     setPreviewVisible(false);
-  }, []);
+  }, [linkedNote]);
+
+  const handleAttachPress = useCallback(() => {
+    if (linkedNote) {
+      setPreviewVisible(true);
+      return;
+    }
+    setCreatingNote(true);
+  }, [linkedNote]);
 
   return (
     <KeyboardAvoidingView
@@ -174,17 +350,22 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
-      {(activeTalkId && talk) || linkedNote ? (
-        <>
-          {activeTalkId && talk ? (
-            <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
-              <Text
-                style={[textStyles.labelSection, styles.talkTitle, { color: colors.onSurface }]}
-                numberOfLines={1}
-              >
-                {talk.title ?? 'Gespräch'}
-              </Text>
-              <TouchableOpacity onPress={() => setLinkSheetVisible(true)} hitSlop={8}>
+      {(activeTalkId || linkedNote) ? (
+        <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
+          {linkedNote ? (
+            <TouchableOpacity onPress={handleAttachPress} style={styles.talkTitle} activeOpacity={0.8}>
+              <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}>
+                <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
+                  {`Arbeitstext: ${firstWords(extractDocumentTitle(linkedNote.content))}`}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.talkTitle} />
+          )}
+          {activeTalkId && (
+            <>
+              <TouchableOpacity onPress={handleAttachPress} hitSlop={8}>
                 <AppIcon
                   name={ICONS.arbeitstext.attach}
                   size={ICON_SIZES.menu}
@@ -194,37 +375,9 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
               <TouchableOpacity onPress={handleKopieren} disabled={copying} hitSlop={8}>
                 <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
               </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
-              <Text style={[textStyles.labelSection, styles.talkTitle, { color: colors.onSurfaceVariant }]}>
-                Neues Gespräch
-              </Text>
-              <TouchableOpacity onPress={() => setLinkSheetVisible(true)} hitSlop={8}>
-                <AppIcon
-                  name={ICONS.arbeitstext.attach}
-                  size={ICON_SIZES.menu}
-                  color={linkedNote ? colors.primary : colors.onSurfaceVariant}
-                />
-              </TouchableOpacity>
-            </View>
+            </>
           )}
-          {linkedNote && (
-            <TouchableOpacity
-              style={[styles.chip, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]}
-              onPress={() => setPreviewVisible(true)}
-              activeOpacity={0.8}
-            >
-              <AppIcon name={ICONS.arbeitstext.preview} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
-              <Text style={[textStyles.noteMeta, { color: colors.onSurface, flex: 1 }]} numberOfLines={1}>
-                {extractDocumentTitle(linkedNote.content)}
-              </Text>
-              <TouchableOpacity onPress={handleDetachDocument} hitSlop={8}>
-                <AppIcon name={ICONS.arbeitstext.detach} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          )}
-        </>
+        </View>
       ) : null}
 
       <FlatList
@@ -232,31 +385,45 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
         data={turns}
         keyExtractor={(t) => `${t.talkId}-${t.turnIndex}`}
         contentContainerStyle={styles.turnListContent}
-        renderItem={({ item: turn }) => (
+        renderItem={({ item: turn }) => {
+          const refs = referencesByTurnId[turn.id] ?? [];
+          const ragHits = resolveRagHitsForTurn(turn, refs);
+          const citedInText = turn.assistantMessage
+            ? countUniqueCitations(turn.assistantMessage)
+            : 0;
+          const ragHitCount = citedInText > 0 ? citedInText : ragHits.length;
+          const showRagMeta = Boolean(turn.assistantMessage?.trim()) && ragHitCount > 0;
+
+          return (
           <View style={styles.turnBlock}>
             <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
-              <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, marginBottom: spacing.xs }]}>
-                Du
-              </Text>
               <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
                 {turn.userMessage}
               </Text>
             </View>
+            <TurnMetaLine turn={turn} kind="user" />
+
             {turn.assistantMessage ? (
-              <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
-                <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, marginBottom: spacing.xs }]}>
-                  {personalityLabel(turn.personality)}
-                </Text>
-                <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-                  {turn.assistantMessage}
-                </Text>
-              </View>
+              <>
+                <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
+                  <AssistantMessageText
+                    text={turn.assistantMessage}
+                    onCitationPress={(idx) => openInsights(turn, idx)}
+                  />
+                </View>
+                <TurnMetaLine
+                  turn={turn}
+                  kind="assistant"
+                  personalityLabel={personalityLabel(turn.personality)}
+                  ragHitCount={showRagMeta ? ragHitCount : 0}
+                  onRagHitsPress={showRagMeta ? () => openInsights(turn) : undefined}
+                />
+              </>
             ) : (
               <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
                 <ActivityIndicator size="small" color={colors.onSecondaryContainer} />
               </View>
             )}
-            {/* Schnitt-Kontextmenü */}
             <TouchableOpacity
               onPress={() => handleSchnittHier(turn.turnIndex)}
               style={styles.schnittBtn}
@@ -267,13 +434,41 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
               </Text>
             </TouchableOpacity>
           </View>
-        )}
+          );
+        }}
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              Noch keine Nachrichten. Stelle eine Frage!
-            </Text>
-          </View>
+          pendingUserMessage ? null : (
+            <View style={styles.center}>
+              <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
+                Noch keine Nachrichten. Stelle eine Frage!
+              </Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          pendingUserMessage ? (
+            <View style={styles.turnBlock}>
+              <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
+                <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
+                  {pendingUserMessage}
+                </Text>
+              </View>
+              <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
+                {streamingText ? (
+                  <AssistantMessageText text={streamingText} />
+                ) : (
+                  <View style={styles.streamingStatusRow}>
+                    <ActivityIndicator size="small" color={colors.onSecondaryContainer} />
+                    {streamingStatus ? (
+                      <Text style={[textStyles.noteMeta, { color: colors.onSecondaryContainer }]}>
+                        {streamingStatus}
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : null
         }
       />
 
@@ -295,32 +490,50 @@ export default function ChatTab({ activeTalkId, onActiveTalkChange, linkNoteId, 
           blurOnSubmit={false}
         />
         <TouchableOpacity
-          onPress={handleSend}
-          disabled={!inputText.trim() || sending}
-          style={[styles.sendBtn, { backgroundColor: inputText.trim() ? colors.primary : colors.surfaceContainerHigh }]}
+          onPress={sending ? handleStop : handleSend}
+          disabled={!sending && !inputText.trim()}
+          style={[styles.sendBtn, { backgroundColor: sending || inputText.trim() ? colors.primary : colors.surfaceContainerHigh }]}
           activeOpacity={0.8}
         >
           {sending ? (
-            <ActivityIndicator size="small" color={colors.onPrimary} />
+            <Ionicons name="stop" size={18} color={colors.onPrimary} />
           ) : (
             <Ionicons name="arrow-up" size={20} color={inputText.trim() ? colors.onPrimary : colors.onSurfaceVariant} />
           )}
         </TouchableOpacity>
       </View>
 
-      <ArbeitstextLinkSheet
-        visible={linkSheetVisible}
-        onClose={() => setLinkSheetVisible(false)}
-        onLink={handleLinkDocument}
-        talkId={activeTalkId}
-      />
+      {activeTalkId && creatingNote && (
+        <NoteEditorModal
+          visible
+          onClose={() => setCreatingNote(false)}
+          talkId={activeTalkId}
+          initialContent="# Arbeitstext aus dem Gespräch mit Philo\n\n"
+          contextLabel="Neuer Arbeitstext"
+        />
+      )}
       {previewVisible && (
         <DocumentPreviewOverlay
           note={linkedNote}
           onClose={() => setPreviewVisible(false)}
-          onDetach={handleDetachDocument}
+          onDetach={() => void handleDetachDocument()}
+          onDeleted={() => { if (!activeTalkId) setPendingAttachNote(null); }}
         />
       )}
+      <RagInsightsOverlay
+        visible={insightsState != null}
+        turn={insightsState?.turn ?? null}
+        hits={
+          insightsState
+            ? resolveRagHitsForTurn(
+              insightsState.turn,
+              referencesByTurnId[insightsState.turn.id] ?? [],
+            )
+            : []
+        }
+        scrollToIndex={insightsState?.scrollToIndex}
+        onClose={() => setInsightsState(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -337,15 +550,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   talkTitle: { flex: 1 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    marginHorizontal: spacing.m, marginTop: spacing.s,
-    paddingHorizontal: spacing.s, paddingVertical: spacing.xs,
-    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.s,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   turnListContent: { padding: spacing.m, gap: spacing.l, flexGrow: 1 },
   turnBlock: { gap: spacing.s },
-  bubble: { borderRadius: 12, padding: spacing.m, gap: spacing.xs },
+  bubble: { borderRadius: 12, padding: spacing.m },
+  streamingStatusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   schnittBtn: { alignSelf: 'flex-end', paddingHorizontal: spacing.xs, paddingVertical: 2 },
   inputRow: {
     flexDirection: 'row',

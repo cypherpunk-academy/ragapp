@@ -10,9 +10,13 @@ import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
+import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import type Source from '@/data/db/models/Source';
+import type Note from '@/data/db/models/Note';
 import { continueReadingLabel } from './sourceDetail';
 import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
@@ -37,7 +41,7 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
 export default function OverviewScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { navigateToRead, overviewResetKey } = useReading();
+  const { navigateToRead, navigateToChatWithPendingLink, overviewResetKey } = useReading();
 
   const [failedCovers, setFailedCovers] = useState<Set<string>>(new Set());
 
@@ -50,6 +54,9 @@ export default function OverviewScreen() {
   const [loadingSources, setLoadingSources] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [bookmarkDropdownOpen, setBookmarkDropdownOpen] = useState(false);
+  const [bookNote, setBookNote] = useState<Note | null>(null);
+  const [creatingNote, setCreatingNote] = useState(false);
+  const [previewNote, setPreviewNote] = useState<Note | null>(null);
 
   // Expliziter Tab-Press → zurück zur Bücherübersicht
   useEffect(() => {
@@ -97,6 +104,25 @@ export default function OverviewScreen() {
     });
     return () => sub.unsubscribe();
   }, [selectedSource?.id]);
+
+  // Arbeitstext-Verknüpfung auf Buch-Ebene für die aktuelle Auswahl
+  useEffect(() => {
+    if (!selectedSource) { setBookNote(null); return; }
+    let cancelled = false;
+    void NoteRepository.findBySourceOnly(selectedSource.id).then((notes) => {
+      if (!cancelled) setBookNote(notes[0] ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [selectedSource?.id]);
+
+  const handleBookNotePress = () => {
+    if (!selectedSource) return;
+    if (bookNote) {
+      setPreviewNote(bookNote);
+    } else {
+      setCreatingNote(true);
+    }
+  };
 
   const continueSegmentTitle = useMemo(() => {
     if (!lastReadParagraphId) return null;
@@ -225,14 +251,24 @@ export default function OverviewScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.heroText}>
-            <TouchableOpacity
-              onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
-              activeOpacity={0.8}
-            >
-              <Text style={[textStyles.titlePage, { color: colors.onBackground }]}>
-                {selectedSource.title}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.heroTitleRow}>
+              <TouchableOpacity
+                style={styles.heroTitleTouch}
+                onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
+                activeOpacity={0.8}
+              >
+                <Text style={[textStyles.titlePage, { color: colors.onBackground }]}>
+                  {selectedSource.title}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleBookNotePress} hitSlop={8}>
+                <AppIcon
+                  name={ICONS.arbeitstext.attach}
+                  size={ICON_SIZES.menu}
+                  color={bookNote ? colors.primary : colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+            </View>
             <Text style={[textStyles.sourceEdition, { color: colors.onSurfaceVariant }]}>
               {selectedSource.author.toUpperCase()}{selectedSource.year ? ` · ${selectedSource.year}` : ''}
             </Text>
@@ -334,6 +370,25 @@ export default function OverviewScreen() {
       >
         <Pressable style={styles.overlayBackdrop} onPress={() => setSummaryOverlay(null)} />
       </Modal>
+
+      {creatingNote && selectedSource && (
+        <NoteEditorModal
+          visible
+          onClose={() => setCreatingNote(false)}
+          sourceId={selectedSource.id}
+          initialContent={`# Arbeitstext über das Buch ${selectedSource.title}\n\n`}
+          onCreated={setBookNote}
+          contextLabel="Neuer Arbeitstext"
+        />
+      )}
+      {previewNote && (
+        <DocumentPreviewOverlay
+          note={previewNote}
+          onClose={() => setPreviewNote(null)}
+          onEditInChat={() => navigateToChatWithPendingLink(previewNote.id)}
+          onDeleted={() => setBookNote(null)}
+        />
+      )}
     </View>
   );
 }
@@ -356,6 +411,8 @@ const styles = StyleSheet.create({
   hero: { flexDirection: 'row', borderRadius: 12, padding: spacing.m, gap: spacing.m },
   heroCover: { width: 72, height: 108, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   heroText: { flex: 1, gap: 6 },
+  heroTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
+  heroTitleTouch: { flex: 1 },
   continueCard: { borderRadius: 24, overflow: 'hidden' },
   continueCardExpanded: { borderRadius: 16 },
   continueTopRow: { flexDirection: 'row', alignItems: 'center' },

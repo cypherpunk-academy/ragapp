@@ -16,9 +16,9 @@ import { ragrunApi } from '@/data/services/ragrunApi';
 import { RagrunApiError } from '@/data/lib/ragrun-client';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
-import { buildSearchHitCard, type SearchHitNavigation } from '@/shared/lib/searchHitCard';
+import SearchHitRow from '@/shared/components/SearchHitRow';
+import { useSearchHitNavigation } from '@/shared/hooks/useSearchHitNavigation';
 import TalkCard from '@/shared/components/TalkCard';
-import EntityResultCard from '@/shared/components/EntityResultCard';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
 import type { SearchResult } from '@/shared/types/ragrun';
@@ -290,7 +290,7 @@ export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
-  const { openConversationDetail, navigateToRead, openChunkPreview } = useReading();
+  const { openConversationDetail } = useReading();
 
   const [query, setQuery] = useState('');
   const [inputHeight, setInputHeight] = useState(SEARCH_INPUT_MIN_HEIGHT);
@@ -488,28 +488,7 @@ export default function SearchScreen() {
     });
   }, [sortedItems, selectedGroups]);
 
-  const handleSearchNavigation = useCallback(
-    (nav: SearchHitNavigation) => {
-      if (nav.kind === 'read') {
-        navigateToRead({
-          sourceId: nav.sourceId,
-          segmentIndex: nav.segmentIndex ?? null,
-          paragraphId: nav.paragraphId,
-          markerOffset: nav.markerOffset ?? null,
-          fromSearch: true,
-        });
-      } else if (nav.kind === 'overlay') {
-        openChunkPreview({
-          sourceId: nav.sourceId,
-          chunkId: nav.chunkId,
-          title: nav.title,
-          initialText: nav.initialText,
-          readTarget: nav.readTarget,
-        });
-      }
-    },
-    [navigateToRead, openChunkPreview],
-  );
+  const handleSearchNavigation = useSearchHitNavigation();
 
   const renderItem = useCallback(({ item }: { item: ScoredItem }) => {
     if (item.type === 'talk') {
@@ -521,21 +500,7 @@ export default function SearchScreen() {
         />
       );
     }
-    const kind = entityKindFromSearchResult(item.result);
-    const { card, navigation } = buildSearchHitCard(item.result, kind);
-    return (
-      <EntityResultCard
-        kind={kind}
-        metaSmall={card.metaSmall}
-        headlineLarge={card.headlineLarge}
-        subHeadSmall={card.subHeadSmall}
-        notizRows={card.notizRows}
-        bodyMode={card.bodyMode}
-        bodyMarkdown={card.bodyMarkdown}
-        bodyText={card.bodyText}
-        onPress={navigation.kind !== 'none' ? () => handleSearchNavigation(navigation) : undefined}
-      />
-    );
+    return <SearchHitRow result={item.result} onNavigate={handleSearchNavigation} />;
   }, [openConversationDetail, handleSearchNavigation]);
 
   const isLoading = talksLoading || chunksLoading;

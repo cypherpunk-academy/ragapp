@@ -19,13 +19,18 @@ type Props = {
   paragraphId?: string | null;
   segmentSlug?: string | null;
   sourceId?: string | null;
+  talkId?: string | null;
   /** Pre-existing note to edit (omit for new note) */
   note?: Note | null;
+  /** Vorbelegter Inhalt für neue Arbeitstexte, z. B. eine kontextuelle „# …“-Überschrift. */
+  initialContent?: string;
+  /** Feuert nach dem Anlegen eines neuen Arbeitstexts (nicht beim Bearbeiten). */
+  onCreated?: (note: Note) => void;
   onDeleted?: () => void;
 };
 
 export default function NoteEditorModal({
-  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, note, onDeleted,
+  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onDeleted,
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
@@ -34,8 +39,8 @@ export default function NoteEditorModal({
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    if (visible) setContent(note?.content ?? '');
-  }, [visible, note]);
+    if (visible) setContent(note?.content ?? initialContent ?? '');
+  }, [visible, note, initialContent]);
 
   const handleSave = async () => {
     const trimmed = content.trim();
@@ -43,13 +48,15 @@ export default function NoteEditorModal({
     if (note) {
       await NoteRepository.update(note, trimmed);
     } else {
-      await NoteRepository.create({
+      const created = await NoteRepository.create({
         userId: LOCAL_USER,
         paragraphId: paragraphId ?? undefined,
         segmentSlug: segmentSlug ?? undefined,
         sourceId: sourceId ?? undefined,
+        talkId: talkId ?? undefined,
         content: trimmed,
       });
+      onCreated?.(created);
     }
     onClose();
   };

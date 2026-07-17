@@ -15,6 +15,7 @@ export const ICONS = {
   contribution: {
     notes: 'edit' as MaterialIconName,
     conversations: 'chat-bubble-outline' as MaterialIconName,
+    ragHits: 'my-location' as MaterialIconName,
   },
   nav: {
     back: 'chevron-left' as MaterialIconName,
@@ -43,6 +44,8 @@ export const ICONS = {
     edit: 'edit' as MaterialIconName,
     undo: 'undo' as MaterialIconName,
     detach: 'link-off' as MaterialIconName,
+    delete: 'delete-outline' as MaterialIconName,
+    editInChat: 'auto-awesome' as MaterialIconName,
   },
   status: {
     offline: 'cloud-off' as MaterialIconName,

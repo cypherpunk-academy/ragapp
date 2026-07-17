@@ -59,6 +59,24 @@ export function classifyArbeitstextContext(
   return 'general';
 }
 
+/**
+ * Kontext-Stufe rein anhand der eigenen Verknüpfungsfelder der Note — unabhängig
+ * von der aktuellen Leseposition. Für den Verknüpfungs-Breadcrumb (DocumentPreviewOverlay).
+ */
+export function classifyOwnContextTier(note: ArbeitstextNoteContext): ArbeitstextContextTier {
+  if (note.paragraphId) return 'paragraph';
+  if (note.segmentSlug) return 'segment';
+  if (note.sourceId) return 'source';
+  return 'general';
+}
+
+/** Erste `count` Worte eines Texts, mit „…" falls gekürzt. */
+export function firstWords(text: string, count = 6): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= count) return words.join(' ');
+  return `${words.slice(0, count).join(' ')}…`;
+}
+
 export function filterByContextTier(
   notes: Note[],
   tier: ArbeitstextContextTier,

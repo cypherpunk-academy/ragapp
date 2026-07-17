@@ -35,7 +35,7 @@ Der Filo-Tab hat **drei** innere Reiter (Segmented Control unter dem Header, kei
 
 - **CHAT** (Default) — aktives Gespräch oder Leerzustand mit Eingabefeld, Claude-artig: kleiner, wachsender Input-Bereich, Modus-Auswahl, morphender Multifunktionsknopf (inaktiv/senden/stoppen). Abgeschickte User-Turns erhalten ein Menü (Bearbeiten, Wiederholen, Kopieren). **Arbeitstext:** Büroklammer im Header (§ 2, § 6) — Chat bleibt vollflächig; Vorschau als Overlay.
 - **GESPRÄCHE** — Suchmaske + Liste aller Gespräche (gepinnt dauerhaft; ungepinnt bis zum Nacht-Cleanup nach 7 Tagen Inaktivität). Entspricht funktional der bereits existierenden Auswahl-Ansicht in `ChatScreen.tsx` (`!activeTalkId`-Zweig); wird als eigene innere Tab-Komponente herausgezogen statt als Vorschaltbildschirm.
-- **ARBEITSTEXTE** — Bibliothek aller **Arbeitstexte**. **Filter** je nach Kontext: Aktueller Absatz · Kapitel/Vortrag · Buch · Allgemein (analog ContextPicker, § 5.1). **Sortierung:** Kontext-Stufe (Absatz → Kapitel → Buch → Allgemein), innerhalb der Stufe `updated_at` absteigend; bei aktivem Filter nur `updated_at`. **Titelsuche** zusätzlich (MVP). Tap auf Listenzeile → **Aktionsmenü:** **Vorschau** (gerendertes Markdown) · **In Gespräch bearbeiten** (öffnet CHAT, Arbeitstext per 📎 verknüpft). Langfristig: Freigabe für Freunde (nicht MVP; `is_public` im Schema bereits vorhanden).
+- **ARBEITSTEXTE** — Bibliothek aller **Arbeitstexte**. **Filter** als **Dropdown rechts** (§ 5.1): vier Kontext-Stufen mit dynamischen Zeilen (`Absatz …` / `Kapitel …` / `Buch …` / `Allgemein`). **Sortierung:** Kontext-Stufe (Absatz → Kapitel → Buch → Allgemein), innerhalb der Stufe `updated_at` absteigend; bei aktivem Filter nur `updated_at`. **Titelsuche** zusätzlich (MVP). Tap auf Listenzeile → **Aktionsmenü:** **Vorschau** (gerendertes Markdown) · **In Gespräch bearbeiten** (öffnet CHAT, Arbeitstext per 📎 verknüpft). Langfristig: Freigabe für Freunde (nicht MVP; `is_public` im Schema bereits vorhanden).
 
 **Navigations-Änderung:** Reihenfolge wird `[Filo(0), Übersicht(1), Lesen(2), Suche(3)]`. `TAB_INDEX_READ`/`TAB_INDEX_CHAT`/`TAB_INDEX_SEARCH` in `ReadingContext.tsx` werden entsprechend verschoben, `TabBar.TABS` neu sortiert. Die bestehende „nur Lesen-Tab wird wiederhergestellt, sonst Index 0"-Logik in `_layout.tsx` muss angepasst werden, **nicht** unverändert bleiben: `setInitialPage(Number(val) === 1 ? 1 : 0)` hat die `1` für Lesen hart codiert (wird zu `2`), und `handleTabPress`s `if (index === 0) resetOverview()` ist an „Übersicht" gebunden, nicht an Index 0 an sich (Übersicht wandert auf Index 1). Beide Stellen brauchen benannte Konstanten statt Magic Numbers (siehe Phase A).
 
@@ -235,14 +235,25 @@ Arbeitstexte können **optional** an den Korpus gebunden sein — über `source_
 
 **Vier Kontext-Stufen** (gleiche Taxonomie wie ContextPicker im KI-Chat / Figma `Design System`):
 
-| Stufe | Label | Zuordnung |
+| Stufe | Label (Dropdown) | Zuordnung |
 |---|---|---|
-| 1 | **Aktueller Absatz** | `paragraph_id` = `rag_paragraphs.id` des gelesenen Absatzes |
-| 2 | **Kapitel/Vortrag** | gleiche `source_id` **und** gleicher `segment_slug`; `paragraph_id` darf abweichen oder leer sein |
-| 3 | **Buch** | gleiche `source_id`; `segment_slug` / `paragraph_id` dürfen abweichen |
+| 1 | **Absatz** + Snippet | `paragraph_id` = `rag_paragraphs.id` des gelesenen Absatzes |
+| 2 | **Kapitel** + Titel | gleiche `source_id` **und** gleicher `segment_slug`; `paragraph_id` darf abweichen oder leer sein |
+| 3 | **Buch** + Titel | gleiche `source_id`; `segment_slug` / `paragraph_id` dürfen abweichen |
 | 4 | **Allgemein** | `source_id`, `segment_slug` und `paragraph_id` alle leer |
 
-**Filter (Tab ARBEITSTEXTE):** Segmented Control oder Dropdown mit den vier Stufen. **Je nach Lese-Kontext:** Wenn der User gerade liest, beziehen sich „Aktueller Absatz", „Kapitel/Vortrag" und „Buch" auf die aktive Lese-Position (`ReadingContext`, inkl. `segment_slug` aus dem aktuellen `Paragraph`). Ohne Lese-Session sind nur **Buch** (wenn `source_id` aus Navigation mitgegeben) und **Allgemein** sinnvoll — Absatz/Kapitel-Filter ausgegraut oder ausgeblendet.
+**Filter (Tab ARBEITSTEXTE):** **Dropdown rechts** in der Filter-/Suchzeile (keine horizontale Chip-Leiste). Vier Einträge — jeweils **Stufen-Label + Kontext-Snippet** aus der aktiven Lese-Position (`ReadingContext` + aktueller `Paragraph` + `Source`):
+
+| Stufe | Zeile im Dropdown | Datenquelle |
+|---|---|---|
+| 1 | **Absatz** \<erste 5 Wörter des Absatzes\> | `paragraph.text_raw` (oder gerenderter Absatztext), whitespace-getrennt, max. 5 Wörter; bei Kürzung `…` |
+| 2 | **Kapitel** \<Kapiteltitel\> | `paragraph.segment_title` (Fallback: `segment_slug`) |
+| 3 | **Buch** \<aktuelles Buch\> | `sources.title` zu `paragraph.source_id` |
+| 4 | **Allgemein** | Festes Label, kein Snippet |
+
+**Layout:** Eine Zeile — links Suchfeld „Titel durchsuchen…" (+ 📎 für Neu); **rechts** der Dropdown (z. B. `Menu` / Picker mit Chevron). Ausgewählte Zeile als kompakter Trigger-Text (Stufe + gekürztes Snippet).
+
+**Je nach Lese-Kontext:** Mit aktiver Lese-Session sind alle vier Einträge wählbar. Ohne Lese-Session: **Absatz** und **Kapitel** disabled oder ausgeblendet; **Buch** nur wenn `source_id` aus Navigation bekannt; **Allgemein** immer verfügbar. Filterlogik unverändert (§ 5.1 Tabelle) — nur die **UI-Labels** werden kontextualisiert.
 
 **Sortierung:** Ohne aktiven Filter: zuerst nach Kontext-Stufe (1 → 4), innerhalb jeder Stufe `updated_at` absteigend. Mit aktivem Filter: nur Treffer dieser Stufe, sortiert nach `updated_at`.
 
@@ -305,7 +316,7 @@ Zusätzlich **Titelsuche** (§ 5.4) — schneidet die gefilterte/sortierte Liste
 
 | Feature | MVP |
 |---|---|
-| **Filter** | **ja** — vier Kontext-Stufen (§ 5.1): Aktueller Absatz · Kapitel/Vortrag · Buch · Allgemein |
+| **Filter** | **ja** — Dropdown **rechts** (§ 5.1): `Absatz <5 Wörter>` · `Kapitel <Titel>` · `Buch <Titel>` · `Allgemein` |
 | **Sortierung** | Kontext-Stufe (1→4), innerhalb Stufe `updated_at` absteigend; bei Filter nur `updated_at` |
 | **Suche** | **ja** — Titelsuche (erste `#`-Zeile in `notes.content`, ohne `#`) |
 | **Listenzeile** | Titel, Kontext-Badge (z. B. ¶4 / Kapitel / Werk / Allgemein), Zeichenzahl (`x / 50 000`), `updated_at` (relativ) |
@@ -449,6 +460,42 @@ linkedDocumentId: string | null;
 Persistiertes `linkedDocumentId` pro Talk optional in `talks.kontext_meta` (JSON), damit Verknüpfung Gespräch überdauert.
 
 **Chat-Request** (wenn verknüpft, zusätzlich zu `message` / `mode` / `talk_id`): siehe [filo-arbeitstext-contract.md](./filo-arbeitstext-contract.md) §3 (`linked_document_id`, `document_outline`, `linked_document_content`).
+
+### 6.1 Suchtreffer verknüpfen (📎 in KI-Suche)
+
+**Status:** Design (Jul 2026), **nicht implementiert** — Ergänzung zu Phase G.
+
+**Zweck:** Anders als Header-📎 (§ 6) — das einen Arbeitstext als **Chat-Instruktionskontext** bindet — baut das Suchtreffer-📎 die **Korpus-Verankerung** der Arbeitstext-Sammlung auf: jeder Treffer in **KI-Suche** bekommt ein 📎-Icon, das ein Popup mit bis zu vier Zielen öffnet:
+
+```
+Arbeitstext verknüpfen mit …
+────────────────────────────
+📌 Aktueller Chat — <Talk-Titel>
+¶  Aktueller Absatz — <erste 5 Wörter>
+📖 Aktuelles Kapitel — <Kapiteltitel>
+📚 Aktuelles Buch — <Buchtitel>
+```
+
+**Konzeptioneller Unterschied Chat vs. Absatz/Kapitel/Buch:** Absatz/Kapitel/Buch bilden die **strukturierte Arbeitstext-Sammlung** entlang des Lesekorpus (gleiche vier Stufen wie § 5.1, ohne „Allgemein" — ein Suchtreffer hat immer einen Korpus-Bezug oder gar keinen). Chat ist der **Sonderfall**: er hängt keinen Arbeitstext an eine Korpus-Einheit, sondern an ein Gespräch — der Chat kann seinerseits jede der drei Korpus-Einheiten bearbeiten oder neu anlegen (§ 5.3.1).
+
+**Sichtbarkeit je Eintrag** — ausblenden, **kein** generisches Fallback-Label, wenn die Datenquelle fehlt (ein Label ohne gültiges Ziel würde einen nicht-funktionalen Menüpunkt vortäuschen):
+
+| Eintrag | Sichtbar wenn | Label-Quelle |
+|---|---|---|
+| **Aktueller Chat** | Navigation zur Suche kam **vom Chat-Tab** (`origin === 'chat'`) — nicht allein weil ein `activeTalkId` im Hintergrund existiert | `talks.title`, Fallback „Neues Gespräch" (Feld ist nullable) |
+| **Aktueller Absatz** | `result.paragraph_id` vorhanden **und** kein `result.navigation_error` | erste 5 Wörter aus `result.text`/`snippet` (wie § 5.1 Zeile 1) |
+| **Aktuelles Kapitel** | `result.source_id` **und** `result.segment_title`/`segment_slug` vorhanden | `segment_title` |
+| **Aktuelles Buch** | `result.source_id` **und** `result.book_title` vorhanden | `book_title` |
+
+**Wann fehlt „Aktueller Absatz" strukturell?** Treffer-Kinds ohne 1:1-Absatzbezug (`kapitel_zusammenfassung`, `begriff`, `typology`, `chunk_gespraech`, `notiz` — routen in `searchHitCard.ts` über `overlayNav()`, das nie `paragraph_id` liest) zeigen den Eintrag **nie**. Bei `chunk_buch`/`chunk_vortrag`/`zitat` (routen über `readNav()`/`quoteReadNav()`, die `paragraph_id` voraussetzen) kann er zusätzlich durch eine echte Datenlücke (`navigation_error`, unvollständiger Chunk) fehlen — Behandlung identisch: ausblenden.
+
+**Ein Arbeitstext pro Einheit:** Vor dem Verknüpfen Lookup am Ziel (`paragraph_id` bzw. `source_id`+`segment_slug` bzw. `source_id`) über bestehende Arbeitstexte (`NoteRepository` / `arbeitstextContext.ts`-Klassifikation). Ist die Einheit bereits belegt: Dialog **„Vorhandenen öffnen"** vs. **„Ersetzen"** — nicht-destruktiv, „Ersetzen" löst nur die Verknüpfung am alten Ziel, löscht den Arbeitstext nicht (Arbeitstext bleibt in der Bibliothek, wie beim Loslösen in § 6).
+
+**Komponente:** geteilte `AttachTargetSheet`, wiederverwendet von Header-📎 (§ 6, nur Chat-Fokus, bestehende `ArbeitstextLinkSheet`) und Suchtreffer-📎 (bis zu 4 Ziele, neu).
+
+**Navigation-Origin (neu, existiert noch nicht):** Kein bestehender Mechanismus trackt, von welchem Tab aus KI-Suche geöffnet wurde. Nötig: leichter `origin`-Parameter (`'chat' | 'lesen' | 'buecher' | 'tab'`) — z. B. Route-Param beim Navigieren zur Suche, oder Context-Feld, das beim Tab-Wechsel zurückgesetzt wird.
+
+**Cross-Tab „Aktueller Chat":** Verknüpfen aus KI-Suche heraus navigiert zurück zum Chat-Tab, analog zum bestehenden `onEditInChat` / `pendingLinkNoteId`-Pattern (§ 5.4).
 
 ---
 
@@ -695,12 +742,16 @@ Reihenfolge nach Risiko/Abhängigkeit — **gesamtübergreifende Reihenfolge und
 - [x] `documentLimits.ts` — `MAX_DOCUMENT_CHARS = 50_000`
 - [x] `documentTree.ts` — parse, outline, serialize, patch (Contract §2)
 - [x] `ArbeitstexteScreen` (Bibliothek) + Kontext-Filter (§ 5.1) + Titelsuche + Sortierung + Aktionsmenü (Vorschau) + `DocumentMarkdownView` (keine Tabellen)
+- [ ] Kontext-Filter: **Chip-Leiste → Dropdown rechts** mit dynamischen Zeilen (`Absatz <5 Wörter>`, `Kapitel <Titel>`, `Buch <Titel>`, `Allgemein`) — Plan-Ergänzung Jul 2026, § 5.1
 - [x] `arbeitstextContext.ts` — `classifyArbeitstextContext`, `filterByContextTier`, Sortierung
 - [x] Header-📎-Sheet: verknüpfen / neu (`ArbeitstextLinkSheet` in `ChatTab`)
 - [x] `applyDocumentUpdate.ts`, `materializeDocument.ts`, `dispatchToolEffects` (`data/tools/index.ts`), `documentUndoStack`
 - [x] **In Gespräch bearbeiten** aus Bibliothek → CHAT + 📎 verdrahten (`FiloScreen` → `ChatTab.linkNoteId`)
 - [ ] `document_outline` + `linked_document_content` im Chat-Request; ragrun T1: Tool-Handler (Welle 4)
-- [ ] Doppelmatrix-Härtetest-Fixture (listenbasierte Version ohne Tabellen)
+- [x] ragrun-Pytest-Fixture (Doppelmatrix, handgeschriebenes Excerpt, 2 Kapitel, ohne Tabellen) — `app/tools/app/read_blocks/tests/cases/doppelmatrix_excerpt.md` (2b.3, erledigt)
+- [ ] ragapp: automatisierter Test für `documentTree.ts` (Parser/Outline/Serializer) und `DocumentMarkdownView` (Renderer) — **existiert noch nicht**, kein `__tests__`/`*.test.ts` im Repo (Klärung Jul 2026)
+- [x] Reale Doppelmatrix (`ragkeep/.../doppelmatrix-gesund-und-krank_matritzen.md`) als **manuelles E2E-Testdokument** für Welle 4 gekürzt und formatgeprüft (29.220 Zeichen, unter `MAX_DOCUMENT_CHARS`) — Jul 2026
+- [ ] Suchtreffer-📎 in KI-Suche: `AttachTargetSheet`, Navigation-Origin, „ein Arbeitstext pro Einheit"-Lookup + Ersetzen-Dialog (§ 6.1, Plan-Ergänzung Jul 2026)
 
 ### Phase H — Arbeitstext im Chat-Kontext
 - [x] Arbeitstext-Chip unter Header (Titel, tap → Overlay) — `ChatTab`, chat-lokal
@@ -721,10 +772,12 @@ Reihenfolge nach Risiko/Abhängigkeit — **gesamtübergreifende Reihenfolge und
 6. **Markdown-Renderer:** eigener Renderer für `#`/`##`/`###`, Absätze, Listen — **keine Tabellen** im MVP.
 7. **Arbeitstext-Patch:** Document Tree + `paragraph_id` / `heading_path`; automatische Übernahme (§ 5.6). **Entschieden:** keine Tabellen, kein `replace_all`.
 8. **Arbeitstext-Maximalgröße:** **Entschieden** — 50 000 Zeichen Hard-Limit; ~10–12 000 Tokens Kontext-Budget (§ 5.3).
-9. **Kontext-Bezug:** **Entschieden** — vier Stufen (Absatz · Kapitel/Vortrag · Buch · Allgemein) über `source_id` + **`segment_slug`** + `paragraph_id`; Filter + Sortierung in Tab ARBEITSTEXTE (§ 5.1, § 5.4). Kein Parsen von `segment_index` aus `paragraph_id`.
+9. **Kontext-Bezug:** **Entschieden** — vier Stufen (Absatz · Kapitel · Buch · Allgemein) über `source_id` + **`segment_slug`** + `paragraph_id`; Filter als **Dropdown rechts** mit dynamischen Zeilen (§ 5.1); Sortierung in Tab ARBEITSTEXTE (§ 5.1, § 5.4). Kein Parsen von `segment_index` aus `paragraph_id`.
 10. **Arbeitstext im Chat:** **Entschieden** — Header-📎, Chat vollflächig, Preview-Overlay auf Abruf; LLM-Zugriff **nur per Tools** (`read_blocks`, `update_document`, `create_document`); Kapitel/Unterkapitel über `#`/`##`/`###` ansprechbar (§ 5.3.1, § 6); kein Turn-Menü „In den Arbeitstext".
+11. **Suchtreffer-📎 (§ 6.1):** **Entschieden** — eigenes 📎 pro Suchtreffer, Popup mit bis zu 4 Zielen (Chat/Absatz/Kapitel/Buch); fehlende Datenquelle → Eintrag **ausblenden**, kein generisches Fallback-Label; „Aktueller Chat" nur bei Navigation-Origin `chat`, nicht bei bloß aktivem `activeTalkId`; „ein Arbeitstext pro Einheit" mit nicht-destruktivem Ersetzen-Dialog. Offen: `AttachTargetSheet`-Implementierung, Navigation-Origin-Mechanismus.
+12. **Test-Fixtures Document Tree (§ 5.3, Phase G):** **Geklärt** — zwei getrennte Zwecke, nicht verwechseln: (a) **ragrun-Pytest-Fixture** (`doppelmatrix_excerpt.md`, klein, handgeschrieben, 2 Kapitel) für `read_blocks`-Disambiguierung — **fertig** (2b.3); (b) **reale Doppelmatrix** (`ragkeep/.../doppelmatrix-gesund-und-krank_matritzen.md`) als **manuelles E2E-Testdokument** für Welle 4 — **geprüft und Format korrekt** (Jul 2026): einmalige `#`-Titelzeile, `##` Matrix der Gesundheit/Krankheit → `###` Feld 1–9 sauber verschachtelt, kein `---`/sonstiges Störelement, keine Tabellen, 29.220 Zeichen (unter `MAX_DOCUMENT_CHARS` 50.000). Hinweis bleibt: alle `### Feld N`-Titel sind textlich eindeutig, testet also reine Pfad-Auflösung, nicht Namens-Kollisions-Disambiguierung. **Offen (neu):** ragapp hat **keinen automatisierten Test** für `documentTree.ts`/`DocumentMarkdownView` — sollte ergänzt werden, ggf. mit einer gekürzten Version der realen Doppelmatrix als Fixture.
 11. **Kontextanzeige & Edit/Wiederholen:** **Entschieden (MVP)** — Anzeige = effektiver nächster Prompt; `usage` pro Turn nicht summieren; Bearbeiten/Wiederholen **löscht** nachfolgende Turns (§ 2, § 3, § 8.2). **Später:** Gespräch kopieren.
-12. **Bibliothek ARBEITSTEXTE:** **Entschieden** — Kontext-Filter (vier Stufen); Sortierung Kontext-Stufe + `updated_at`; Titelsuche; Tap → Aktionsmenü Vorschau / In Gespräch bearbeiten (§ 5.4).
+12. **Bibliothek ARBEITSTEXTE:** **Entschieden** — Kontext-Filter als Dropdown rechts (`Absatz`/`Kapitel`/`Buch`/`Allgemein` + Snippet); Sortierung Kontext-Stufe + `updated_at`; Titelsuche; Tap → Aktionsmenü Vorschau / In Gespräch bearbeiten (§ 5.4).
 13. **Freigabe (post-MVP):** nur `is_public` togglen vs. gezielte Freundesliste — offen.
 14. **Gespräch kopieren (post-MVP):** Duplikat eines Gesprächs vor destruktivem Edit — Alternative zu `superseded_at`/Verzweigungs-UI (§ 3).
 15. **Modell-Deprecation (2026-07-24):** **Erledigt in ragrun** — Defaults in `app/config.py` sind `deepseek-v4-flash`; Chat vs. Nachdenken läuft über `thinking.type` in `app/core/providers.py` und `app/infra/deepseek_client.py`. LangGraph/Action-Prompt setzen `thinking: disabled` explizit. **Offen für Filo Phase B/E:** `_make_llm()` modusabhängig machen; SSE `thinking`-Events bei `nachdenken`. **Offen in ragprep:** `DeepSeekService`/`constants.ts` nutzen teils noch Legacy-Alias-Namen (separater Migrations-Track, [llm-model-abstraction.md](./llm-model-abstraction.md)).

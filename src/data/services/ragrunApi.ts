@@ -1,8 +1,9 @@
 import { config } from '@/data/lib/config';
-import { ragrunRequest } from '@/data/lib/ragrun-client';
+import { ragrunRequest, ragrunStream } from '@/data/lib/ragrun-client';
 import type {
   ChatRequest,
   ChatResponse,
+  ChatStreamEvent,
   ChatSummarizeResponse,
   ChunkTextResponse,
   PersonalitiesResponse,
@@ -59,6 +60,15 @@ export const ragrunApi = {
     return ragrunRequest<ChatResponse>(`${APP_PREFIX}/chat`, {
       method: 'POST',
       body: request,
+    });
+  },
+
+  /** `POST /app/chat/stream` — Filo §11.5 (RN-SSE via `expo/fetch`), Contract §5/§6. */
+  streamChat(request: ChatRequest, options?: { signal?: AbortSignal }): AsyncGenerator<ChatStreamEvent> {
+    return ragrunStream<ChatStreamEvent>(`${APP_PREFIX}/chat/stream`, {
+      method: 'POST',
+      body: request,
+      signal: options?.signal,
     });
   },
 

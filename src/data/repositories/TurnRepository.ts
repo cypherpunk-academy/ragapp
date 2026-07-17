@@ -32,21 +32,25 @@ export const TurnRepository = {
   },
 
   async create(data: {
+    id?: string;           // WatermelonDB id = turn_id; auto-generated if omitted
     talkId: string;
     turnIndex: number;
     userMessage: string;
     personality?: string;
     assistantMessage?: string;
-    chunkIndexMap?: Record<string, unknown> | null;
+    chunkIndexMap?: unknown[] | null;
+    usage?: Record<string, unknown> | null;
   }): Promise<Turn> {
     return database.write(async () =>
-      collection.create((turn) => {
+      collection.create((turn: any) => {
+        if (data.id) turn._raw.id = data.id;
         turn.talkId = data.talkId;
         turn.turnIndex = data.turnIndex;
         turn.userMessage = data.userMessage;
         turn.personality = data.personality ?? null;
         turn.assistantMessage = data.assistantMessage ?? null;
         turn.chunkIndexMap = data.chunkIndexMap ? JSON.stringify(data.chunkIndexMap) : null;
+        turn.usage = data.usage ? JSON.stringify(data.usage) : null;
       }),
     );
   },

@@ -18,6 +18,14 @@ export const ReferenceRepository = {
     ).observe();
   },
 
+  async findByTurnIds(turnIds: string[]): Promise<Reference[]> {
+    if (turnIds.length === 0) return [];
+    return collection.query(
+      Q.where('turn_id', Q.oneOf(turnIds)),
+      Q.sortBy('ref_index', Q.asc),
+    ).fetch();
+  },
+
   observeAll() {
     return collection.query(Q.sortBy('created_at', Q.desc)).observe();
   },

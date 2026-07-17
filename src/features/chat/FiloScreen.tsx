@@ -10,14 +10,12 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { continueReadingLabel } from '@/features/overview/sourceDetail';
 import ChatTab from './ChatTab';
 import GespraecheTab from './GespraecheTab';
-import ArbeitstexteScreen from './ArbeitstexteScreen';
 
-type FiloSegment = 'chat' | 'gespraeche' | 'arbeitstexte';
+type FiloSegment = 'chat' | 'gespraeche';
 
 const SEGMENTS: { id: FiloSegment; label: string }[] = [
   { id: 'chat', label: 'CHAT' },
   { id: 'gespraeche', label: 'GESPRÄCHE' },
-  { id: 'arbeitstexte', label: 'ARBEITSTEXTE' },
 ];
 
 type WeiterlesenState = {
@@ -27,19 +25,39 @@ type WeiterlesenState = {
   segmentTitle: string | null;
 };
 
+type Props = {
+  /** Filo ist der sichtbare Haupt-Tab (Pager Index 0). */
+  isFiloTabActive?: boolean;
+  /** App wurde mit Filo als Start-Tab geöffnet (nicht z. B. wiederhergestellter Lesen-Tab). */
+  offerWeiterlesenOnLaunch?: boolean;
+};
+
 /**
  * Filo-Tab (Position 0, Start-Tab der App).
- * Drei innere Reiter (Segmented Control, kein eigener PagerView-Index): CHAT / GESPRÄCHE / ARBEITSTEXTE.
+ * Zwei innere Reiter (Segmented Control, kein eigener PagerView-Index): CHAT / GESPRÄCHE.
  */
-export default function FiloScreen() {
+export default function FiloScreen({
+  isFiloTabActive = true,
+  offerWeiterlesenOnLaunch = true,
+}: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { chatTalkId, navigateToRead } = useReading();
+  const {
+    chatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
+    chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
+  } = useReading();
 
   const [activeSegment, setActiveSegment] = useState<FiloSegment>('chat');
   const [activeTalkId, setActiveTalkId] = useState<string | null>(null);
   const [weiterlesen, setWeiterlesen] = useState<WeiterlesenState | null>(null);
+  const [weiterlesenDismissed, setWeiterlesenDismissed] = useState(false);
   const [pendingLinkNoteId, setPendingLinkNoteId] = useState<string | null>(null);
+  const [pendingParagraphId, setPendingParagraphId] = useState<string | null>(null);
+
+  const showWeiterlesen = offerWeiterlesenOnLaunch
+    && isFiloTabActive
+    && weiterlesen != null
+    && !weiterlesenDismissed;
 
   // Aus dem ReadingContext vorgeladenes Gespräch übernehmen (z. B. aus Suche/Lesen).
   useEffect(() => {
@@ -48,6 +66,24 @@ export default function FiloScreen() {
       setActiveSegment('chat');
     }
   }, [chatTalkId]);
+
+  // Vorgemerkte Note zum Verknüpfen übernehmen (z. B. „Mit Philo bearbeiten" von Absatz/Kapitel/Buch).
+  useEffect(() => {
+    if (chatPendingLinkNoteId) {
+      setPendingLinkNoteId(chatPendingLinkNoteId);
+      setActiveSegment('chat');
+      consumeChatPendingLink();
+    }
+  }, [chatPendingLinkNoteId, consumeChatPendingLink]);
+
+  // Vorgemerkter Absatz zur Verankerung eines neuen Gesprächs (z. B. „Philo zu diesem Absatz fragen").
+  useEffect(() => {
+    if (chatPendingParagraphId) {
+      setPendingParagraphId(chatPendingParagraphId);
+      setActiveSegment('chat');
+      consumeChatPendingParagraph();
+    }
+  }, [chatPendingParagraphId, consumeChatPendingParagraph]);
 
   // Globale letzte Lesestelle über alle Quellen hinweg, für den WEITERLESEN-Hinweis.
   useEffect(() => {
@@ -72,13 +108,25 @@ export default function FiloScreen() {
     return () => sub.unsubscribe();
   }, []);
 
+  // Einmal pro App-Start: Banner verschwindet beim Verlassen des Filo-Tabs ohne Tap.
+  useEffect(() => {
+    if (!isFiloTabActive && offerWeiterlesenOnLaunch) {
+      setWeiterlesenDismissed(true);
+    }
+  }, [isFiloTabActive, offerWeiterlesenOnLaunch]);
+
+  const handleWeiterlesen = useCallback(() => {
+    if (!weiterlesen) return;
+    setWeiterlesenDismissed(true);
+    navigateToRead({
+      sourceId: weiterlesen.sourceId,
+      segmentIndex: weiterlesen.segmentIndex,
+      paragraphId: weiterlesen.paragraphId,
+    });
+  }, [weiterlesen, navigateToRead]);
+
   const handleSelectTalk = useCallback((talkId: string) => {
     setActiveTalkId(talkId);
-    setActiveSegment('chat');
-  }, []);
-
-  const handleEditInChat = useCallback((noteId: string) => {
-    setPendingLinkNoteId(noteId);
     setActiveSegment('chat');
   }, []);
 
@@ -86,14 +134,10 @@ export default function FiloScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppBar title={assistant.firstName} />
 
-      {weiterlesen && (
+      {showWeiterlesen && (
         <TouchableOpacity
           style={[styles.weiterlesen, { backgroundColor: colors.primaryContainer }]}
-          onPress={() => navigateToRead({
-            sourceId: weiterlesen.sourceId,
-            segmentIndex: weiterlesen.segmentIndex,
-            paragraphId: weiterlesen.paragraphId,
-          })}
+          onPress={handleWeiterlesen}
           activeOpacity={0.85}
         >
           <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
@@ -128,10 +172,11 @@ export default function FiloScreen() {
             onActiveTalkChange={setActiveTalkId}
             linkNoteId={pendingLinkNoteId}
             onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
+            pendingParagraphId={pendingParagraphId}
+            onParagraphConsumed={() => setPendingParagraphId(null)}
           />
         )}
         {activeSegment === 'gespraeche' && <GespraecheTab onSelectTalk={handleSelectTalk} />}
-        {activeSegment === 'arbeitstexte' && <ArbeitstexteScreen onEditInChat={handleEditInChat} />}
       </View>
     </View>
   );

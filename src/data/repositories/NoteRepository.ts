@@ -16,6 +16,32 @@ export const NoteRepository = {
     return collection.query(Q.where('source_id', sourceId), Q.sortBy('created_at', Q.desc)).observe();
   },
 
+  observeByTalk(talkId: string) {
+    return collection.query(Q.where('talk_id', talkId), Q.sortBy('created_at', Q.desc)).observe();
+  },
+
+  async findBySegment(sourceId: string, segmentSlug: string): Promise<Note[]> {
+    return collection
+      .query(
+        Q.where('source_id', sourceId),
+        Q.where('segment_slug', segmentSlug),
+        Q.where('paragraph_id', null),
+        Q.sortBy('created_at', Q.desc),
+      )
+      .fetch();
+  },
+
+  async findBySourceOnly(sourceId: string): Promise<Note[]> {
+    return collection
+      .query(
+        Q.where('source_id', sourceId),
+        Q.where('segment_slug', null),
+        Q.where('paragraph_id', null),
+        Q.sortBy('created_at', Q.desc),
+      )
+      .fetch();
+  },
+
   async findById(id: string): Promise<Note | null> {
     try {
       return await collection.find(id);
@@ -49,6 +75,24 @@ export const NoteRepository = {
 
   async update(note: Note, content: string): Promise<Note> {
     return database.write(async () => note.update((n) => { n.content = content; }));
+  },
+
+  async attachToTalk(note: Note, talkId: string | null): Promise<Note> {
+    return database.write(async () => note.update((n) => { n.talkId = talkId; }));
+  },
+
+  async attachToContext(
+    note: Note,
+    context: { talkId?: string | null; paragraphId?: string | null; segmentSlug?: string | null; sourceId?: string | null },
+  ): Promise<Note> {
+    return database.write(async () =>
+      note.update((n) => {
+        if ('talkId' in context) n.talkId = context.talkId ?? null;
+        if ('paragraphId' in context) n.paragraphId = context.paragraphId ?? null;
+        if ('segmentSlug' in context) n.segmentSlug = context.segmentSlug ?? null;
+        if ('sourceId' in context) n.sourceId = context.sourceId ?? null;
+      }),
+    );
   },
 
   async delete(note: Note): Promise<void> {
