@@ -93,8 +93,9 @@ export const TalkRepository = {
     );
   },
 
-  /** Welle 5a — Pin toggeln: lokal sofort sichtbar + serverseitig persistiert (Cleanup-Schutz). */
+  /** Welle 5a — Pin toggeln: Server zuerst, dann WDB (bei API-Fehler kein lokaler Drift). */
   async setPinned(talkId: string, pinned: boolean): Promise<void> {
+    await ragrunApi.updateTalkSettings(talkId, { pinned });
     const talk = await TalkRepository.findById(talkId);
     if (talk) {
       await database.write(async () =>
@@ -103,7 +104,6 @@ export const TalkRepository = {
         }),
       );
     }
-    await ragrunApi.updateTalkSettings(talkId, { pinned });
   },
 
   /** Welle 5c — Chat/Nachdenken-Modus: lokal sofort sichtbar + serverseitig persistiert. */

@@ -22,7 +22,8 @@ export default function SearchHitList({
   results, ListHeaderComponent, contentContainerStyle, scrollToIndex, highlightIndex,
 }: Props) {
   const listRef = useRef<FlatList<RagHit>>(null);
-  const handleNavigate = useSearchHitNavigation();
+  // Nur von RagInsightsOverlay (Chat-Quellenverweise) verwendet — „Zurück" muss dorthin zurückführen, nicht zur KI-Suche.
+  const handleNavigate = useSearchHitNavigation('chat');
 
   useEffect(() => {
     if (scrollToIndex == null || scrollToIndex < 0 || scrollToIndex >= results.length) return;

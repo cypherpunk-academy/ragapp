@@ -29,6 +29,8 @@ type ChunkPreviewOverlay = {
   initialText: string;
   /** Zweiter Tap: zum Kapitel-/Vortragsanfang im Lesen-Tab. */
   readTarget?: SummaryReadTarget;
+  /** Woher das Overlay geöffnet wurde — bestimmt das Ziel des „Zurück"-Buttons nach einem Sprung ins Lesen-Tab. */
+  origin?: 'search' | 'chat';
 };
 
 type ReadingTarget = {
@@ -52,7 +54,7 @@ type ReadingContextValue = {
   /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
   chatPendingParagraphId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat' }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
@@ -61,8 +63,10 @@ type ReadingContextValue = {
   navigateToChat: () => void;
   /** Wechselt zurück zum KI-Suche-Tab (nach Navigation aus der Suche). */
   navigateToSearch: () => void;
-  /** true wenn die aktuelle Leseposition aus der KI-Suche geöffnet wurde. */
+  /** true wenn die aktuelle Leseposition aus der KI-Suche oder den Chat-Quellenverweisen geöffnet wurde. */
   searchReturnActive: boolean;
+  /** Woher die aktuelle Leseposition kam — bestimmt das Ziel des „Zurück"-Buttons. */
+  searchReturnOrigin: 'search' | 'chat' | null;
   /**
    * Zähler: wird hochgezählt wenn der User explizit auf den Übersicht-Tab tippt.
    * OverviewScreen reagiert darauf und zeigt die Bücherübersicht (resettet selectedSource).
@@ -112,6 +116,7 @@ const ReadingContext = createContext<ReadingContextValue>({
   navigateToChat: () => {},
   navigateToSearch: () => {},
   searchReturnActive: false,
+  searchReturnOrigin: null,
   navigateToChatWithTalk: () => {},
   navigateToChatWithPendingLink: () => {},
   consumeChatPendingLink: () => {},
@@ -166,9 +171,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [chatPendingLinkNoteId, setChatPendingLinkNoteId] = useState<string | null>(null);
   const [chatPendingParagraphId, setChatPendingParagraphId] = useState<string | null>(null);
   const [searchReturnActive, setSearchReturnActive] = useState(false);
+  const [searchReturnOrigin, setSearchReturnOrigin] = useState<'search' | 'chat' | null>(null);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: boolean }) => {
+    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat' }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
       if (pushHistory) {
         const historyEntry = fromParagraphId != null
@@ -178,9 +184,11 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
       }
       if (fromSearch) {
         setSearchReturnActive(true);
+        setSearchReturnOrigin(fromSearch);
       } else if (!pushHistory) {
         // Normal non-search navigation resets the search return button
         setSearchReturnActive(false);
+        setSearchReturnOrigin(null);
       }
       setTarget((prev) => ({
         sourceId: resolvedSourceId,
@@ -206,11 +214,14 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navigateToChat = useCallback(() => {
+    setSearchReturnActive(false);
+    setSearchReturnOrigin(null);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
   const navigateToSearch = useCallback(() => {
     setSearchReturnActive(false);
+    setSearchReturnOrigin(null);
     tabNavRef.current?.(TAB_INDEX_SEARCH);
   }, []);
 
@@ -273,6 +284,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         navigateToChat,
         navigateToSearch,
         searchReturnActive,
+        searchReturnOrigin,
         navigateToChatWithTalk,
         navigateToChatWithPendingLink,
         consumeChatPendingLink,

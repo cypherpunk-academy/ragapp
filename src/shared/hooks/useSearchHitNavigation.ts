@@ -2,8 +2,12 @@ import { useCallback } from 'react';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import type { SearchHitNavigation } from '@/shared/lib/searchHitCard';
 
-/** Navigation aus Suchtreffer-Karten (Lesen-Tab oder Chunk-Overlay). */
-export function useSearchHitNavigation() {
+/**
+ * Navigation aus Suchtreffer-Karten (Lesen-Tab oder Chunk-Overlay).
+ * `origin` bestimmt, wohin der „Zurück"-Button vom Lesen-Tab führt: zur KI-Suche
+ * (Suche-Tab) oder zurück zu den Quellenverweisen (Chat-Overlay).
+ */
+export function useSearchHitNavigation(origin: 'search' | 'chat' = 'search') {
   const { navigateToRead, openChunkPreview } = useReading();
 
   return useCallback(
@@ -14,7 +18,7 @@ export function useSearchHitNavigation() {
           segmentIndex: nav.segmentIndex ?? null,
           paragraphId: nav.paragraphId,
           markerOffset: nav.markerOffset ?? null,
-          fromSearch: true,
+          fromSearch: origin,
         });
       } else if (nav.kind === 'overlay') {
         openChunkPreview({
@@ -23,9 +27,10 @@ export function useSearchHitNavigation() {
           title: nav.title,
           initialText: nav.initialText,
           readTarget: nav.readTarget,
+          origin,
         });
       }
     },
-    [navigateToRead, openChunkPreview],
+    [navigateToRead, openChunkPreview, origin],
   );
 }

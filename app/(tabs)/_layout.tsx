@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TabBar from '@/shared/components/TabBar';
 import { lightColors, darkColors } from '@/shared/theme';
 import {
-  ReadingProvider, useReading, TAB_INDEX_CHAT, TAB_INDEX_OVERVIEW, TAB_INDEX_READ,
+  ReadingProvider, useReading, TAB_INDEX_CHAT, TAB_INDEX_OVERVIEW,
 } from '@/shared/contexts/ReadingContext';
 import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
@@ -17,23 +16,11 @@ import ContributionsScreen from '../../src/features/read/ContributionsScreen';
 import ConversationDetailScreen from '../../src/features/read/ConversationDetailScreen';
 import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
 
-const LAST_TAB_KEY = 'lastActiveTab';
-
 function TabsInner() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
-  const [initialPage, setInitialPage] = useState<number | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    AsyncStorage.getItem(LAST_TAB_KEY).then((val) => {
-      // Nur LESEN-Tab wird wiederhergestellt; alle anderen → Filo (Start-Tab)
-      const page = Number(val) === TAB_INDEX_READ ? TAB_INDEX_READ : TAB_INDEX_CHAT;
-      setInitialPage(page);
-      setActiveIndex(page);
-    });
-  }, []);
+  const [activeIndex, setActiveIndex] = useState(TAB_INDEX_CHAT);
 
   const {
     _registerTabNav,
@@ -56,24 +43,20 @@ function TabsInner() {
     pagerRef.current?.setPage(index);
   };
 
-  if (initialPage === null) return null;
-
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <PagerView
         ref={pagerRef}
         style={styles.pager}
-        initialPage={initialPage}
+        initialPage={TAB_INDEX_CHAT}
         onPageSelected={(e) => {
-          const index = e.nativeEvent.position;
-          setActiveIndex(index);
-          AsyncStorage.setItem(LAST_TAB_KEY, String(index));
+          setActiveIndex(e.nativeEvent.position);
         }}
       >
         <View key="0" style={styles.page}>
           <FiloScreen
             isFiloTabActive={activeIndex === TAB_INDEX_CHAT}
-            offerWeiterlesenOnLaunch={initialPage === TAB_INDEX_CHAT}
+            offerWeiterlesenOnLaunch
           />
         </View>
         <View key="1" style={styles.page}><OverviewScreen /></View>
@@ -109,12 +92,13 @@ function TabsInner() {
           readTarget={chunkPreview.readTarget}
           onClose={closeChunkPreview}
           onNavigateToRead={(target) => {
+            const origin = chunkPreview.origin ?? 'search';
             closeChunkPreview();
             navigateToRead({
               sourceId: target.sourceId,
               segmentIndex: target.segmentIndex,
               paragraphId: null,
-              fromSearch: true,
+              fromSearch: origin,
             });
           }}
         />

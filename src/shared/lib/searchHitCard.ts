@@ -158,6 +158,19 @@ export function resolveSummaryBodySourceId(result: SearchResult): string | undef
   );
 }
 
+/** Zitate leben unter einer Pseudo-Quelle `{book_id}:quotes` (siehe `backfill_quote_paragraph.py`); Navigation braucht die reale Buch-/Vortrags-Quelle. */
+export function resolveQuoteBodySourceId(result: SearchResult): string | undefined {
+  const quoteSourceId = result.source_id?.trim();
+  if (!quoteSourceId) return undefined;
+
+  return (
+    result.parent_id?.trim()
+    || (quoteSourceId.endsWith(':quotes')
+      ? quoteSourceId.slice(0, -':quotes'.length)
+      : quoteSourceId)
+  );
+}
+
 /** Body-Quelle und Segment für Navigation aus Summary-Suchtreffer. */
 export function resolveSummaryReadTarget(result: SearchResult): SummaryReadTarget | undefined {
   const bodySourceId = resolveSummaryBodySourceId(result);
@@ -220,9 +233,11 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
   const quoteReadNav = (): SearchHitNavigation => {
     if (result.navigation_error) return { kind: 'none' };
     if (!result.paragraph_id?.trim()) return { kind: 'none' };
+    const sourceId = resolveQuoteBodySourceId(result);
+    if (!sourceId) return { kind: 'none' };
     return {
       kind: 'read',
-      sourceId: result.source_id,
+      sourceId,
       paragraphId: result.paragraph_id,
       segmentIndex: null,
       markerOffset: result.quote_span?.start ?? null,

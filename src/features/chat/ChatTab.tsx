@@ -4,7 +4,7 @@ import {
   Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Modal, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
@@ -81,7 +81,6 @@ export default function ChatTab({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
-  const [copying, setCopying] = useState(false);
   const [observedLinkedNote, setObservedLinkedNote] = useState<Note | null>(null);
   const [metaLinkedNote, setMetaLinkedNote] = useState<Note | null>(null);
   const [pendingAttachNote, setPendingAttachNote] = useState<Note | null>(null);
@@ -538,19 +537,6 @@ export default function ChatTab({
     await Clipboard.setStringAsync(markdown);
   }, [activeTalkId, turns, referencesByTurnId]);
 
-  const handleSchnittHier = useCallback(async (maxTurnIndex: number) => {
-    if (!activeTalkId) return;
-    setCopying(true);
-    try {
-      const newTalk = await TalkRepository.copyTalk(activeTalkId, { maxTurnIndex });
-      onActiveTalkChange(newTalk.id);
-    } catch {
-      Alert.alert('Fehler', 'Konnte nicht schneiden.');
-    } finally {
-      setCopying(false);
-    }
-  }, [activeTalkId, onActiveTalkChange]);
-
   const handleDetachDocument = useCallback(async () => {
     if (linkedNote) {
       await NoteRepository.attachToTalk(linkedNote, null);
@@ -619,30 +605,32 @@ export default function ChatTab({
                 <Ionicons name="copy-outline" size={20} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleTogglePin} hitSlop={8}>
-                <AppIcon
-                  name={ICONS.talk.pin}
-                  size={ICON_SIZES.menu}
-                  color={pinned ? colors.primary : colors.onSurfaceVariant}
+                <MaterialCommunityIcons
+                  name={pinned ? 'pin' : 'pin-outline'}
+                  size={20}
+                  color={pinned ? colors.primary : colors.outline}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setContextSheetVisible(true)} hitSlop={8}>
-                <View
-                  style={[
-                    styles.contextBarTrack,
-                    { backgroundColor: colors.surfaceContainerHigh },
-                  ]}
-                >
+              {contextRatio >= 0.25 ? (
+                <TouchableOpacity onPress={() => setContextSheetVisible(true)} hitSlop={8}>
                   <View
                     style={[
-                      styles.contextBarFill,
-                      {
-                        width: `${Math.round(contextRatio * 100)}%`,
-                        backgroundColor: contextRatio > 0.85 ? colors.error : colors.primary,
-                      },
+                      styles.contextBarTrack,
+                      { backgroundColor: colors.surfaceContainerHigh },
                     ]}
-                  />
-                </View>
-              </TouchableOpacity>
+                  >
+                    <View
+                      style={[
+                        styles.contextBarFill,
+                        {
+                          width: `${Math.round(contextRatio * 100)}%`,
+                          backgroundColor: contextRatio > 0.85 ? colors.error : colors.primary,
+                        },
+                      ]}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ) : null}
             </>
           )}
         </View>
@@ -701,15 +689,6 @@ export default function ChatTab({
                 <ActivityIndicator size="small" color={colors.onSecondaryContainer} />
               </View>
             )}
-            <TouchableOpacity
-              onPress={() => handleSchnittHier(turn.turnIndex)}
-              style={styles.schnittBtn}
-              hitSlop={6}
-            >
-              <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-                Schnitt hier
-              </Text>
-            </TouchableOpacity>
           </View>
           );
         }}
@@ -965,7 +944,6 @@ const styles = StyleSheet.create({
   turnBlock: { gap: spacing.s },
   bubble: { borderRadius: 12, padding: spacing.m },
   streamingStatusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  schnittBtn: { alignSelf: 'flex-end', paddingHorizontal: spacing.xs, paddingVertical: 2 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

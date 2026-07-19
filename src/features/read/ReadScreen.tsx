@@ -13,6 +13,7 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
+import { SourceRepository } from '@/data/repositories/SourceRepository';
 import AppIcon from '@/shared/components/AppIcon';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
@@ -36,7 +37,8 @@ export default function ReadScreen() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const {
     target, openContributions, navigateToRead, navigateToChatWithParagraph, navigateBack,
-    navigationHistory, navigateToSearch, searchReturnActive, navigateToChatWithPendingLink,
+    navigationHistory, navigateToSearch, navigateToChat, searchReturnActive, searchReturnOrigin,
+    navigateToChatWithPendingLink,
   } = useReading();
   const sourceId = target.sourceId;
   const hasHistory = navigationHistory.length > 0;
@@ -56,6 +58,7 @@ export default function ReadScreen() {
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
   const [creatingNoteFor, setCreatingNoteFor] = useState<{ paragraphId?: string; segmentSlug?: string; sourceId?: string; initialContent?: string } | null>(null);
   const [chapterNote, setChapterNote] = useState<Note | null>(null);
+  const [sourceMeta, setSourceMeta] = useState<{ author: string; title: string } | null>(null);
   const allParagraphsRef = useRef<Paragraph[]>([]);
   allParagraphsRef.current = allParagraphs;
   const listRef = useRef<FlashList<Paragraph>>(null);
@@ -85,6 +88,23 @@ export default function ReadScreen() {
       setLoading(false);
     });
     return () => sub.unsubscribe();
+  }, [sourceId]);
+
+  useEffect(() => {
+    if (!sourceId) {
+      setSourceMeta(null);
+      return;
+    }
+    let cancelled = false;
+    void SourceRepository.findById(sourceId).then((source) => {
+      if (cancelled) return;
+      if (!source) {
+        setSourceMeta(null);
+        return;
+      }
+      setSourceMeta({ author: source.author, title: source.title });
+    });
+    return () => { cancelled = true; };
   }, [sourceId]);
 
   useEffect(() => {
@@ -552,9 +572,9 @@ export default function ReadScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
-        title={hasHistory ? 'Zurück' : searchReturnActive ? 'Suche' : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : 'Lesen')}
+        title={hasHistory ? 'Zurück' : searchReturnActive ? (searchReturnOrigin === 'chat' ? 'Quellenverweise' : 'Suche') : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : 'Lesen')}
         titleStyle={(hasHistory || searchReturnActive) ? textStyles.labelTab : textStyles.chapterTitle}
-        onBackPress={hasHistory ? navigateBack : searchReturnActive ? navigateToSearch : undefined}
+        onBackPress={hasHistory ? navigateBack : searchReturnActive ? (searchReturnOrigin === 'chat' ? navigateToChat : navigateToSearch) : undefined}
       />
       <FlashList
         style={styles.list}
@@ -577,33 +597,50 @@ export default function ReadScreen() {
         onScrollEndDrag={flushScrollIdle}
       />
 
-      {/* Kapitel-Navigation */}
+      {/* Kapitel-Navigation: Buchkontext, Kapiteltitel, Prev/Next ausgeschrieben */}
       <View style={[styles.chapNav, { borderTopColor: colors.outlineVariant, backgroundColor: colors.surfaceContainer }]}>
-        <TouchableOpacity
-          style={[styles.chapNavBtn, !prevSegment && styles.chapNavBtnDisabled]}
-          onPress={() => prevSegment && navigateToRead({ segmentIndex: prevSegment.segmentIndex, paragraphId: null })}
-          disabled={!prevSegment}
-        >
-          <Ionicons name="chevron-back" size={16} color={prevSegment ? colors.primary : colors.onSurfaceVariant} />
-          <SegmentTitleText
-            title={prevSegment?.segmentTitle ?? ''}
-            style={[typography.labelMedium, styles.chapNavText, { color: prevSegment ? colors.primary : colors.onSurfaceVariant }]}
-            numberOfLines={1}
-          />
-        </TouchableOpacity>
+        <View style={styles.chapNavCenter} accessibilityRole="text">
+          {(sourceMeta?.author || sourceMeta?.title) ? (
+            <Text
+              style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]}
+              numberOfLines={1}
+            >
+              {[sourceMeta?.author, sourceMeta?.title].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+        </View>
 
-        <TouchableOpacity
-          style={[styles.chapNavBtn, styles.chapNavBtnRight, !nextSegment && styles.chapNavBtnDisabled]}
-          onPress={() => nextSegment && navigateToRead({ segmentIndex: nextSegment.segmentIndex, paragraphId: null })}
-          disabled={!nextSegment}
-        >
-          <SegmentTitleText
-            title={nextSegment?.segmentTitle ?? ''}
-            style={[typography.labelMedium, styles.chapNavText, { color: nextSegment ? colors.primary : colors.onSurfaceVariant, textAlign: 'right' }]}
-            numberOfLines={1}
-          />
-          <Ionicons name="chevron-forward" size={16} color={nextSegment ? colors.primary : colors.onSurfaceVariant} />
-        </TouchableOpacity>
+        <View style={styles.chapNavRow}>
+          <TouchableOpacity
+            style={[styles.chapNavBtn, styles.chapNavBtnLeft, !prevSegment && styles.chapNavBtnDisabled]}
+            onPress={() => prevSegment && navigateToRead({ segmentIndex: prevSegment.segmentIndex, paragraphId: null })}
+            disabled={!prevSegment}
+            hitSlop={8}
+            accessibilityLabel="Voriges Kapitel"
+          >
+            <Ionicons name="chevron-back" size={18} color={prevSegment ? colors.primary : colors.onSurfaceVariant} />
+            <SegmentTitleText
+              title={prevSegment?.segmentTitle ?? ''}
+              style={[typography.labelSmall, styles.chapNavSideText, { color: prevSegment ? colors.primary : colors.onSurfaceVariant }]}
+              numberOfLines={1}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chapNavBtn, styles.chapNavBtnRight, !nextSegment && styles.chapNavBtnDisabled]}
+            onPress={() => nextSegment && navigateToRead({ segmentIndex: nextSegment.segmentIndex, paragraphId: null })}
+            disabled={!nextSegment}
+            hitSlop={8}
+            accessibilityLabel="Nächstes Kapitel"
+          >
+            <SegmentTitleText
+              title={nextSegment?.segmentTitle ?? ''}
+              style={[typography.labelSmall, styles.chapNavSideText, { color: nextSegment ? colors.primary : colors.onSurfaceVariant, textAlign: 'right' }]}
+              numberOfLines={1}
+            />
+            <Ionicons name="chevron-forward" size={18} color={nextSegment ? colors.primary : colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {menuParagraph !== null && (
@@ -723,9 +760,21 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   chapNav: {
-    flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
-    minHeight: 44,
+    minHeight: 72,
+    paddingTop: spacing.s,
+    paddingBottom: spacing.s,
+    gap: spacing.xs,
+  },
+  chapNavCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.m,
+    gap: 2,
+  },
+  chapNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   chapNavBtn: {
     flex: 1,
@@ -733,11 +782,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: spacing.s,
-    paddingVertical: spacing.s,
+    paddingVertical: spacing.xs,
   },
+  chapNavBtnLeft: { justifyContent: 'flex-start' },
   chapNavBtnRight: { justifyContent: 'flex-end' },
   chapNavBtnDisabled: { opacity: 0.3 },
-  chapNavText: { flex: 1, flexShrink: 1 },
+  chapNavSideText: { flex: 1, flexShrink: 1 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
