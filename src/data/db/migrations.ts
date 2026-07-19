@@ -286,5 +286,30 @@ export const migrations = schemaMigrations({
         ),
       ],
     },
+    {
+      toVersion: 22,
+      steps: [
+        // talks: pinned (Welle 5a — Nacht-Cleanup-Schutz), mode (Welle 5c — Chat/Nachdenken).
+        addColumns({
+          table: 'talks',
+          columns: [
+            { name: 'pinned', type: 'boolean', isOptional: true },
+            { name: 'mode', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 23,
+      steps: [
+        // talks: compressed_up_to_turn_index (Welle 5b — „Verdichten").
+        addColumns({
+          table: 'talks',
+          columns: [
+            { name: 'compressed_up_to_turn_index', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

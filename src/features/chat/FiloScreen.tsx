@@ -79,9 +79,11 @@ export default function FiloScreen({
     }
   }, [chatPendingLinkNoteId, consumeChatPendingLink]);
 
-  // Vorgemerkter Absatz zur Verankerung eines neuen Gesprächs (z. B. „Philo zu diesem Absatz fragen").
+  // Vorgemerkter Absatz zur Verankerung eines neuen Gesprächs (z. B. „Philo fragen").
+  // Erzwingt ein neues Gespräch — bestehendes Gespräch hat bereits einen anderen Kontext.
   useEffect(() => {
     if (chatPendingParagraphId) {
+      setActiveTalkId(null);
       setPendingParagraphId(chatPendingParagraphId);
       setActiveSegment('chat');
       consumeChatPendingParagraph();

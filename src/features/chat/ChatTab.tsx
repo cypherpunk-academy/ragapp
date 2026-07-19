@@ -1,32 +1,47 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert,
+  Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Modal, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
 import AppIcon from '@/shared/components/AppIcon';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import RagInsightsOverlay from '@/shared/components/RagInsightsOverlay';
 import AssistantMessageText from '@/shared/components/AssistantMessageText';
+import InlineMdText from '@/shared/components/InlineMdText';
 import TurnMetaLine from '@/shared/components/TurnMetaLine';
 import { extractDocumentTitle, buildDocumentOutline } from '@/data/lib/documentTree';
 import { dispatchToolEffects } from '@/data/tools';
 import { firstWords } from '@/shared/lib/arbeitstextContext';
+import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { resolveRagHitsForTurn, citationIndexToListIndex } from '@/shared/lib/ragHits';
 import { countUniqueCitations } from '@/shared/lib/citationMarkers';
+import { formatTalkAsMarkdown } from '@/shared/lib/formatTalkMarkdown';
+import { CHAT_MODES, chatModeLabel } from '@/shared/lib/chatModes';
+import { contextLimitForModel } from '@/shared/lib/modelContextLimits';
+import { computeEffectiveContextTokens } from '@/shared/lib/computeEffectiveContextTokens';
+import type { ChatMode, ChatContextMeta } from '@/shared/types/ragrun';
 import type Turn from '@/data/db/models/Turn';
 import type Note from '@/data/db/models/Note';
 import type Reference from '@/data/db/models/Reference';
 
 const LOCAL_USER = 'local';
+
+type ContextParagraph = {
+  id: string;
+  text: string;
+  label: string;
+};
 
 const PERSONALITY_LABELS: Record<string, string> = {
   sokrates: 'Sokrates',
@@ -43,7 +58,7 @@ function personalityLabel(slug: string | null | undefined): string {
 
 type Props = {
   activeTalkId: string | null;
-  onActiveTalkChange: (talkId: string) => void;
+  onActiveTalkChange: (talkId: string | null) => void;
   /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten“). */
   linkNoteId?: string | null;
   onLinkNoteConsumed?: () => void;
@@ -70,7 +85,7 @@ export default function ChatTab({
   const [observedLinkedNote, setObservedLinkedNote] = useState<Note | null>(null);
   const [metaLinkedNote, setMetaLinkedNote] = useState<Note | null>(null);
   const [pendingAttachNote, setPendingAttachNote] = useState<Note | null>(null);
-  const [talkParagraphId, setTalkParagraphId] = useState<string | null>(null);
+  const [contextParagraph, setContextParagraph] = useState<ContextParagraph | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [lastUpdatedNote, setLastUpdatedNote] = useState<Note | null>(null);
@@ -79,6 +94,14 @@ export default function ChatTab({
     turn: Turn;
     scrollToIndex?: number;
   } | null>(null);
+  const [pinned, setPinnedState] = useState(false);
+  const [mode, setModeState] = useState<ChatMode>('chat');
+  const [modePickerVisible, setModePickerVisible] = useState(false);
+  const [menuTurn, setMenuTurn] = useState<{ turn: Turn; part: 'user' | 'assistant' } | null>(null);
+  const [compressedUpToTurnIndex, setCompressedUpToTurnIndex] = useState<number | null>(null);
+  const [contextMeta, setContextMeta] = useState<ChatContextMeta | null>(null);
+  const [contextSheetVisible, setContextSheetVisible] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
@@ -135,6 +158,7 @@ export default function ChatTab({
   // ein Gespräch aktiv ist, sonst als pending vormerken (Persistenz erst beim ersten Senden).
   useEffect(() => {
     if (!linkNoteId) return;
+    setContextParagraph(null);
     let cancelled = false;
     void NoteRepository.findById(linkNoteId).then(async (note) => {
       if (cancelled || !note) { onLinkNoteConsumed?.(); return; }
@@ -149,13 +173,59 @@ export default function ChatTab({
     return () => { cancelled = true; };
   }, [linkNoteId, activeTalkId, onLinkNoteConsumed]);
 
-  // „Philo zu diesem Absatz fragen“: Absatz vormerken, um das nächste neue Gespräch zu verankern
-  // (nur relevant ohne aktives Gespräch — ein bestehendes Gespräch hat bereits seinen Kontext).
+  // „Philo fragen“: Absatz laden und als Gesprächs-Bezug vormerken (neues Gespräch).
   useEffect(() => {
     if (!pendingParagraphId) return;
-    if (!activeTalkId) setTalkParagraphId(pendingParagraphId);
-    onParagraphConsumed?.();
+    if (activeTalkId) {
+      onParagraphConsumed?.();
+      return;
+    }
+    let cancelled = false;
+    void ParagraphRepository.findById(pendingParagraphId).then((p) => {
+      if (cancelled) return;
+      if (p) {
+        setContextParagraph({
+          id: p.id,
+          text: p.textRaw,
+          label: paragraphAnchorLabel(p),
+        });
+      } else {
+        setContextParagraph({ id: pendingParagraphId, text: '', label: 'Absatz' });
+      }
+      onParagraphConsumed?.();
+    });
+    return () => { cancelled = true; };
   }, [pendingParagraphId, activeTalkId, onParagraphConsumed]);
+
+  // Bestehendes Gespräch: Absatz-Kontext aus Talk wiederherstellen bzw. löschen.
+  useEffect(() => {
+    if (!activeTalkId) return;
+    let cancelled = false;
+    void TalkRepository.findById(activeTalkId).then(async (talk) => {
+      if (cancelled) return;
+      const pid = talk?.kontextParagraphId;
+      if (!pid) {
+        setContextParagraph(null);
+        return;
+      }
+      const p = await ParagraphRepository.findById(pid);
+      if (cancelled) return;
+      if (p) {
+        setContextParagraph({
+          id: p.id,
+          text: p.textRaw,
+          label: paragraphAnchorLabel(p),
+        });
+      } else {
+        setContextParagraph({
+          id: pid,
+          text: talk?.kontextParagraph ?? '',
+          label: talk?.kontextParagraph ?? 'Absatz',
+        });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [activeTalkId]);
 
   useEffect(() => {
     if (!activeTalkId) {
@@ -208,12 +278,82 @@ export default function ChatTab({
     return () => { cancelled = true; };
   }, [turns]);
 
+  // Welle 5a/5c — Pin-Status + Modus des aktiven Gesprächs (schützt vor Nacht-Cleanup
+  // unpinned Talks bzw. steuert DeepSeek Chat/Nachdenken-Modus, Contract §3).
+  useEffect(() => {
+    if (!activeTalkId) {
+      setPinnedState(false);
+      setModeState('chat');
+      setCompressedUpToTurnIndex(null);
+      setContextMeta(null);
+      return;
+    }
+    let cancelled = false;
+    void TalkRepository.findById(activeTalkId).then((talk) => {
+      if (cancelled) return;
+      setPinnedState(Boolean(talk?.pinned));
+      setModeState((talk?.mode as ChatMode | null) ?? 'chat');
+      setCompressedUpToTurnIndex(talk?.compressedUpToTurnIndex ?? null);
+    });
+    setContextMeta(null);
+    return () => { cancelled = true; };
+  }, [activeTalkId]);
+
+  // Welle 5b — Kontextverbrauch: Server-Wert bevorzugt (aus letztem `done`-Event),
+  // sonst Client-Fallback-Schätzung aus den geladenen Turns.
+  const effectiveContextTokens = contextMeta?.used_tokens
+    ?? computeEffectiveContextTokens(turns, compressedUpToTurnIndex);
+  const contextLimitTokens = contextMeta?.limit_tokens ?? contextLimitForModel(null);
+  const contextRatio = Math.min(1, effectiveContextTokens / contextLimitTokens);
+
+  const handleCompress = useCallback(async () => {
+    if (!activeTalkId) return;
+    setCompressing(true);
+    try {
+      const result = await ragrunApi.compressTalk(activeTalkId);
+      await TalkRepository.setCompressedUpToTurnIndex(activeTalkId, result.compressed_up_to_turn_index);
+      setCompressedUpToTurnIndex(result.compressed_up_to_turn_index);
+      setContextMeta(null);
+    } catch {
+      Alert.alert('Fehler', 'Gespräch konnte nicht verdichtet werden.');
+    } finally {
+      setCompressing(false);
+    }
+  }, [activeTalkId]);
+
+  const handleTogglePin = useCallback(async () => {
+    if (!activeTalkId) return;
+    const next = !pinned;
+    setPinnedState(next);
+    try {
+      await TalkRepository.setPinned(activeTalkId, next);
+    } catch {
+      setPinnedState(!next);
+      Alert.alert('Fehler', 'Pin konnte nicht gespeichert werden.');
+    }
+  }, [activeTalkId, pinned]);
+
+  const handleSelectMode = useCallback(async (next: ChatMode) => {
+    setModePickerVisible(false);
+    if (next === mode) return;
+    const previous = mode;
+    setModeState(next);
+    if (activeTalkId) {
+      try {
+        await TalkRepository.setMode(activeTalkId, next);
+      } catch {
+        setModeState(previous);
+        Alert.alert('Fehler', 'Modus konnte nicht gespeichert werden.');
+      }
+    }
+  }, [activeTalkId, mode]);
+
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort();
   }, []);
 
-  const handleSend = useCallback(async () => {
-    const text = inputText.trim();
+  const handleSend = useCallback(async (overrideText?: string, overrideTurnIndex?: number) => {
+    const text = (overrideText ?? inputText).trim();
     if (!text || sending) return;
 
     setInputText('');
@@ -228,22 +368,26 @@ export default function ChatTab({
     let accumulated = '';
 
     try {
-      // #region agent log
-      const outline = linkedNote ? buildDocumentOutline(linkedNote.content) : null;
-      const sectionHeadings = outline?.sections?.map((s: { heading?: string }) => s.heading).filter(Boolean) ?? [];
-      fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e82145'},body:JSON.stringify({sessionId:'e82145',hypothesisId:'H2-H3',location:'ChatTab.tsx:handleSend',message:'client send chat',data:{activeTalkId:activeTalkId??null,hasLinkedNote:!!linkedNote,linkedNoteId:linkedNote?.id??null,contentLen:linkedNote?.content?.length??0,sectionCount:sectionHeadings.length,sectionHeadingsSample:sectionHeadings.slice(0,12),userPreview:text.slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       for await (const event of ragrunApi.streamChat(
         {
           message: text,
           personality: 'assistant-host',
           talk_id: activeTalkId ?? undefined,
-          mode: 'chat',
+          mode,
           ...(linkedNote ? {
             linked_document_id: linkedNote.id,
-            document_outline: outline ?? buildDocumentOutline(linkedNote.content),
+            document_outline: buildDocumentOutline(linkedNote.content),
             linked_document_content: linkedNote.content,
-            context_ids: { note_id: linkedNote.id },
+          } : {}),
+          ...(contextParagraph || linkedNote ? {
+            ...(contextParagraph ? {
+              context_mode: 'paragraph' as const,
+              context_paragraph_text: contextParagraph.text,
+            } : {}),
+            context_ids: {
+              ...(contextParagraph ? { paragraph_id: contextParagraph.id } : {}),
+              ...(linkedNote ? { note_id: linkedNote.id } : {}),
+            },
           } : {}),
         },
         { signal: controller.signal },
@@ -256,15 +400,16 @@ export default function ChatTab({
         } else if (event.type === 'error') {
           throw new Error(event.message);
         } else if (event.type === 'done') {
+          setContextMeta(event.context_meta);
           const isNewTalk = !activeTalkId;
           if (isNewTalk) {
             await TalkRepository.create({
               id: event.talk_id,
               userId: LOCAL_USER,
               title: text.slice(0, 60),
-              kontextParagraphId: talkParagraphId ?? undefined,
+              kontextParagraphId: contextParagraph?.id,
+              kontextParagraph: contextParagraph?.label,
             });
-            setTalkParagraphId(null);
             if (pendingAttachNote) {
               await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
               await TalkRepository.setKontextMeta(event.talk_id, { note_id: pendingAttachNote.id });
@@ -292,7 +437,7 @@ export default function ChatTab({
           await TurnRepository.create({
             id: event.turn_id,
             talkId: event.talk_id,
-            turnIndex: isNewTalk ? 0 : turns.length,
+            turnIndex: isNewTalk ? 0 : (overrideTurnIndex ?? turns.length),
             userMessage: text,
             personality: 'assistant-host',
             assistantMessage: event.assistant_message,
@@ -326,10 +471,10 @@ export default function ChatTab({
             const newTalk = await TalkRepository.create({
               userId: LOCAL_USER,
               title: text.slice(0, 60),
-              kontextParagraphId: talkParagraphId ?? undefined,
+              kontextParagraphId: contextParagraph?.id,
+              kontextParagraph: contextParagraph?.label,
             });
             talkId = newTalk.id;
-            setTalkParagraphId(null);
             if (pendingAttachNote) {
               await NoteRepository.attachToTalk(pendingAttachNote, talkId);
               await TalkRepository.setKontextMeta(talkId, { note_id: pendingAttachNote.id });
@@ -339,7 +484,7 @@ export default function ChatTab({
           }
           await TurnRepository.create({
             talkId: talkId!,
-            turnIndex: isNewTalk ? 0 : turns.length,
+            turnIndex: isNewTalk ? 0 : (overrideTurnIndex ?? turns.length),
             userMessage: text,
             personality: 'assistant-host',
             assistantMessage: accumulated || undefined,
@@ -358,20 +503,40 @@ export default function ChatTab({
       setStreamingText('');
       setStreamingStatus(null);
     }
-  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, talkParagraphId, linkedNote]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, linkedNote, mode]);
+
+  const handleCopyTurnText = useCallback(async (text: string) => {
+    setMenuTurn(null);
+    await Clipboard.setStringAsync(text);
+  }, []);
+
+  const handleEditTurn = useCallback(async (turn: Turn) => {
+    setMenuTurn(null);
+    if (turn.turnIndex == null) return;
+    try {
+      await TurnRepository.deleteFromIndex(turn.talkId, turn.turnIndex);
+      setInputText(turn.userMessage ?? '');
+    } catch {
+      Alert.alert('Fehler', 'Nachricht konnte nicht bearbeitet werden.');
+    }
+  }, []);
+
+  const handleRetryTurn = useCallback(async (turn: Turn) => {
+    setMenuTurn(null);
+    if (turn.turnIndex == null || !turn.userMessage) return;
+    try {
+      await TurnRepository.deleteFromIndex(turn.talkId, turn.turnIndex);
+      await handleSend(turn.userMessage, turn.turnIndex);
+    } catch {
+      Alert.alert('Fehler', 'Nachricht konnte nicht wiederholt werden.');
+    }
+  }, [handleSend]);
 
   const handleKopieren = useCallback(async () => {
     if (!activeTalkId) return;
-    setCopying(true);
-    try {
-      const newTalk = await TalkRepository.copyTalk(activeTalkId);
-      onActiveTalkChange(newTalk.id);
-    } catch {
-      Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
-    } finally {
-      setCopying(false);
-    }
-  }, [activeTalkId, onActiveTalkChange]);
+    const markdown = formatTalkAsMarkdown(turns, referencesByTurnId);
+    await Clipboard.setStringAsync(markdown);
+  }, [activeTalkId, turns, referencesByTurnId]);
 
   const handleSchnittHier = useCallback(async (maxTurnIndex: number) => {
     if (!activeTalkId) return;
@@ -403,13 +568,21 @@ export default function ChatTab({
     setCreatingNote(true);
   }, [linkedNote]);
 
+  const handleNeuerChat = useCallback(() => {
+    if (sending) return;
+    setInputText('');
+    setPendingAttachNote(null);
+    setContextParagraph(null);
+    onActiveTalkChange(null);
+  }, [sending, onActiveTalkChange]);
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
-      {(activeTalkId || linkedNote) ? (
+      {(activeTalkId || linkedNote || contextParagraph) ? (
         <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
           {linkedNote ? (
             <TouchableOpacity onPress={handleAttachPress} style={styles.talkTitle} activeOpacity={0.8}>
@@ -419,11 +592,22 @@ export default function ChatTab({
                 </Text>
               </View>
             </TouchableOpacity>
+          ) : contextParagraph ? (
+            <View style={styles.talkTitle}>
+              <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}>
+                <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
+                  {`Absatz: ${contextParagraph.label}`}
+                </Text>
+              </View>
+            </View>
           ) : (
             <View style={styles.talkTitle} />
           )}
           {activeTalkId && (
             <>
+              <TouchableOpacity onPress={handleNeuerChat} disabled={sending} hitSlop={8}>
+                <Ionicons name="create-outline" size={20} color={sending ? colors.onSurfaceVariant : colors.primary} />
+              </TouchableOpacity>
               <TouchableOpacity onPress={handleAttachPress} hitSlop={8}>
                 <AppIcon
                   name={ICONS.arbeitstext.attach}
@@ -431,8 +615,33 @@ export default function ChatTab({
                   color={linkedNote ? colors.primary : colors.onSurfaceVariant}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleKopieren} disabled={copying} hitSlop={8}>
-                <Ionicons name="copy-outline" size={20} color={copying ? colors.onSurfaceVariant : colors.primary} />
+              <TouchableOpacity onPress={() => void handleKopieren()} hitSlop={8}>
+                <Ionicons name="copy-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleTogglePin} hitSlop={8}>
+                <AppIcon
+                  name={ICONS.talk.pin}
+                  size={ICON_SIZES.menu}
+                  color={pinned ? colors.primary : colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setContextSheetVisible(true)} hitSlop={8}>
+                <View
+                  style={[
+                    styles.contextBarTrack,
+                    { backgroundColor: colors.surfaceContainerHigh },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.contextBarFill,
+                      {
+                        width: `${Math.round(contextRatio * 100)}%`,
+                        backgroundColor: contextRatio > 0.85 ? colors.error : colors.primary,
+                      },
+                    ]}
+                  />
+                </View>
               </TouchableOpacity>
             </>
           )}
@@ -455,21 +664,30 @@ export default function ChatTab({
 
           return (
           <View style={styles.turnBlock}>
-            <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
-              <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-                {turn.userMessage}
-              </Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={() => setMenuTurn({ turn, part: 'user' })}
+              style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}
+            >
+              <InlineMdText
+                text={turn.userMessage}
+                style={[textStyles.noteBody, { color: colors.onSurface }]}
+              />
+            </TouchableOpacity>
             <TurnMetaLine turn={turn} kind="user" />
 
             {turn.assistantMessage ? (
               <>
-                <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onLongPress={() => setMenuTurn({ turn, part: 'assistant' })}
+                  style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}
+                >
                   <AssistantMessageText
                     text={turn.assistantMessage}
                     onCitationPress={(idx) => openInsights(turn, idx)}
                   />
-                </View>
+                </TouchableOpacity>
                 <TurnMetaLine
                   turn={turn}
                   kind="assistant"
@@ -508,9 +726,10 @@ export default function ChatTab({
           pendingUserMessage ? (
             <View style={styles.turnBlock}>
               <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
-                <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-                  {pendingUserMessage}
-                </Text>
+                <InlineMdText
+                  text={pendingUserMessage}
+                  style={[textStyles.noteBody, { color: colors.onSurface }]}
+                />
               </View>
               <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
                 {streamingText ? (
@@ -545,6 +764,16 @@ export default function ChatTab({
 
       {/* Eingabe */}
       <View style={[styles.inputRow, { borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom || spacing.m }]}>
+        <TouchableOpacity
+          onPress={() => setModePickerVisible(true)}
+          style={[styles.modeChip, { backgroundColor: colors.surfaceContainerHigh }]}
+          activeOpacity={0.8}
+        >
+          <Text style={[textStyles.noteMeta, { color: colors.onSurface }]}>
+            {chatModeLabel(mode)}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
         <TextInput
           value={inputText}
           onChangeText={setInputText}
@@ -557,11 +786,11 @@ export default function ChatTab({
             { color: colors.onSurface, backgroundColor: colors.surfaceContainerHigh },
           ]}
           returnKeyType="send"
-          onSubmitEditing={handleSend}
+          onSubmitEditing={() => void handleSend()}
           blurOnSubmit={false}
         />
         <TouchableOpacity
-          onPress={sending ? handleStop : handleSend}
+          onPress={sending ? handleStop : () => void handleSend()}
           disabled={!sending && !inputText.trim()}
           style={[styles.sendBtn, { backgroundColor: sending || inputText.trim() ? colors.primary : colors.surfaceContainerHigh }]}
           activeOpacity={0.8}
@@ -583,6 +812,103 @@ export default function ChatTab({
           contextLabel="Neuer Arbeitstext"
         />
       )}
+      <Modal visible={modePickerVisible} transparent animationType="fade" onRequestClose={() => setModePickerVisible(false)}>
+        <Pressable style={styles.modeBackdrop} onPress={() => setModePickerVisible(false)}>
+          <View style={[styles.modeMenu, { backgroundColor: colors.surfaceContainerHigh }]}>
+            {CHAT_MODES.map((m) => (
+              <TouchableOpacity
+                key={m.value}
+                onPress={() => void handleSelectMode(m.value)}
+                style={styles.modeMenuItem}
+              >
+                <Text style={[typography.bodyMedium, { color: m.value === mode ? colors.primary : colors.onSurface }]}>
+                  {m.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={menuTurn != null} transparent animationType="fade" onRequestClose={() => setMenuTurn(null)}>
+        <Pressable style={styles.modeBackdrop} onPress={() => setMenuTurn(null)}>
+          <View style={[styles.modeMenu, { backgroundColor: colors.surfaceContainerHigh }]}>
+            {menuTurn?.part === 'user' && (
+              <>
+                <TouchableOpacity
+                  onPress={() => void handleEditTurn(menuTurn.turn)}
+                  style={styles.modeMenuItem}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>Bearbeiten</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => void handleRetryTurn(menuTurn.turn)}
+                  style={styles.modeMenuItem}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>Wiederholen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => void handleCopyTurnText(menuTurn.turn.userMessage ?? '')}
+                  style={styles.modeMenuItem}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>Kopieren</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {menuTurn?.part === 'assistant' && (
+              <TouchableOpacity
+                onPress={() => void handleCopyTurnText(menuTurn.turn.assistantMessage ?? '')}
+                style={styles.modeMenuItem}
+              >
+                <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>Kopieren</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={contextSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContextSheetVisible(false)}
+      >
+        <Pressable style={styles.modeBackdrop} onPress={() => setContextSheetVisible(false)}>
+          <View style={[styles.contextSheet, { backgroundColor: colors.surfaceContainerHigh }]}>
+            <Text style={[typography.titleSmall, { color: colors.onSurface }]}>
+              Kontextspeicher
+            </Text>
+            <View style={[styles.contextBarTrack, styles.contextSheetBar, { backgroundColor: colors.surfaceContainerHighest }]}>
+              <View
+                style={[
+                  styles.contextBarFill,
+                  {
+                    width: `${Math.round(contextRatio * 100)}%`,
+                    backgroundColor: contextRatio > 0.85 ? colors.error : colors.primary,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
+              {`${effectiveContextTokens.toLocaleString('de-DE')} / ${contextLimitTokens.toLocaleString('de-DE')} Token`}
+            </Text>
+            <TouchableOpacity
+              onPress={() => void handleCompress()}
+              disabled={compressing || !activeTalkId || turns.length < 3}
+              style={[styles.compressBtn, { backgroundColor: colors.primary }]}
+            >
+              {compressing ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <Text style={[typography.bodyMedium, { color: colors.onPrimary }]}>
+                  Verdichten
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
       {previewVisible && (
         <DocumentPreviewOverlay
           note={linkedNote}
@@ -615,7 +941,7 @@ const styles = StyleSheet.create({
   talkHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.s,
+    gap: spacing.m,
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -661,5 +987,57 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.s,
+    height: 38,
+    borderRadius: 19,
+  },
+  modeBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
+  },
+  modeMenu: {
+    marginHorizontal: spacing.m,
+    marginBottom: spacing.xl,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modeMenuItem: {
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.m,
+  },
+  contextBarTrack: {
+    width: 44,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  contextBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  contextSheet: {
+    marginHorizontal: spacing.m,
+    marginBottom: spacing.xl,
+    borderRadius: 12,
+    padding: spacing.l,
+    gap: spacing.s,
+  },
+  contextSheetBar: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+  },
+  compressBtn: {
+    marginTop: spacing.s,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    paddingVertical: spacing.s,
   },
 });

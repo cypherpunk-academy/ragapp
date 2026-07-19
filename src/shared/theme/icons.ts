@@ -56,6 +56,9 @@ export const ICONS = {
   action: {
     close: 'close' as MaterialIconName,
   },
+  talk: {
+    pin: 'push-pin' as MaterialIconName,
+  },
 } as const;
 
 export const ICON_SIZES = {

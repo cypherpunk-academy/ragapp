@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles, fonts } from '@/shared/theme';
 import { splitTextWithCitations } from '@/shared/lib/citationMarkers';
+import { parseMdInline } from '@/shared/lib/parseMdInline';
 
 type Props = {
   text: string;
@@ -9,7 +10,8 @@ type Props = {
 };
 
 /**
- * Assistenten-Antwort mit tappbaren `[N]`-Markern (Figma §16.6).
+ * Assistenten-Antwort mit tappbaren `[N]`-Markern (Figma §16.6)
+ * und Inline-Markdown (`**bold**`, `*italic*`, `_underline_`).
  */
 export default function AssistantMessageText({ text, onCitationPress }: Props) {
   const colorScheme = useColorScheme();
@@ -26,11 +28,22 @@ export default function AssistantMessageText({ text, onCitationPress }: Props) {
 
   return (
     <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-      {segments.map((seg, i) => {
+      {segments.flatMap((seg, i) => {
         if (seg.kind === 'text') {
-          return <Text key={i}>{seg.value}</Text>;
+          return parseMdInline(seg.value).map((md, j) => (
+            <Text
+              key={`${i}-${j}`}
+              style={[
+                md.bold && styles.bold,
+                md.italic && styles.italic,
+                md.underline && styles.underline,
+              ]}
+            >
+              {md.text}
+            </Text>
+          ));
         }
-        return (
+        return [
           <Text
             key={i}
             onPress={onCitationPress ? () => onCitationPress(seg.index) : undefined}
@@ -38,14 +51,17 @@ export default function AssistantMessageText({ text, onCitationPress }: Props) {
             style={[styles.citation, { color: colors.primary }]}
           >
             {seg.value}
-          </Text>
-        );
+          </Text>,
+        ];
       })}
     </Text>
   );
 }
 
 const styles = StyleSheet.create({
+  bold: { fontWeight: '700' },
+  italic: { fontStyle: 'italic' },
+  underline: { textDecorationLine: 'underline' },
   citation: {
     fontFamily: fonts.derived,
     fontSize: 10,

@@ -1,5 +1,6 @@
 import { Q } from '@nozbe/watermelondb';
 import { database, Talk, Turn } from '../db/database';
+import { ragrunApi } from '../services/ragrunApi';
 
 const collection = database.get<Talk>('talks');
 const turnsCollection = database.get<Turn>('turns');
@@ -88,6 +89,43 @@ export const TalkRepository = {
     await database.write(async () =>
       talk.update((t: any) => {
         t.kontextMeta = meta ? JSON.stringify(meta) : null;
+      }),
+    );
+  },
+
+  /** Welle 5a — Pin toggeln: lokal sofort sichtbar + serverseitig persistiert (Cleanup-Schutz). */
+  async setPinned(talkId: string, pinned: boolean): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (talk) {
+      await database.write(async () =>
+        talk.update((t: any) => {
+          t.pinned = pinned;
+        }),
+      );
+    }
+    await ragrunApi.updateTalkSettings(talkId, { pinned });
+  },
+
+  /** Welle 5c — Chat/Nachdenken-Modus: lokal sofort sichtbar + serverseitig persistiert. */
+  async setMode(talkId: string, mode: string): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (talk) {
+      await database.write(async () =>
+        talk.update((t: any) => {
+          t.mode = mode;
+        }),
+      );
+    }
+    await ragrunApi.updateTalkSettings(talkId, { mode });
+  },
+
+  /** Welle 5b — „Verdichten": Server hat komprimiert, lokalen Stand nachziehen. */
+  async setCompressedUpToTurnIndex(talkId: string, upToTurnIndex: number): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (!talk) return;
+    await database.write(async () =>
+      talk.update((t: any) => {
+        t.compressedUpToTurnIndex = upToTurnIndex;
       }),
     );
   },

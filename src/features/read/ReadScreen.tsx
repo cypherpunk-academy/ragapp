@@ -35,7 +35,7 @@ export default function ReadScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const {
-    target, openContributions, navigateToRead, navigateToChat, navigateBack,
+    target, openContributions, navigateToRead, navigateToChatWithParagraph, navigateBack,
     navigationHistory, navigateToSearch, searchReturnActive, navigateToChatWithPendingLink,
   } = useReading();
   const sourceId = target.sourceId;
@@ -413,9 +413,10 @@ export default function ReadScreen() {
 
   const handleStartChatFromMenu = useCallback(() => {
     if (!menuParagraph) return;
+    const paragraphId = menuParagraph.id;
     setMenuParagraph(null);
-    navigateToChat();
-  }, [menuParagraph, navigateToChat]);
+    navigateToChatWithParagraph(paragraphId);
+  }, [menuParagraph, navigateToChatWithParagraph]);
 
   const handleShowContributionsFromMenu = useCallback(() => {
     if (!menuParagraph) return;

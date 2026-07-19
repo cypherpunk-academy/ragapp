@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 21,
+  version: 23,
   tables: [
     tableSchema({
       name: 'sources',
@@ -75,6 +75,9 @@ export const schema = appSchema({
         { name: 'kontext_source_id',  type: 'string', isOptional: true, isIndexed: true },
         { name: 'kontext_paragraph_id', type: 'string', isOptional: true },
         { name: 'kontext_paragraph',  type: 'string', isOptional: true },
+        { name: 'pinned',             type: 'boolean', isOptional: true },
+        { name: 'mode',               type: 'string', isOptional: true },
+        { name: 'compressed_up_to_turn_index', type: 'number', isOptional: true },
         { name: 'created_at',         type: 'number' },
         { name: 'updated_at',         type: 'number' },
       ],

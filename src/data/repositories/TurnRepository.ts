@@ -1,5 +1,6 @@
 import { Q } from '@nozbe/watermelondb';
 import { database, Turn } from '../db/database';
+import { ragrunApi } from '../services/ragrunApi';
 
 const collection = database.get<Turn>('turns');
 
@@ -57,6 +58,26 @@ export const TurnRepository = {
 
   async updateAssistantMessage(turn: Turn, message: string): Promise<Turn> {
     return database.write(async () => turn.update((t) => { t.assistantMessage = message; }));
+  },
+
+  /**
+   * Welle 5d — Turn-Aktionen (Bearbeiten/Wiederholen): löscht lokal alle Turns
+   * ab `fromIndex` und die serverseitigen `rag_turns` (nächster Chat-Aufruf liest
+   * sonst noch den verworfenen Verlauf).
+   */
+  async deleteFromIndex(talkId: string, fromIndex: number): Promise<void> {
+    const stale = await collection.query(
+      Q.where('talk_id', talkId),
+      Q.where('turn_index', Q.gte(fromIndex)),
+    ).fetch();
+    if (stale.length > 0) {
+      await database.write(async () => {
+        for (const turn of stale) {
+          await turn.destroyPermanently();
+        }
+      });
+    }
+    await ragrunApi.deleteTurnsFrom(talkId, fromIndex);
   },
 
   /**

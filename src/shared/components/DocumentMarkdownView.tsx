@@ -13,7 +13,11 @@ function InlineText({ text, style }: { text: string; style: TextStyle | TextStyl
       {segs.map((seg, i) => (
         <Text
           key={i}
-          style={[seg.bold && styles.bold, seg.italic && styles.italic]}
+          style={[
+            seg.bold && styles.bold,
+            seg.italic && styles.italic,
+            seg.underline && styles.underline,
+          ]}
         >
           {seg.text}
         </Text>
@@ -101,4 +105,5 @@ const styles = StyleSheet.create({
   listItemText: { flex: 1 },
   bold: { fontWeight: '700' },
   italic: { fontStyle: 'italic' },
+  underline: { textDecorationLine: 'underline' },
 });

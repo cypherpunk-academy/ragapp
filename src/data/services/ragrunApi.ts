@@ -1,6 +1,7 @@
 import { config } from '@/data/lib/config';
 import { ragrunRequest, ragrunStream } from '@/data/lib/ragrun-client';
 import type {
+  ChatCompressResponse,
   ChatRequest,
   ChatResponse,
   ChatStreamEvent,
@@ -77,5 +78,32 @@ export const ragrunApi = {
       method: 'POST',
       body: {},
     });
+  },
+
+  /** Welle 5b — „Verdichten": fasst ältere Turns zusammen, reduziert die Kontext-Anzeige. */
+  async compressTalk(talkId: string): Promise<ChatCompressResponse> {
+    return ragrunRequest<ChatCompressResponse>(`${APP_PREFIX}/chat/${talkId}/compress`, {
+      method: 'POST',
+      body: {},
+    });
+  },
+
+  /** Welle 5a/5c — pinned/mode laufen nicht über den generischen Sync-Pfad (nur `notes`/`bookmarks`). */
+  async updateTalkSettings(
+    talkId: string,
+    settings: { pinned?: boolean; mode?: string },
+  ): Promise<void> {
+    await ragrunRequest<void>(`${APP_PREFIX}/chat/${talkId}`, {
+      method: 'PATCH',
+      body: settings,
+    });
+  },
+
+  /** Welle 5d — Turn-Aktionen: löscht `rag_turns` ab `fromIndex` server-seitig. */
+  async deleteTurnsFrom(talkId: string, fromIndex: number): Promise<void> {
+    await ragrunRequest<void>(
+      `${APP_PREFIX}/chat/${talkId}/turns?after_index=${fromIndex}`,
+      { method: 'DELETE' },
+    );
   },
 };

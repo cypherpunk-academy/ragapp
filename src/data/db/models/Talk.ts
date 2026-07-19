@@ -16,6 +16,9 @@ export default class Talk extends Model {
   @field('kontext_source_id')  kontextSourceId!: string | null;
   @field('kontext_paragraph_id') kontextParagraphId!: string | null;
   @field('kontext_paragraph')  kontextParagraph!: string | null;
+  @field('pinned')             pinned!: boolean | null;
+  @field('mode')               mode!: string | null;
+  @field('compressed_up_to_turn_index') compressedUpToTurnIndex!: number | null;
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;
 }

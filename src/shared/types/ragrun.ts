@@ -128,6 +128,11 @@ export type ChatRequest = {
   model?: string;
   context_mode?: ChatContextMode;
   context_ids?: ChatContextIds;
+  /**
+   * Absatztext für „Philo fragen“ — wird als Bezugstext in den Prompt gelegt
+   * (Client liefert lokal aus WDB; Backend kann per paragraph_id nachladen).
+   */
+  context_paragraph_text?: string;
   /** Contract §3 — verknüpfter Arbeitstext für den App-Tool-Loop. */
   linked_document_id?: string;
   document_outline?: DocumentOutline;
@@ -172,6 +177,12 @@ export type ChatUsage = {
   total_tokens?: number | null;
 };
 
+/** Welle 5b — grobe Kontextfenster-Auslastung für die Anzeige, kein Billing-Wert. */
+export type ChatContextMeta = {
+  used_tokens: number;
+  limit_tokens: number;
+};
+
 /** `POST /app/chat/stream` SSE-Events (Contract §5–6). */
 export type ChatStreamEvent =
   | { type: 'status'; step: string; label: string }
@@ -187,6 +198,13 @@ export type ChatStreamEvent =
       confidence_score: number;
       intent: string;
       sufficiency: string;
+      context_meta: ChatContextMeta;
       tool_results: ToolResult[];
     }
   | { type: 'error'; message: string };
+
+/** `POST /app/chat/{talk_id}/compress` — Welle 5b „Verdichten". */
+export type ChatCompressResponse = {
+  summary: string;
+  compressed_up_to_turn_index: number;
+};
