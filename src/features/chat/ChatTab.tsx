@@ -39,6 +39,35 @@ const LOCAL_USER = 'local';
 const CONNECTING_MESSAGE_DELAY_MS = 1000;
 const CONNECTING_MESSAGE = 'Verbindung wird aufgebaut…';
 
+type EmptyPrompt = { headline: string; examples: string[] };
+
+const EMPTY_PROMPT_FREE: EmptyPrompt = {
+  headline: 'Was möchtest du mit Philo besprechen?',
+  examples: [
+    'Was meint Steiner mit sozialer Dreigliederung?',
+    'Wie hängt Freiheit mit Verantwortung zusammen?',
+    'Erklär mir den Unterschied zwischen Rechts- und Wirtschaftsleben.',
+  ],
+};
+
+const EMPTY_PROMPT_PARAGRAPH: EmptyPrompt = {
+  headline: 'Dieser Absatz ist der Bezug — frag Philo dazu.',
+  examples: [
+    'Was meint der Autor hier genau?',
+    'Formuliere den Gedanken in einfachen Worten.',
+    'Gib mir ein heutiges Beispiel für diesen Gedanken.',
+  ],
+};
+
+const EMPTY_PROMPT_ARBEITSTEXT: EmptyPrompt = {
+  headline: 'Sag Philo, was er an diesem Arbeitstext tun soll.',
+  examples: [
+    'Kürze die Einleitung auf die Hälfte.',
+    'Schärfe das Argument im zweiten Abschnitt.',
+    'Ergänze eine Gegenposition und eine kurze Antwort darauf.',
+  ],
+};
+
 type ContextParagraph = {
   id: string;
   text: string;
@@ -589,6 +618,11 @@ export default function ChatTab({
     onActiveTalkChange(null);
   }, [sending, onActiveTalkChange]);
 
+  const emptyPrompt =
+    contextParagraph ? EMPTY_PROMPT_PARAGRAPH
+      : linkedNote ? EMPTY_PROMPT_ARBEITSTEXT
+        : EMPTY_PROMPT_FREE;
+
   const pendingStatusLabel = streamingStatus ?? (connectingVisible ? CONNECTING_MESSAGE : null);
 
   return (
@@ -620,7 +654,12 @@ export default function ChatTab({
           )}
           {activeTalkId && (
             <>
-              <TouchableOpacity onPress={handleNeuerChat} disabled={sending} hitSlop={8}>
+              <TouchableOpacity
+                onPress={handleNeuerChat}
+                disabled={sending}
+                hitSlop={8}
+                accessibilityLabel="Neues Gespräch beginnen"
+              >
                 <Ionicons name="create-outline" size={20} color={sending ? colors.onSurfaceVariant : colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAttachPress} hitSlop={8}>
@@ -723,10 +762,18 @@ export default function ChatTab({
         }}
         ListEmptyComponent={
           pendingUserMessage ? null : (
-            <View style={styles.center}>
-              <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-                Noch keine Nachrichten. Stelle eine Frage!
+            <View style={styles.emptyPrompt}>
+              <Text style={[typography.bodyMedium, styles.emptyHeadline, { color: colors.onSurface }]}>
+                {emptyPrompt.headline}
               </Text>
+              {emptyPrompt.examples.map((example) => (
+                <Text
+                  key={example}
+                  style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}
+                >
+                  {example}
+                </Text>
+              ))}
             </View>
           )
         }
@@ -945,7 +992,19 @@ export default function ChatTab({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  emptyPrompt: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.l,
+    paddingVertical: spacing.xl,
+    gap: spacing.s,
+  },
+  emptyHeadline: {
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
   talkHeader: {
     flexDirection: 'row',
     alignItems: 'center',

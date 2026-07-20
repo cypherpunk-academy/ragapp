@@ -257,7 +257,7 @@ Welle 1 + ragrun T0/T1 können **sofort parallel** starten.
 
 - Markdown-Tabellen in Arbeitstexten
 - `create_post_draft`, `search_corpus` (T3)
-- Gespräch kopieren / Freigabe für Freunde
+- Freigabe für Freunde
 - Volle `llm-model-abstraction` (Claude, `GET /app/models`)
 - ragprep DeepSeek-v4-Migration (eigener Track)
 

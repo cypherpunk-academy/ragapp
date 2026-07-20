@@ -155,7 +155,12 @@ export default function DocumentPreviewOverlay({ note, onClose, onDetach, onEdit
               <AppIcon name={ICONS.arbeitstext.edit} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
             {onEditInChat && (
-              <TouchableOpacity onPress={handleEditInChat} hitSlop={8} style={styles.iconBtn}>
+              <TouchableOpacity
+                onPress={handleEditInChat}
+                hitSlop={8}
+                style={styles.iconBtn}
+                accessibilityLabel="Mit Philo am Arbeitstext arbeiten"
+              >
                 <AppIcon name={ICONS.arbeitstext.editInChat} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
             )}

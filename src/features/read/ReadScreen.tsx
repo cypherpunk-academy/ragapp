@@ -684,7 +684,7 @@ export default function ReadScreen() {
               <TouchableOpacity style={styles.menuRow} onPress={handleStartChatFromMenu}>
                 <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
                 <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                  Philo fragen
+                  Philo zu diesem Absatz fragen
                 </Text>
               </TouchableOpacity>
               {menuParagraph && (talkCounts.get(menuParagraph.id) ?? 0) > 0 && (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, useColorScheme,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,7 +63,6 @@ export default function ConversationDetailScreen({
   const [talk, setTalk] = useState<Talk | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [anchorParagraph, setAnchorParagraph] = useState<Paragraph | null>(null);
-  const [copying, setCopying] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const turnLayoutsRef = useRef<Map<number, number>>(new Map());
   const didScrollToAnchorRef = useRef(false);
@@ -139,19 +138,6 @@ export default function ConversationDetailScreen({
   const handleFortfuehren = useCallback(() => {
     closeConversationDetail();
     navigateToChatWithTalk(talkId);
-  }, [talkId, closeConversationDetail, navigateToChatWithTalk]);
-
-  const handleKopieren = useCallback(async () => {
-    setCopying(true);
-    try {
-      const newTalk = await TalkRepository.copyTalk(talkId);
-      closeConversationDetail();
-      navigateToChatWithTalk(newTalk.id);
-    } catch (e) {
-      Alert.alert('Fehler', 'Gespräch konnte nicht kopiert werden.');
-    } finally {
-      setCopying(false);
-    }
   }, [talkId, closeConversationDetail, navigateToChatWithTalk]);
 
   if (!visible) return null;
@@ -245,17 +231,6 @@ export default function ConversationDetailScreen({
           <Ionicons name="chatbubble-outline" size={16} color={colors.onSecondaryContainer} />
           <Text style={[textStyles.noteMeta, { color: colors.onSecondaryContainer }]}>
             Gespräch fortführen
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.surfaceContainerHigh }]}
-          onPress={handleKopieren}
-          disabled={copying}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="copy-outline" size={16} color={colors.onSurfaceVariant} />
-          <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-            {copying ? 'Kopiere…' : 'Gespräch kopieren'}
           </Text>
         </TouchableOpacity>
       </View>

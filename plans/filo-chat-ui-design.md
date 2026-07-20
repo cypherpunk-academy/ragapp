@@ -84,7 +84,7 @@ Warum Icon statt Checkbox: Der Pin ist eine Eigenschaft des ganzen Gesprächs, n
 - **„Gespräch verdichten":** Filo fasst ältere Turns zu einem Kontextblock zusammen; die Original-Turns bleiben in der DB, aber nur die Zusammenfassung + letzte n Turns gehen ans Modell. Ab 85 % erscheint der Button automatisch als Vorschlag im Chat.
 - **Modellabhängigkeit:** Die Prozentzahl bezieht sich auf das Kontextfenster des **aufgelösten Modells** hinter dem aktuellen Modus (`resolveModelForMode(mode, settings)`, § 4). Wechselt der User den Modus oder die Modell-Zuordnung in den Einstellungen, rechnet die Anzeige sofort gegen das neue Limit um.
 - **Was gezählt wird — effektiver Kontext:** Die Anzeige spiegelt **nicht** die Summe aller historischen `usage`-Werte, sondern die Token, die beim **nächsten** Request tatsächlich ans Modell gehen würden (§ 8.2). Dazu gehören u. a. System-Prompt, Verdichtungsblock (falls gesetzt), `document_outline` (falls 📎 verknüpft) und alle verbleibenden Turns.
-- **Bearbeiten / Wiederholen (MVP):** Löscht alle **nachfolgenden** Turns — kein abgeschwächter Verlauf, keine Verzweigungen in der UI (§ 3). Kontextanzeige fällt nach Edit/Wiederholen sofort (kein Geister-Kontext). **Später (nicht MVP):** „Gespräch kopieren", um vor destruktivem Edit einen Zweig zu sichern.
+- **Bearbeiten / Wiederholen (MVP):** Löscht alle **nachfolgenden** Turns — kein abgeschwächter Verlauf, keine Verzweigungen in der UI (§ 3). Kontextanzeige fällt nach Edit/Wiederholen sofort (kein Geister-Kontext). **Gespräch kopieren** (Duplikat-Button): **gestrichen** — nicht umgesetzt.
 - **Datenquelle:** Bevorzugt `context_meta.effective_tokens` aus dem SSE-`done`-Event (vom Backend berechnet, identisch zum Prompt-Assembler). Client-Fallback: `computeEffectiveContextTokens()` aus aktiven Turn-Texten + feste Zuschläge (System-Prompt, Outline) — nur bis Phase D serverseitig live ist.
 - Limits als Map `model → contextWindow` in `src/shared/lib/modelContextLimits.ts` (§ 7.3).
 
@@ -99,7 +99,7 @@ Warum Icon statt Checkbox: Der Pin ist eine Eigenschaft des ganzen Gesprächs, n
   - 📋 **Kopieren**
   - **Wiederholen** — sendet denselben `userMessage` erneut; alle nachfolgenden Turns werden wie bei „Bearbeiten" **gelöscht**.
 
-**Kein Verzweigungs-Verlauf im MVP:** Nach Edit/Wiederholen verschwinden Folge-Turns aus UI und DB — bewusst einfach, um eine UI-Hölle aus abgeschwächten Zweigen zu vermeiden. **Später (nicht MVP):** **Gespräch kopieren** — Duplikat des Gesprächs anlegen, dann im Klon bearbeiten, ohne den Original-Verlauf zu verlieren.
+**Kein Verzweigungs-Verlauf im MVP:** Nach Edit/Wiederholen verschwinden Folge-Turns aus UI und DB — bewusst einfach, um eine UI-Hölle aus abgeschwächten Zweigen zu vermeiden. **Gespräch kopieren** (Duplikat als neuer Talk): **gestrichen** — nicht umgesetzt.
 
 ### Filo-Turn
 - Linksbündig, volle Breite, absatzweise gerendert (analog `ParagraphRenderer`, aber für Fließtext ohne Absatznummern).
@@ -656,7 +656,7 @@ context_meta: {
 }
 ```
 
-**Später (nicht MVP):** `superseded_at` + sichtbare Verzweigungen **oder** „Gespräch kopieren" statt hartem Löschen (§ 3).
+**Nicht umgesetzt:** `superseded_at` + sichtbare Verzweigungen; **Gespräch kopieren** (Duplikat-Button) ist **gestrichen** (§ 3).
 
 ### 8.3 `app_notes` / WDB `notes` (Arbeitstexte)
 
@@ -776,8 +776,9 @@ Reihenfolge nach Risiko/Abhängigkeit — **gesamtübergreifende Reihenfolge und
 10. **Arbeitstext im Chat:** **Entschieden** — Header-📎, Chat vollflächig, Preview-Overlay auf Abruf; LLM-Zugriff **nur per Tools** (`read_blocks`, `update_document`, `create_document`); Kapitel/Unterkapitel über `#`/`##`/`###` ansprechbar (§ 5.3.1, § 6); kein Turn-Menü „In den Arbeitstext".
 11. **Suchtreffer-📎 (§ 6.1):** **Entschieden** — eigenes 📎 pro Suchtreffer, Popup mit bis zu 4 Zielen (Chat/Absatz/Kapitel/Buch); fehlende Datenquelle → Eintrag **ausblenden**, kein generisches Fallback-Label; „Aktueller Chat" nur bei Navigation-Origin `chat`, nicht bei bloß aktivem `activeTalkId`; „ein Arbeitstext pro Einheit" mit nicht-destruktivem Ersetzen-Dialog. Offen: `AttachTargetSheet`-Implementierung, Navigation-Origin-Mechanismus.
 12. **Test-Fixtures Document Tree (§ 5.3, Phase G):** **Geklärt** — zwei getrennte Zwecke, nicht verwechseln: (a) **ragrun-Pytest-Fixture** (`doppelmatrix_excerpt.md`, klein, handgeschrieben, 2 Kapitel) für `read_blocks`-Disambiguierung — **fertig** (2b.3); (b) **reale Doppelmatrix** (`ragkeep/.../doppelmatrix-gesund-und-krank_matritzen.md`) als **manuelles E2E-Testdokument** für Welle 4 — **geprüft und Format korrekt** (Jul 2026): einmalige `#`-Titelzeile, `##` Matrix der Gesundheit/Krankheit → `###` Feld 1–9 sauber verschachtelt, kein `---`/sonstiges Störelement, keine Tabellen, 29.220 Zeichen (unter `MAX_DOCUMENT_CHARS` 50.000). Hinweis bleibt: alle `### Feld N`-Titel sind textlich eindeutig, testet also reine Pfad-Auflösung, nicht Namens-Kollisions-Disambiguierung. **Offen (neu):** ragapp hat **keinen automatisierten Test** für `documentTree.ts`/`DocumentMarkdownView` — sollte ergänzt werden, ggf. mit einer gekürzten Version der realen Doppelmatrix als Fixture.
-11. **Kontextanzeige & Edit/Wiederholen:** **Entschieden (MVP)** — Anzeige = effektiver nächster Prompt; `usage` pro Turn nicht summieren; Bearbeiten/Wiederholen **löscht** nachfolgende Turns (§ 2, § 3, § 8.2). **Später:** Gespräch kopieren.
+11. **Kontextanzeige & Edit/Wiederholen:** **Entschieden (MVP)** — Anzeige = effektiver nächster Prompt; `usage` pro Turn nicht summieren; Bearbeiten/Wiederholen **löscht** nachfolgende Turns (§ 2, § 3, § 8.2).
 12. **Bibliothek ARBEITSTEXTE:** **Entschieden** — Kontext-Filter als Dropdown rechts (`Absatz`/`Kapitel`/`Buch`/`Allgemein` + Snippet); Sortierung Kontext-Stufe + `updated_at`; Titelsuche; Tap → Aktionsmenü Vorschau / In Gespräch bearbeiten (§ 5.4).
 13. **Freigabe (post-MVP):** nur `is_public` togglen vs. gezielte Freundesliste — offen.
-14. **Gespräch kopieren (post-MVP):** Duplikat eines Gesprächs vor destruktivem Edit — Alternative zu `superseded_at`/Verzweigungs-UI (§ 3).
-15. **Modell-Deprecation (2026-07-24):** **Erledigt in ragrun** — Defaults in `app/config.py` sind `deepseek-v4-flash`; Chat vs. Nachdenken läuft über `thinking.type` in `app/core/providers.py` und `app/infra/deepseek_client.py`. LangGraph/Action-Prompt setzen `thinking: disabled` explizit. **Offen für Filo Phase B/E:** `_make_llm()` modusabhängig machen; SSE `thinking`-Events bei `nachdenken`. **Offen in ragprep:** `DeepSeekService`/`constants.ts` nutzen teils noch Legacy-Alias-Namen (separater Migrations-Track, [llm-model-abstraction.md](./llm-model-abstraction.md)).
+14. **Gespräch kopieren:** **Gestrichen** — kein Duplikat-Button im Gespräch-Detail; Clipboard-Kopieren im Chat bleibt.
+15. **CHAT-Leerzustände (Einstiegs-Copy):** **Entschieden** — fette Aufforderung + 2–3 Beispiel-Fragen; Varianten frei / Absatz / Arbeitstext (Priorität Absatz → Arbeitstext → frei). Absatz-Menü: „Philo zu diesem Absatz fragen"; Contributions-CTA: „Frag Philo zu diesem Absatz".
+16. **Modell-Deprecation (2026-07-24):** **Erledigt in ragrun** — Defaults in `app/config.py` sind `deepseek-v4-flash`; Chat vs. Nachdenken läuft über `thinking.type` in `app/core/providers.py` und `app/infra/deepseek_client.py`. LangGraph/Action-Prompt setzen `thinking: disabled` explizit. **Offen für Filo Phase B/E:** `_make_llm()` modusabhängig machen; SSE `thinking`-Events bei `nachdenken`. **Offen in ragprep:** `DeepSeekService`/`constants.ts` nutzen teils noch Legacy-Alias-Namen (separater Migrations-Track, [llm-model-abstraction.md](./llm-model-abstraction.md)).

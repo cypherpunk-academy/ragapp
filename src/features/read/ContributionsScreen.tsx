@@ -154,7 +154,7 @@ export default function ContributionsScreen({
                 activeOpacity={0.85}
               >
                 <Ionicons name="chatbubble-outline" size={20} color={colors.onPrimary} />
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Philo zu diesem Absatz fragen</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Frag Philo zu diesem Absatz</Text>
               </TouchableOpacity>
             </View>
           ) : (

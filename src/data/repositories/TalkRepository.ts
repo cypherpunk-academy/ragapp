@@ -1,9 +1,8 @@
 import { Q } from '@nozbe/watermelondb';
-import { database, Talk, Turn } from '../db/database';
+import { database, Talk } from '../db/database';
 import { ragrunApi } from '../services/ragrunApi';
 
 const collection = database.get<Talk>('talks');
-const turnsCollection = database.get<Turn>('turns');
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -135,57 +134,5 @@ export const TalkRepository = {
         t.compressedUpToTurnIndex = upToTurnIndex;
       }),
     );
-  },
-
-  /**
-   * Kopiert ein Gespräch (inkl. aller Turns bis optional maxTurnIndex) in ein neues Gespräch.
-   */
-  async copyTalk(
-    sourceTalkId: string,
-    options?: { maxTurnIndex?: number; titleSuffix?: string },
-  ): Promise<Talk> {
-    const [sourceTalk, sourceTurns] = await Promise.all([
-      TalkRepository.findById(sourceTalkId),
-      turnsCollection
-        .query(Q.where('talk_id', sourceTalkId), Q.sortBy('turn_index', Q.asc))
-        .fetch(),
-    ]);
-
-    if (!sourceTalk) throw new Error(`Talk nicht gefunden: ${sourceTalkId}`);
-
-    const filteredTurns =
-      options?.maxTurnIndex != null
-        ? sourceTurns.filter((t) => t.turnIndex <= options.maxTurnIndex!)
-        : sourceTurns;
-
-    const newTalkId = uuid();
-    const titleSuffix = options?.titleSuffix ?? '(Kopie)';
-
-    return database.write(async () => {
-      const newTalk = await collection.create((talk: any) => {
-        talk._raw.id = newTalkId;
-        talk.userId = sourceTalk.userId;
-        talk.collectionName = sourceTalk.collectionName;
-        talk.title = sourceTalk.title ? `${sourceTalk.title} ${titleSuffix}` : null;
-        talk.summary = sourceTalk.summary;
-        talk.kontextSourceId = sourceTalk.kontextSourceId;
-        talk.kontextParagraphId = sourceTalk.kontextParagraphId;
-        talk.kontextParagraph = sourceTalk.kontextParagraph;
-        talk.publishingStatus = 'personal';
-      });
-
-      for (const turn of filteredTurns) {
-        await turnsCollection.create((t) => {
-          t.talkId = newTalk.id;
-          t.turnIndex = turn.turnIndex;
-          t.userMessage = turn.userMessage;
-          t.personality = turn.personality;
-          t.assistantMessage = turn.assistantMessage;
-          t.chunkIndexMap = turn.chunkIndexMap;
-        });
-      }
-
-      return newTalk;
-    });
   },
 };
