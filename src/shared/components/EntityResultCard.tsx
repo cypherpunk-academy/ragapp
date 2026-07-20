@@ -19,6 +19,8 @@ type Props = {
   headlineLarge?: string;
   /** Zeile 4 (klein, grau) — z. B. Vortragsüberschrift in Klammern unter Ort+Datum. */
   subHeadSmall?: string;
+  /** Klein, direkt hinter dem Lozenge (z. B. Vortragsdatum). */
+  badgeSuffix?: string;
   /**
    * Notiz: Zeile 2 fett (Autor der Notiz, Datum), Zeile 3 optional Kontext, Zeile 4 Titel,
    * dann Trennstrich und Vorschau.
@@ -40,6 +42,7 @@ export default function EntityResultCard({
   metaSmall,
   headlineLarge,
   subHeadSmall,
+  badgeSuffix,
   notizRows,
   bodyMode = 'truncated_text',
   bodyMarkdown,
@@ -87,6 +90,11 @@ export default function EntityResultCard({
             {cardStyle.label.toUpperCase()}
           </Text>
         </View>
+        {badgeSuffix?.trim() ? (
+          <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
+            {badgeSuffix.trim()}
+          </Text>
+        ) : null}
       </View>
 
       {notizRows ? (

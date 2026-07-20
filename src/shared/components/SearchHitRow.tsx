@@ -32,6 +32,7 @@ export default function SearchHitRow({ result, onNavigate, highlighted }: Props)
         metaSmall={card.metaSmall}
         headlineLarge={card.headlineLarge}
         subHeadSmall={card.subHeadSmall}
+        badgeSuffix={card.badgeSuffix}
         notizRows={card.notizRows}
         bodyMode={card.bodyMode}
         bodyMarkdown={card.bodyMarkdown}

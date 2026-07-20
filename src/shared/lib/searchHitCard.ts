@@ -207,6 +207,8 @@ export type SearchHitCardModel = {
     bodyMode: SearchHitCardBodyMode;
     bodyText: string;
     bodyMarkdown?: boolean;
+    /** Klein, direkt hinter dem Lozenge (z. B. Vortragsdatum). */
+    badgeSuffix?: string;
   };
   navigation: SearchHitNavigation;
 };
@@ -278,6 +280,9 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'chunk_vortrag': {
       const { metaSmall, headlineLarge, subHeadSmall } = buildVortragSearchCard(result);
+      const badgeSuffix = formatMetaDate(
+        resolveLectureDisplayDate(result.segment_title, result.lecture_date),
+      );
       return {
         card: {
           metaSmall,
@@ -285,6 +290,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
           subHeadSmall,
           bodyMode: 'truncated_text',
           bodyText: preview,
+          badgeSuffix,
         },
         navigation: readNav(),
       };

@@ -298,6 +298,7 @@ export default function ReadScreen() {
 
   /**
    * Reload: Context target ist leer, die FlatList zeigt trotzdem Kapitel 0 — ohne Hydration würde Viewability die DB überschreiben.
+   * Tab-Wechsel bleibt aus (Start-Tab ist Philo); WEITERLESEN nutzt dieselbe Lesestelle.
    */
   useEffect(() => {
     if (target.segmentIndex !== null || target.paragraphId !== null) {
@@ -315,7 +316,7 @@ export default function ReadScreen() {
       if (row?.paragraphId) {
         const hit = allParagraphsRef.current.find((p) => p.id === row.paragraphId);
         if (hit) {
-          navigateToRead({ segmentIndex: null, paragraphId: row.paragraphId });
+          navigateToRead({ segmentIndex: null, paragraphId: row.paragraphId, switchTab: false });
           return;
         }
       }

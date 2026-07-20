@@ -36,6 +36,8 @@ import type Note from '@/data/db/models/Note';
 import type Reference from '@/data/db/models/Reference';
 
 const LOCAL_USER = 'local';
+const CONNECTING_MESSAGE_DELAY_MS = 1000;
+const CONNECTING_MESSAGE = 'Verbindung wird aufgebaut…';
 
 type ContextParagraph = {
   id: string;
@@ -104,8 +106,19 @@ export default function ChatTab({
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
+  const [connectingVisible, setConnectingVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConnectingTimer = useCallback(() => {
+    if (connectingTimerRef.current) {
+      clearTimeout(connectingTimerRef.current);
+      connectingTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearConnectingTimer(), [clearConnectingTimer]);
 
   const openInsights = useCallback((turn: Turn, citationIndex?: number) => {
     const refs = referencesByTurnId[turn.id] ?? [];
@@ -360,6 +373,11 @@ export default function ChatTab({
     setPendingUserMessage(text);
     setStreamingText('');
     setStreamingStatus(null);
+    setConnectingVisible(false);
+    clearConnectingTimer();
+    connectingTimerRef.current = setTimeout(() => {
+      setConnectingVisible(true);
+    }, CONNECTING_MESSAGE_DELAY_MS);
     setLastUpdatedNote(null);
 
     const controller = new AbortController();
@@ -392,8 +410,12 @@ export default function ChatTab({
         { signal: controller.signal },
       )) {
         if (event.type === 'status') {
+          clearConnectingTimer();
+          setConnectingVisible(false);
           setStreamingStatus(event.label);
         } else if (event.type === 'token') {
+          clearConnectingTimer();
+          setConnectingVisible(false);
           accumulated += event.content;
           setStreamingText(accumulated);
         } else if (event.type === 'error') {
@@ -430,6 +452,7 @@ export default function ChatTab({
                 book_title: c.book_title,
                 paragraph_id: c.paragraph_id,
                 segment_index: c.segment_index,
+                lecture_date: c.lecture_date,
                 score: c.score,
               }))
             : null;
@@ -443,6 +466,7 @@ export default function ChatTab({
             chunkIndexMap,
             usage: event.usage,
           });
+          await TalkRepository.touch(event.talk_id);
 
           const effects = await dispatchToolEffects(event, {
             talkId: event.talk_id,
@@ -488,6 +512,7 @@ export default function ChatTab({
             personality: 'assistant-host',
             assistantMessage: accumulated || undefined,
           });
+          if (!isNewTalk) await TalkRepository.touch(talkId!);
         } catch {
           Alert.alert('Fehler', 'Antwort konnte nicht gespeichert werden.');
         }
@@ -496,13 +521,15 @@ export default function ChatTab({
         setInputText(text);
       }
     } finally {
+      clearConnectingTimer();
       abortControllerRef.current = null;
       setSending(false);
       setPendingUserMessage(null);
       setStreamingText('');
       setStreamingStatus(null);
+      setConnectingVisible(false);
     }
-  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, linkedNote, mode]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, linkedNote, mode, clearConnectingTimer]);
 
   const handleCopyTurnText = useCallback(async (text: string) => {
     setMenuTurn(null);
@@ -561,6 +588,8 @@ export default function ChatTab({
     setContextParagraph(null);
     onActiveTalkChange(null);
   }, [sending, onActiveTalkChange]);
+
+  const pendingStatusLabel = streamingStatus ?? (connectingVisible ? CONNECTING_MESSAGE : null);
 
   return (
     <KeyboardAvoidingView
@@ -716,9 +745,9 @@ export default function ChatTab({
                 ) : (
                   <View style={styles.streamingStatusRow}>
                     <ActivityIndicator size="small" color={colors.onSecondaryContainer} />
-                    {streamingStatus ? (
+                    {(pendingStatusLabel) ? (
                       <Text style={[textStyles.noteMeta, { color: colors.onSecondaryContainer }]}>
-                        {streamingStatus}
+                        {pendingStatusLabel}
                       </Text>
                     ) : null}
                   </View>
@@ -787,7 +816,7 @@ export default function ChatTab({
           visible
           onClose={() => setCreatingNote(false)}
           talkId={activeTalkId}
-          initialContent="# Arbeitstext aus dem Gespräch mit Philo\n\n"
+          initialContent={'# Arbeitstext aus dem Gespräch mit Philo\n\n'}
           contextLabel="Neuer Arbeitstext"
         />
       )}

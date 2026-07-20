@@ -82,6 +82,13 @@ export const TalkRepository = {
     );
   },
 
+  /** Bumpt `updated_at`, z. B. nach einem neuen Turn, damit die Gespräche-Liste nach Aktivität sortiert bleibt. */
+  async touch(talkId: string): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (!talk) return;
+    await database.write(async () => talk.update(() => {}));
+  },
+
   /** Setzt `kontext_meta` (JSON), z. B. `{ note_id }` beim Verknüpfen eines Arbeitstexts. */
   async setKontextMeta(talkId: string, meta: Record<string, unknown> | null): Promise<void> {
     const talk = await TalkRepository.findById(talkId);

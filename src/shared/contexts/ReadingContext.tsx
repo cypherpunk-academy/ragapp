@@ -54,7 +54,7 @@ type ReadingContextValue = {
   /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
   chatPendingParagraphId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat' }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
@@ -174,7 +174,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [searchReturnOrigin, setSearchReturnOrigin] = useState<'search' | 'chat' | null>(null);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat' }) => {
+    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch, switchTab = true }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
       if (pushHistory) {
         const historyEntry = fromParagraphId != null
@@ -198,7 +198,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         navSeq: prev.navSeq + 1,
       }));
       if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
-      tabNavRef.current?.(TAB_INDEX_READ);
+      if (switchTab) tabNavRef.current?.(TAB_INDEX_READ);
     },
     [],
   );

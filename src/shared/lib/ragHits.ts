@@ -18,6 +18,7 @@ export type ChunkIndexEntry = {
   book_title?: string;
   paragraph_id?: string;
   segment_index?: number;
+  lecture_date?: string;
   score?: number;
   slot?: string;
 };
@@ -52,6 +53,7 @@ export function chunkIndexEntryToSearchResult(entry: ChunkIndexEntry): RagHit {
     book_title: entry.book_title,
     paragraph_id: entry.paragraph_id,
     segment_index: entry.segment_index,
+    lecture_date: entry.lecture_date,
     citationIndex: typeof entry.index === 'number' ? entry.index : undefined,
   };
 }
