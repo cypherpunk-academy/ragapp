@@ -6,12 +6,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
 import AppIcon from '@/shared/components/AppIcon';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
@@ -22,7 +23,9 @@ import InlineMdText from '@/shared/components/InlineMdText';
 import TurnMetaLine from '@/shared/components/TurnMetaLine';
 import { extractDocumentTitle, buildDocumentOutline } from '@/data/lib/documentTree';
 import { dispatchToolEffects } from '@/data/tools';
+import { alertParagraphOccupied, alertMultipleParagraphNotes } from '@/shared/lib/paragraphOccupiedAlert';
 import { firstWords } from '@/shared/lib/arbeitstextContext';
+import { formatContextParagraphText } from '@/shared/lib/formatContextParagraphText';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { resolveRagHitsForTurn, citationIndexToListIndex } from '@/shared/lib/ragHits';
 import { countUniqueCitations } from '@/shared/lib/citationMarkers';
@@ -30,10 +33,12 @@ import { formatTalkAsMarkdown } from '@/shared/lib/formatTalkMarkdown';
 import { CHAT_MODES, chatModeLabel } from '@/shared/lib/chatModes';
 import { contextLimitForModel } from '@/shared/lib/modelContextLimits';
 import { computeEffectiveContextTokens } from '@/shared/lib/computeEffectiveContextTokens';
+import { useReading } from '@/shared/contexts/ReadingContext';
 import type { ChatMode, ChatContextMeta } from '@/shared/types/ragrun';
 import type Turn from '@/data/db/models/Turn';
 import type Note from '@/data/db/models/Note';
 import type Reference from '@/data/db/models/Reference';
+import type Paragraph from '@/data/db/models/Paragraph';
 
 const LOCAL_USER = 'local';
 const CONNECTING_MESSAGE_DELAY_MS = 1000;
@@ -71,8 +76,44 @@ const EMPTY_PROMPT_ARBEITSTEXT: EmptyPrompt = {
 type ContextParagraph = {
   id: string;
   text: string;
+  /** Langer Anker-Text z. B. „2| erste fünf Wörter …“ */
   label: string;
+  number: number | null;
+  sourceId: string | null;
+  segmentIndex: number | null;
+  segmentSlug: string | null;
+  segmentTitle: string | null;
 };
+
+function contextFromParagraph(p: Paragraph): ContextParagraph {
+  return {
+    id: p.id,
+    text: p.textRaw,
+    label: paragraphAnchorLabel(p),
+    number: p.paragraphNumber,
+    sourceId: p.sourceId,
+    segmentIndex: p.segmentIndex,
+    segmentSlug: p.segmentSlug,
+    segmentTitle: p.segmentTitle,
+  };
+}
+
+function fallbackContextParagraph(
+  id: string,
+  text: string,
+  label: string,
+): ContextParagraph {
+  return {
+    id,
+    text,
+    label,
+    number: null,
+    sourceId: null,
+    segmentIndex: null,
+    segmentSlug: null,
+    segmentTitle: null,
+  };
+}
 
 const PERSONALITY_LABELS: Record<string, string> = {
   sokrates: 'Sokrates',
@@ -90,24 +131,28 @@ function personalityLabel(slug: string | null | undefined): string {
 type Props = {
   activeTalkId: string | null;
   onActiveTalkChange: (talkId: string | null) => void;
-  /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten“). */
+  /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten”). */
   linkNoteId?: string | null;
   onLinkNoteConsumed?: () => void;
-  /** Absatz, mit dem ein neu gestartetes Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen“). */
+  /** Absatz, mit dem ein neu gestartetes Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen”). */
   pendingParagraphId?: string | null;
   onParagraphConsumed?: () => void;
+  /** Wird aufgerufen, wenn sich der aktive Absatz-Kontext ändert (für GESPRÄCHE-Tab-Filter). */
+  onContextParagraphChange?: (paragraphId: string | null) => void;
 };
 
 /** CHAT-Segment des Filo-Tabs: aktives Gespräch oder Leerzustand mit Eingabefeld. */
 export default function ChatTab({
   activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed,
-  pendingParagraphId, onParagraphConsumed,
+  pendingParagraphId, onParagraphConsumed, onContextParagraphChange,
 }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
-  const badgeStyle = getNoteBadgeStyle(isDark);
+  const noteBadgeStyle = getNoteBadgeStyle(isDark);
+  const paragraphBadgeStyle = getParagraphBadgeStyle(isDark);
   const insets = useSafeAreaInsets();
+  const { navigateToRead } = useReading();
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [inputText, setInputText] = useState('');
@@ -116,6 +161,7 @@ export default function ChatTab({
   const [metaLinkedNote, setMetaLinkedNote] = useState<Note | null>(null);
   const [pendingAttachNote, setPendingAttachNote] = useState<Note | null>(null);
   const [contextParagraph, setContextParagraph] = useState<ContextParagraph | null>(null);
+  const [contextSourceTitle, setContextSourceTitle] = useState<string | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [lastUpdatedNote, setLastUpdatedNote] = useState<Note | null>(null);
@@ -139,6 +185,8 @@ export default function ChatTab({
   const flatListRef = useRef<FlatList>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** User hat 📎-Verknüpfung bewusst gelöst — Absatz-Arbeitstext nicht erneut auto-verknüpfen. */
+  const skipParagraphNoteLinkRef = useRef(false);
 
   const clearConnectingTimer = useCallback(() => {
     if (connectingTimerRef.current) {
@@ -195,17 +243,102 @@ export default function ChatTab({
     ? (observedLinkedNote ?? metaLinkedNote)
     : pendingAttachNote;
 
-  // „Mit Philo bearbeiten“ aus Absatz/Kapitel/Buch: Arbeitstext verknüpfen — sofort, falls
-  // ein Gespräch aktiv ist, sonst als pending vormerken (Persistenz erst beim ersten Senden).
   useEffect(() => {
-    if (!linkNoteId) return;
-    setContextParagraph(null);
+    onContextParagraphChange?.(contextParagraph?.id ?? null);
+  }, [contextParagraph?.id, onContextParagraphChange]);
+
+  useEffect(() => {
+    skipParagraphNoteLinkRef.current = false;
+  }, [contextParagraph?.id]);
+
+  useEffect(() => {
+    const sid = contextParagraph?.sourceId;
+    if (!sid) {
+      setContextSourceTitle(null);
+      return;
+    }
     let cancelled = false;
-    void NoteRepository.findById(linkNoteId).then(async (note) => {
-      if (cancelled || !note) { onLinkNoteConsumed?.(); return; }
+    void SourceRepository.findById(sid).then((source) => {
+      if (!cancelled) setContextSourceTitle(source?.title ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [contextParagraph?.sourceId]);
+
+  // Absatz-Kontext → vorhandenen Arbeitstext am Absatz automatisch verknüpfen (nur Lookup, kein paragraph_id schreiben).
+  useEffect(() => {
+    if (!contextParagraph || linkedNote || linkNoteId || skipParagraphNoteLinkRef.current) return;
+    let cancelled = false;
+    void NoteRepository.findByParagraph(contextParagraph.id).then(async (notes) => {
+      if (cancelled || notes.length === 0) return;
+      if (notes.length > 1) {
+        alertMultipleParagraphNotes(notes, (note) => {
+          if (activeTalkId) {
+            void (async () => {
+              await NoteRepository.attachToTalk(note, activeTalkId);
+              await TalkRepository.setKontextMeta(activeTalkId, { note_id: note.id });
+            })();
+          } else {
+            setPendingAttachNote(note);
+          }
+        });
+        return;
+      }
+      const note = notes[0]!;
       if (activeTalkId) {
         await NoteRepository.attachToTalk(note, activeTalkId);
         await TalkRepository.setKontextMeta(activeTalkId, { note_id: note.id });
+      } else {
+        setPendingAttachNote(note);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [contextParagraph?.id, linkedNote?.id, activeTalkId, linkNoteId]);
+
+  // „Mit Philo bearbeiten“: Arbeitstext verknüpfen; Absatz-Kontext aus Note oder Talk behalten.
+  useEffect(() => {
+    if (!linkNoteId) return;
+    let cancelled = false;
+    void NoteRepository.findById(linkNoteId).then(async (note) => {
+      if (cancelled || !note) { onLinkNoteConsumed?.(); return; }
+
+      if (note.paragraphId) {
+        const p = await ParagraphRepository.findById(note.paragraphId);
+        if (!cancelled) {
+          setContextParagraph(p
+            ? contextFromParagraph(p)
+            : fallbackContextParagraph(note.paragraphId, '', 'Absatz'));
+        }
+      } else if (activeTalkId) {
+        const talk = await TalkRepository.findById(activeTalkId);
+        const pid = talk?.kontextParagraphId;
+        if (pid) {
+          const p = await ParagraphRepository.findById(pid);
+          if (!cancelled) {
+            setContextParagraph(p
+              ? contextFromParagraph(p)
+              : fallbackContextParagraph(pid, talk?.kontextParagraph ?? '', talk?.kontextParagraph ?? 'Absatz'));
+          }
+        } else if (!cancelled) {
+          setContextParagraph(null);
+        }
+      } else if (!cancelled) {
+        setContextParagraph(null);
+      }
+
+      if (activeTalkId) {
+        await NoteRepository.attachToTalk(note, activeTalkId);
+        await TalkRepository.setKontextMeta(activeTalkId, { note_id: note.id });
+        if (note.paragraphId) {
+          const talk = await TalkRepository.findById(activeTalkId);
+          if (talk && !talk.kontextParagraphId) {
+            const p = await ParagraphRepository.findById(note.paragraphId);
+            await TalkRepository.setKontextParagraph(activeTalkId, {
+              paragraphId: note.paragraphId,
+              paragraphLabel: p ? paragraphAnchorLabel(p) : undefined,
+              sourceId: p?.sourceId,
+            });
+          }
+        }
       } else {
         setPendingAttachNote(note);
       }
@@ -225,13 +358,9 @@ export default function ChatTab({
     void ParagraphRepository.findById(pendingParagraphId).then((p) => {
       if (cancelled) return;
       if (p) {
-        setContextParagraph({
-          id: p.id,
-          text: p.textRaw,
-          label: paragraphAnchorLabel(p),
-        });
+        setContextParagraph(contextFromParagraph(p));
       } else {
-        setContextParagraph({ id: pendingParagraphId, text: '', label: 'Absatz' });
+        setContextParagraph(fallbackContextParagraph(pendingParagraphId, '', 'Absatz'));
       }
       onParagraphConsumed?.();
     });
@@ -252,17 +381,13 @@ export default function ChatTab({
       const p = await ParagraphRepository.findById(pid);
       if (cancelled) return;
       if (p) {
-        setContextParagraph({
-          id: p.id,
-          text: p.textRaw,
-          label: paragraphAnchorLabel(p),
-        });
+        setContextParagraph(contextFromParagraph(p));
       } else {
-        setContextParagraph({
-          id: pid,
-          text: talk?.kontextParagraph ?? '',
-          label: talk?.kontextParagraph ?? 'Absatz',
-        });
+        setContextParagraph(fallbackContextParagraph(
+          pid,
+          talk?.kontextParagraph ?? '',
+          talk?.kontextParagraph ?? 'Absatz',
+        ));
       }
     });
     return () => { cancelled = true; };
@@ -428,10 +553,19 @@ export default function ChatTab({
           ...(contextParagraph || linkedNote ? {
             ...(contextParagraph ? {
               context_mode: 'paragraph' as const,
-              context_paragraph_text: contextParagraph.text,
+              context_paragraph_text: formatContextParagraphText({
+                text: contextParagraph.text,
+                paragraphNumber: contextParagraph.number,
+                segmentTitle: contextParagraph.segmentTitle,
+                bookTitle: contextSourceTitle,
+              }),
             } : {}),
             context_ids: {
-              ...(contextParagraph ? { paragraph_id: contextParagraph.id } : {}),
+              ...(contextParagraph ? {
+                paragraph_id: contextParagraph.id,
+                source_id: contextParagraph.sourceId ?? undefined,
+                segment_id: contextParagraph.segmentSlug ?? undefined,
+              } : {}),
               ...(linkedNote ? { note_id: linkedNote.id } : {}),
             },
           } : {}),
@@ -501,8 +635,37 @@ export default function ChatTab({
             talkId: event.talk_id,
             turnId: event.turn_id,
             linkedNote,
+            paragraphId: contextParagraph?.id,
+            sourceId: contextParagraph?.sourceId ?? undefined,
+            segmentSlug: contextParagraph?.segmentSlug ?? undefined,
           });
           if (effects.updatedNote) setLastUpdatedNote(effects.updatedNote);
+          if (effects.updateFailed) {
+            Alert.alert(
+              'Arbeitstext nicht geändert',
+              'Die vorgeschlagene Änderung konnte nicht angewendet werden. Bitte erneut bitten, den Text als Kapitel in den Arbeitstext zu schreiben.',
+            );
+          } else if (
+            linkedNote
+            && !effects.updatedNote
+            && !effects.createdNote
+            && /arbeitstext|als\s+(?:erstes\s+)?kapitel|hinein(?:schreib|schreib)|einfüg|ergänz/i.test(text)
+          ) {
+            Alert.alert(
+              'Arbeitstext unverändert',
+              'Philo hat den Text nur im Chat gezeigt, nicht in den verknüpften Arbeitstext geschrieben. Bitte noch einmal ausdrücklich darum bitten.',
+            );
+          }
+          if (effects.paragraphOccupied) {
+            alertParagraphOccupied(effects.paragraphOccupied.existingNote, {
+              onLink: (existing) => {
+                void (async () => {
+                  await NoteRepository.attachToTalk(existing, event.talk_id);
+                  await TalkRepository.setKontextMeta(event.talk_id, { note_id: existing.id });
+                })();
+              },
+            });
+          }
           if (effects.createdNote && !linkedNote) {
             await NoteRepository.attachToTalk(effects.createdNote, event.talk_id);
           }
@@ -558,7 +721,7 @@ export default function ChatTab({
       setStreamingStatus(null);
       setConnectingVisible(false);
     }
-  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, linkedNote, mode, clearConnectingTimer]);
+  }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, contextSourceTitle, linkedNote, mode, clearConnectingTimer]);
 
   const handleCopyTurnText = useCallback(async (text: string) => {
     setMenuTurn(null);
@@ -594,6 +757,7 @@ export default function ChatTab({
   }, [activeTalkId, turns, referencesByTurnId]);
 
   const handleDetachDocument = useCallback(async () => {
+    skipParagraphNoteLinkRef.current = true;
     if (linkedNote) {
       await NoteRepository.attachToTalk(linkedNote, null);
       if (activeTalkId) await TalkRepository.setKontextMeta(activeTalkId, null);
@@ -610,6 +774,15 @@ export default function ChatTab({
     setCreatingNote(true);
   }, [linkedNote]);
 
+  const handleParagraphBadgePress = useCallback(() => {
+    if (!contextParagraph?.sourceId) return;
+    navigateToRead({
+      sourceId: contextParagraph.sourceId,
+      segmentIndex: contextParagraph.segmentIndex,
+      paragraphId: contextParagraph.id,
+    });
+  }, [contextParagraph, navigateToRead]);
+
   const handleNeuerChat = useCallback(() => {
     if (sending) return;
     setInputText('');
@@ -617,6 +790,18 @@ export default function ChatTab({
     setContextParagraph(null);
     onActiveTalkChange(null);
   }, [sending, onActiveTalkChange]);
+
+  const bothBadges = Boolean(linkedNote && contextParagraph);
+  const arbeitstextBadgeLabel = bothBadges
+    ? 'Arbeitstext'
+    : linkedNote
+      ? `Arbeitstext: ${firstWords(extractDocumentTitle(linkedNote.content))}`
+      : '';
+  const absatzBadgeLabel = bothBadges
+    ? (contextParagraph?.number != null ? `Absatz ${contextParagraph.number}|` : 'Absatz')
+    : contextParagraph
+      ? `Absatz: ${contextParagraph.label}`
+      : '';
 
   const emptyPrompt =
     contextParagraph ? EMPTY_PROMPT_PARAGRAPH
@@ -633,25 +818,31 @@ export default function ChatTab({
     >
       {(activeTalkId || linkedNote || contextParagraph) ? (
         <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
-          {linkedNote ? (
-            <TouchableOpacity onPress={handleAttachPress} style={styles.talkTitle} activeOpacity={0.8}>
-              <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}>
-                <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
-                  {`Arbeitstext: ${firstWords(extractDocumentTitle(linkedNote.content))}`}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ) : contextParagraph ? (
-            <View style={styles.talkTitle}>
-              <View style={[styles.badge, { backgroundColor: badgeStyle.backgroundColor }]}>
-                <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
-                  {`Absatz: ${contextParagraph.label}`}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.talkTitle} />
-          )}
+          <View style={styles.talkTitle}>
+            {contextParagraph ? (
+              <TouchableOpacity
+                onPress={handleParagraphBadgePress}
+                disabled={!contextParagraph.sourceId}
+                activeOpacity={0.8}
+                style={styles.badgeTouch}
+              >
+                <View style={[styles.badge, { backgroundColor: paragraphBadgeStyle.backgroundColor }]}>
+                  <Text style={[textStyles.noteMeta, { color: paragraphBadgeStyle.textColor }]} numberOfLines={1}>
+                    {absatzBadgeLabel}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+            {linkedNote ? (
+              <TouchableOpacity onPress={handleAttachPress} activeOpacity={0.8} style={styles.badgeTouch}>
+                <View style={[styles.badge, { backgroundColor: noteBadgeStyle.backgroundColor }]}>
+                  <Text style={[textStyles.noteMeta, { color: noteBadgeStyle.textColor }]} numberOfLines={1}>
+                    {arbeitstextBadgeLabel}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           {activeTalkId && (
             <>
               <TouchableOpacity
@@ -808,10 +999,10 @@ export default function ChatTab({
       {lastUpdatedNote && !sending && (
         <TouchableOpacity
           onPress={() => setPreviewVisible(true)}
-          style={[styles.updatedChip, { backgroundColor: badgeStyle.backgroundColor }]}
+          style={[styles.updatedChip, { backgroundColor: noteBadgeStyle.backgroundColor }]}
           activeOpacity={0.8}
         >
-          <Text style={[textStyles.noteMeta, { color: badgeStyle.textColor }]} numberOfLines={1}>
+          <Text style={[textStyles.noteMeta, { color: noteBadgeStyle.textColor }]} numberOfLines={1}>
             {`📄 ${firstWords(extractDocumentTitle(lastUpdatedNote.content))} aktualisiert`}
           </Text>
         </TouchableOpacity>
@@ -863,8 +1054,32 @@ export default function ChatTab({
           visible
           onClose={() => setCreatingNote(false)}
           talkId={activeTalkId}
+          paragraphId={contextParagraph?.id}
+          sourceId={contextParagraph?.sourceId}
+          segmentSlug={contextParagraph?.segmentSlug}
           initialContent={'# Arbeitstext aus dem Gespräch mit Philo\n\n'}
           contextLabel="Neuer Arbeitstext"
+          onCreated={(note) => {
+            if (!activeTalkId) return;
+            void TalkRepository.setKontextMeta(activeTalkId, { note_id: note.id });
+            if (contextParagraph) {
+              void TalkRepository.findById(activeTalkId).then(async (talk) => {
+                if (!talk || talk.kontextParagraphId) return;
+                await TalkRepository.setKontextParagraph(activeTalkId, {
+                  paragraphId: contextParagraph.id,
+                  paragraphLabel: contextParagraph.label,
+                  sourceId: contextParagraph.sourceId ?? undefined,
+                });
+              });
+            }
+          }}
+          onOpenExisting={(existing) => {
+            if (!activeTalkId) return;
+            void (async () => {
+              await NoteRepository.attachToTalk(existing, activeTalkId);
+              await TalkRepository.setKontextMeta(activeTalkId, { note_id: existing.id });
+            })();
+          }}
         />
       )}
       <Modal visible={modePickerVisible} transparent animationType="fade" onRequestClose={() => setModePickerVisible(false)}>
@@ -1013,7 +1228,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  talkTitle: { flex: 1 },
+  talkTitle: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  badgeTouch: {
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
   badge: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.s,

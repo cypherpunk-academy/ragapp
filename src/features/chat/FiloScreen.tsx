@@ -53,6 +53,7 @@ export default function FiloScreen({
   const [weiterlesenDismissed, setWeiterlesenDismissed] = useState(false);
   const [pendingLinkNoteId, setPendingLinkNoteId] = useState<string | null>(null);
   const [pendingParagraphId, setPendingParagraphId] = useState<string | null>(null);
+  const [activeContextParagraphId, setActiveContextParagraphId] = useState<string | null>(null);
 
   const showWeiterlesen = offerWeiterlesenOnLaunch
     && isFiloTabActive
@@ -179,9 +180,15 @@ export default function FiloScreen({
             onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
             pendingParagraphId={pendingParagraphId}
             onParagraphConsumed={() => setPendingParagraphId(null)}
+            onContextParagraphChange={setActiveContextParagraphId}
           />
         )}
-        {activeSegment === 'gespraeche' && <GespraecheTab onSelectTalk={handleSelectTalk} />}
+        {activeSegment === 'gespraeche' && (
+          <GespraecheTab
+            onSelectTalk={handleSelectTalk}
+            contextParagraphId={activeContextParagraphId}
+          />
+        )}
       </View>
     </View>
   );
