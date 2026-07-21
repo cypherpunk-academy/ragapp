@@ -18,5 +18,9 @@ export function useAccountMenu() {
     router.push('/einstellungen');
   }, []);
 
-  return { openKonto, openSettings };
+  const openArbeitstexte = useCallback(() => {
+    router.push('/arbeitstexte');
+  }, []);
+
+  return { openKonto, openSettings, openArbeitstexte };
 }

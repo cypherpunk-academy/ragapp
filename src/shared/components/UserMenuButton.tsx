@@ -11,7 +11,12 @@ export default function UserMenuButton() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const [open, setOpen] = useState(false);
-  const { openKonto, openSettings } = useAccountMenu();
+  const { openKonto, openSettings, openArbeitstexte } = useAccountMenu();
+
+  const handleArbeitstexte = () => {
+    setOpen(false);
+    openArbeitstexte();
+  };
 
   const handleKonto = () => {
     setOpen(false);
@@ -39,6 +44,10 @@ export default function UserMenuButton() {
         <View style={styles.overlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
           <View style={[styles.menu, { backgroundColor: colors.surfaceContainerHigh, shadowColor: colors.shadow }]}>
+            <TouchableOpacity style={styles.menuRow} onPress={handleArbeitstexte} activeOpacity={0.7}>
+              <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Arbeitstexte</Text>
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
             <TouchableOpacity style={styles.menuRow} onPress={handleKonto} activeOpacity={0.7}>
               <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Konto</Text>
             </TouchableOpacity>
