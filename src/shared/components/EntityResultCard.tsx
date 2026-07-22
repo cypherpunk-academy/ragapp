@@ -5,7 +5,7 @@ import { parseMdInline } from '@/shared/lib/parseMdInline';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
 const ITALIC_COLOR = '#B25738';
-import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, scaleSize } from '@/shared/theme';
 import { getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import { colorWithAlpha } from '@/shared/lib/color';
 import type { NotizCardRows } from '@/shared/lib/notizSearchCard';
@@ -61,7 +61,7 @@ export default function EntityResultCard({
   const isExtendedBodyKind = kind === 'chunk_buch' || kind === 'chunk_vortrag' || kind === 'typology' || kind === 'begriff';
   const bodyLines = isExtendedBodyKind ? 5 : 3;
   const bodyTextStyle = isExtendedBodyKind
-    ? [textStyles.noteBody, { fontSize: 14, lineHeight: 20 }] as const
+    ? [textStyles.noteBody, { fontSize: scaleSize(14), lineHeight: scaleSize(20) }] as const
     : textStyles.noteBody;
 
   return (
@@ -131,7 +131,7 @@ export default function EntityResultCard({
             kind === 'kapitel_zusammenfassung' ? (
               <SegmentTitleText
                 title={headlineLarge.trim()}
-                style={[textStyles.noteMeta, { color: colors.onSurface, fontWeight: '700', fontSize: 13, lineHeight: 18 }]}
+                style={[textStyles.noteMeta, { color: colors.onSurface, fontWeight: '700', fontSize: scaleSize(13), lineHeight: scaleSize(18) }]}
                 numberOfLines={3}
               />
             ) : (

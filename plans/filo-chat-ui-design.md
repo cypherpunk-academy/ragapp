@@ -263,6 +263,17 @@ Zusätzlich **Titelsuche** (§ 5.4) — schneidet die gefilterte/sortierte Liste
 
 **Neue Arbeitstexte:** Beim Anlegen aus Lesen/Chat: `source_id` + `segment_slug` (+ optional `paragraph_id` für Absatz-Bezug). Nur freie Texte: alle drei leer (**Allgemein**).
 
+**Invarianten (Absatz, Jul 2026 — keine stille Heilung):**
+
+| Regel | Verhalten |
+|---|---|
+| **Max. ein** Arbeitstext mit `paragraph_id = P` | Anlegen / `create_document` / `attachToContext` prüft Lookup; bei Belegung **Dialog** („Öffnen“ / „Im Chat verknüpfen“ / „Abbrechen“) — **kein** stilles Wiederverwenden, Überschreiben oder Entflechten |
+| Chat-Anker ≠ Note-Kontext | `talk.kontext_paragraph_id` („Philo fragen“) und `note.paragraph_id` (Lesestreifen) sind **getrennte Felder**, aber gehören zusammen: Chat mit Absatz-Kontext **verknüpft automatisch** den vorhandenen Absatz-Arbeitstext (Lookup, kein Schreiben) |
+| Chat↔Arbeitstext | Höchstens eine Note pro Talk (`talk_id` / `kontext_meta.note_id`) |
+| Bestehende Duplikate (Ist) | **Nicht** auto-löschen oder `-paragraph_id` nullen; Lesen-Tab zeigt Warnung + manuelle Auswahl beim Öffnen |
+
+Lesen-Menü und Streifen zählen **nur** echte `paragraph_id`-Einträge (`findByParagraph`) — kein Inferieren über Talk-Verknüpfungen.
+
 ### 5.2 Entstehung
 
 1. **Header-📎 im Chat** (Hauptpfad, § 6): bestehenden oder neuen Arbeitstext wählen → Arbeitstext-Chip → instruieren, Vorschau bei Bedarf öffnen.

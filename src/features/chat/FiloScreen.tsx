@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { router } from 'expo-router';
 import AppBar from '@/shared/components/AppBar';
 import AppIcon from '@/shared/components/AppIcon';
 import { ICONS, ICON_SIZES, lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { assistant } from '@/shared/lib/assistant';
 import { useReading } from '@/shared/contexts/ReadingContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { continueReadingLabel } from '@/features/overview/sourceDetail';
@@ -42,6 +44,7 @@ export default function FiloScreen({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const {
     chatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
     chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
@@ -153,7 +156,7 @@ export default function FiloScreen({
         </TouchableOpacity>
       )}
 
-      <View style={[styles.segmented, { borderBottomColor: colors.outlineVariant }]}>
+      {(authLoading || isAuthenticated) && <View style={[styles.segmented, { borderBottomColor: colors.outlineVariant }]}>
         {SEGMENTS.map((seg) => {
           const isActive = seg.id === activeSegment;
           return (
@@ -169,27 +172,46 @@ export default function FiloScreen({
             </TouchableOpacity>
           );
         })}
-      </View>
+      </View>}
 
-      <View style={styles.content}>
-        {activeSegment === 'chat' && (
-          <ChatTab
-            activeTalkId={activeTalkId}
-            onActiveTalkChange={setActiveTalkId}
-            linkNoteId={pendingLinkNoteId}
-            onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
-            pendingParagraphId={pendingParagraphId}
-            onParagraphConsumed={() => setPendingParagraphId(null)}
-            onContextParagraphChange={setActiveContextParagraphId}
-          />
-        )}
-        {activeSegment === 'gespraeche' && (
-          <GespraecheTab
-            onSelectTalk={handleSelectTalk}
-            contextParagraphId={activeContextParagraphId}
-          />
-        )}
-      </View>
+      {!authLoading && !isAuthenticated ? (
+        <View style={styles.loginGate}>
+          <AppIcon name={ICONS.account.avatar} size={48} color={colors.onSurfaceVariant} />
+          <Text style={[typography.titleMedium, styles.loginGateTitle, { color: colors.onSurface }]}>
+            Anmeldung erforderlich
+          </Text>
+          <Text style={[typography.bodyMedium, styles.loginGateBody, { color: colors.onSurfaceVariant }]}>
+            Für den Chat mit Philo musst du angemeldet sein und über Credits verfügen.
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.85}
+          >
+            <Text style={[typography.labelLarge, { color: colors.onPrimary }]}>Anmelden</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.content}>
+          {activeSegment === 'chat' && (
+            <ChatTab
+              activeTalkId={activeTalkId}
+              onActiveTalkChange={setActiveTalkId}
+              linkNoteId={pendingLinkNoteId}
+              onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
+              pendingParagraphId={pendingParagraphId}
+              onParagraphConsumed={() => setPendingParagraphId(null)}
+              onContextParagraphChange={setActiveContextParagraphId}
+            />
+          )}
+          {activeSegment === 'gespraeche' && (
+            <GespraecheTab
+              onSelectTalk={handleSelectTalk}
+              contextParagraphId={activeContextParagraphId}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -215,4 +237,25 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   content: { flex: 1 },
+  loginGate: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.m,
+  },
+  loginGateTitle: {
+    textAlign: 'center',
+    marginTop: spacing.s,
+  },
+  loginGateBody: {
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  loginBtn: {
+    marginTop: spacing.s,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.m,
+    borderRadius: 24,
+  },
 });

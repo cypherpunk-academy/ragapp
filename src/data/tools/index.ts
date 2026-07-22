@@ -29,6 +29,9 @@ export type DispatchToolEffectsOptions = {
 export type DispatchToolEffectsResult = {
   createdNote?: Note;
   updatedNote?: Note;
+  paragraphOccupied?: { existingNote: Note };
+  /** `suggested_document_update` kam an, Patch ließ sich nicht anwenden (Adresse fehlt o. ä.). */
+  updateFailed?: boolean;
 };
 
 /**
@@ -44,18 +47,26 @@ export async function dispatchToolEffects(
 
   for (const toolResult of doneEvent.tool_results ?? []) {
     if (toolResult.result_key === 'suggested_document') {
-      result.createdNote = await materializeDocument(toolResult.payload, {
+      const created = await materializeDocument(toolResult.payload, {
         talkId: options.talkId,
         turnId: options.turnId,
         sourceId: options.sourceId,
         segmentSlug: options.segmentSlug,
         paragraphId: options.paragraphId,
       });
+      if (created.ok) {
+        result.createdNote = created.note;
+      } else if (created.reason === 'paragraph_occupied') {
+        result.paragraphOccupied = { existingNote: created.existingNote };
+      }
     } else if (toolResult.result_key === 'suggested_document_update') {
       const note = options.linkedNote ?? (await NoteRepository.findById(toolResult.payload.document_id));
       if (note) {
         const applied = await applyDocumentUpdate(note, toolResult.payload);
         if (applied.applied) result.updatedNote = applied.note;
+        else result.updateFailed = true;
+      } else {
+        result.updateFailed = true;
       }
     }
   }

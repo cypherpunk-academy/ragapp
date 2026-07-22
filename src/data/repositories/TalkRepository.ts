@@ -99,6 +99,27 @@ export const TalkRepository = {
     );
   },
 
+  /** Absatz-Anker des Gesprächs setzen (z. B. wenn Arbeitstext mit paragraph_id verknüpft wird). */
+  async setKontextParagraph(
+    talkId: string,
+    data: { paragraphId: string; paragraphLabel?: string; sourceId?: string } | null,
+  ): Promise<void> {
+    const talk = await TalkRepository.findById(talkId);
+    if (!talk) return;
+    await database.write(async () =>
+      talk.update((t: any) => {
+        if (!data) {
+          t.kontextParagraphId = null;
+          t.kontextParagraph = null;
+          return;
+        }
+        t.kontextParagraphId = data.paragraphId;
+        t.kontextParagraph = data.paragraphLabel ?? null;
+        if (data.sourceId) t.kontextSourceId = data.sourceId;
+      }),
+    );
+  },
+
   /** Welle 5a — Pin toggeln: Server zuerst, dann WDB (bei API-Fehler kein lokaler Drift). */
   async setPinned(talkId: string, pinned: boolean): Promise<void> {
     await ragrunApi.updateTalkSettings(talkId, { pinned });

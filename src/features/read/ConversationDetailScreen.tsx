@@ -43,7 +43,7 @@ export default function ConversationDetailScreen({
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
-  const { navigateToRead, navigateToChatWithTalk, closeConversationDetail } = useReading();
+  const { navigateToRead, navigateToChatWithTalk } = useReading();
 
   const fundstelleAccent = useMemo(() => ({
     border: isDark ? colors.tertiary : colors.onTertiaryContainer,
@@ -108,7 +108,7 @@ export default function ConversationDetailScreen({
   const contextLabel = useMemo(() => {
     if (!anchorParagraph) return null;
     const typeLabel = 'Kapitel';
-    return `${typeLabel} · ${anchorParagraph.segmentTitle} · ¶${anchorParagraph.paragraphNumber}`;
+    return `${typeLabel} · ${anchorParagraph.segmentTitle} · ${anchorParagraph.paragraphNumber}|`;
   }, [anchorParagraph]);
 
   const scrollToAnchor = useCallback(() => {
@@ -136,9 +136,8 @@ export default function ConversationDetailScreen({
   }, [anchorParagraph, sourceId, onClose, navigateToRead]);
 
   const handleFortfuehren = useCallback(() => {
-    closeConversationDetail();
     navigateToChatWithTalk(talkId);
-  }, [talkId, closeConversationDetail, navigateToChatWithTalk]);
+  }, [talkId, navigateToChatWithTalk]);
 
   if (!visible) return null;
 

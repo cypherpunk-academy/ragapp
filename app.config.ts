@@ -16,8 +16,15 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: true,
+    /** Ohne Full Screen erzwingt iOS auf iPad alle Orientierungen (Multitasking). */
+    requireFullScreen: true,
     bundleIdentifier: 'com.anonymous.ragapp',
     usesAppleSignIn: true,
+    infoPlist: {
+      'UISupportedInterfaceOrientations~ipad': [
+        'UIInterfaceOrientationPortrait',
+      ],
+    },
   },
   android: {
     adaptiveIcon: {

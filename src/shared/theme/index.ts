@@ -6,12 +6,28 @@ export {
   darkColors,
   spacing,
   borderRadius,
-  fontSize,
   fontWeight,
   lineHeight,
 } from './generated';
 
+import { fontSize as rawFontSize } from './generated';
+import { FONT_SCALE, scaleSize } from './tabletScale';
+
+/** Token-Schriftgrößen — auf Tablets skaliert (siehe FONT_SCALE). */
+export const fontSize = FONT_SCALE === 1
+  ? rawFontSize
+  : {
+      xs: scaleSize(rawFontSize.xs),
+      sm: scaleSize(rawFontSize.sm),
+      md: scaleSize(rawFontSize.md),
+      lg: scaleSize(rawFontSize.lg),
+      xl: scaleSize(rawFontSize.xl),
+      '2xl': scaleSize(rawFontSize['2xl']),
+      '3xl': scaleSize(rawFontSize['3xl']),
+    } as typeof rawFontSize;
+
 export { fonts, textStyles, typography } from './semantic';
+export { isTablet, FONT_SCALE, scaleSize } from './tabletScale';
 
 export {
   ICONS,
@@ -24,7 +40,7 @@ export {
   type IconColorRole,
 } from './icons';
 
-export { getNoteBadgeStyle, type NoteBadgeStyle } from './noteBadge';
+export { getNoteBadgeStyle, getParagraphBadgeStyle, type NoteBadgeStyle } from './noteBadge';
 
 import { lightColors, darkColors, spacing, borderRadius } from './generated';
 import { fonts, textStyles, typography } from './semantic';

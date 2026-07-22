@@ -6,7 +6,7 @@ import { coverImageUri } from '@/data/lib/coverUrl';
 import AppBar from '@/shared/components/AppBar';
 import { ICONS, ICON_SIZES } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
-import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
@@ -42,7 +42,6 @@ export default function OverviewScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { navigateToRead, navigateToChatWithPendingLink, overviewResetKey } = useReading();
-
   const [failedCovers, setFailedCovers] = useState<Set<string>>(new Set());
 
   const [sources, setSources] = useState<Source[]>([]);
@@ -327,7 +326,7 @@ export default function OverviewScreen() {
                 <AppIcon name={ICONS.context.bookmark} size={14} color={colors.onPrimaryContainer} style={styles.continueBookmarkIcon} />
                 <View style={styles.continueBookmarkText}>
                     <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
-                    {stripSegmentTitleHtml(segmentTitle)} · ¶{paragraph.paragraphNumber}
+                    {stripSegmentTitleHtml(segmentTitle)} · {paragraph.paragraphNumber}|
                   </Text>
                   <Text style={[textStyles.chapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
                     {paragraph.textRaw.replace(/\u00AD/g, '').trim()}
@@ -337,6 +336,14 @@ export default function OverviewScreen() {
             </React.Fragment>
           ))}
         </View>}
+
+        {segments.length === 0 && (
+          <View style={[styles.emptyChapters, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]}>
+            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
+              Kapitel werden geladen…
+            </Text>
+          </View>
+        )}
 
         {segments.length > 0 && (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
@@ -398,7 +405,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.m, paddingTop: spacing.l, gap: spacing.m },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.l, justifyContent: 'center' },
-  coverCard: { width: 146, gap: spacing.s },
+  coverCard: { width: 292, gap: spacing.s },
   coverShadow: {
     borderRadius: 8,
     marginBottom: spacing.xs,
@@ -428,4 +435,11 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, gap: 4 },
   overlayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: spacing.m },
+  emptyChapters: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: spacing.l,
+    alignItems: 'center',
+    gap: spacing.m,
+  },
 });

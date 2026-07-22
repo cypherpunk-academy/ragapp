@@ -7,6 +7,7 @@ import { lightColors, darkColors } from '@/shared/theme';
 import {
   ReadingProvider, useReading, TAB_INDEX_CHAT, TAB_INDEX_OVERVIEW,
 } from '@/shared/contexts/ReadingContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
@@ -20,7 +21,20 @@ function TabsInner() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [activeIndex, setActiveIndex] = useState(TAB_INDEX_CHAT);
+  const [authResolved, setAuthResolved] = useState(false);
+
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!authResolved) {
+      setAuthResolved(true);
+      if (!isAuthenticated) {
+        setActiveIndex(TAB_INDEX_OVERVIEW);
+        pagerRef.current?.setPage(TAB_INDEX_OVERVIEW);
+      }
+    }
+  }, [authLoading, isAuthenticated, authResolved]);
 
   const {
     _registerTabNav,
@@ -47,7 +61,7 @@ function TabsInner() {
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <PagerView
         ref={pagerRef}
-        style={styles.pager}
+        style={[styles.pager, !authResolved && { opacity: 0 }]}
         initialPage={TAB_INDEX_CHAT}
         onPageSelected={(e) => {
           setActiveIndex(e.nativeEvent.position);

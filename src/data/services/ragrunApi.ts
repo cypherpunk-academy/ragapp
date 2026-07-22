@@ -32,6 +32,7 @@ export const ragrunApi = {
     return ragrunRequest<SearchResponse>(`${APP_PREFIX}/search`, {
       method: 'POST',
       body: request,
+      authenticated: false,
     });
   },
 

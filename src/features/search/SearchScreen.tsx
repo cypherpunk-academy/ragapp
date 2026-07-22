@@ -7,13 +7,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppBar from '@/shared/components/AppBar';
-import { lightColors, darkColors, spacing, typography, textStyles, fonts } from '@/shared/theme';
-import { fontSize as tokenFontSize } from '@/shared/theme/generated';
+import { lightColors, darkColors, spacing, typography, textStyles, fonts, fontSize as tokenFontSize, scaleSize } from '@/shared/theme';
 import { colorWithAlpha } from '@/shared/lib/color';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
-import { RagrunApiError } from '@/data/lib/ragrun-client';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import SearchHitRow from '@/shared/components/SearchHitRow';
@@ -155,7 +153,9 @@ const FILTER_GROUPS: { group: FilterGroup; label: string; subtitle?: string; kin
   { group: 'notizen',          label: 'Notizen',            kinds: ['notiz'] },
 ];
 
-const DEFAULT_GROUPS: FilterGroup[] = FILTER_GROUPS.map(({ group }) => group);
+/** Startauswahl: Bücher/Vorträge, Zusammenfassungen, Begriffe, Zitate (ohne Gespräche/Notizen). */
+const DEFAULT_GROUPS: FilterGroup[] = FILTER_GROUPS.slice(0, 4).map(({ group }) => group);
+const ALL_GROUPS: FilterGroup[] = FILTER_GROUPS.map(({ group }) => group);
 
 /** Alle EntityKinds der gewählten Gruppen als Set. */
 function kindsForGroups(selectedGroups: Set<FilterGroup>): Set<EntityKind> {
@@ -182,11 +182,11 @@ function computeApiTypes(selectedGroups: Set<FilterGroup>): string[] | undefined
 }
 
 /** Suchfeld: mehrzeilig (RAG-Anfragen), Special Elite (Figma §11.3). */
-const SEARCH_INPUT_LINE_HEIGHT = 20;
+const SEARCH_INPUT_LINE_HEIGHT = scaleSize(20);
 const SEARCH_INPUT_MAX_LINES = 7;
 const SEARCH_INPUT_MIN_HEIGHT = SEARCH_INPUT_LINE_HEIGHT;
 const SEARCH_INPUT_MAX_HEIGHT = SEARCH_INPUT_LINE_HEIGHT * SEARCH_INPUT_MAX_LINES;
-const SEARCH_BAR_ICON_SIZE = 18;
+const SEARCH_BAR_ICON_SIZE = scaleSize(18);
 
 const SEARCH_INPUT_TEXT_STYLE: TextStyle = {
   fontFamily: fonts.derived,
@@ -311,7 +311,6 @@ export default function SearchScreen() {
   const [chunkResults, setChunkResults] = useState<SearchResult[]>([]);
   const [chunksLoading, setChunksLoading] = useState(false);
   const [chunksOffline, setChunksOffline] = useState(false);
-  const [chunksUnauthorized, setChunksUnauthorized] = useState(false);
   const searchCtrlRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   const applyInputHeight = useCallback((height: number) => {
@@ -380,7 +379,6 @@ export default function SearchScreen() {
       setChunkResults([]);
       setChunksLoading(false);
       setChunksOffline(false);
-      setChunksUnauthorized(false);
       return;
     }
 
@@ -401,13 +399,11 @@ export default function SearchScreen() {
       setChunkResults([]);
       setChunksLoading(false);
       setChunksOffline(false);
-      setChunksUnauthorized(false);
       return;
     }
 
     setChunksLoading(true);
     setChunksOffline(false);
-    setChunksUnauthorized(false);
 
     ragrunApi.search({
       query: debouncedQuery,
@@ -421,15 +417,9 @@ export default function SearchScreen() {
           setChunksLoading(false);
         }
       })
-      .catch((err: unknown) => {
+      .catch(() => {
         if (!ctrl.cancelled) {
-          if (err instanceof RagrunApiError && err.status === 401) {
-            setChunksUnauthorized(true);
-            setChunksOffline(false);
-          } else {
-            setChunksOffline(true);
-            setChunksUnauthorized(false);
-          }
+          setChunksOffline(true);
           setChunksLoading(false);
           setChunkResults([]);
         }
@@ -473,7 +463,7 @@ export default function SearchScreen() {
     setSelectedGroups((prev) =>
       prev.size === FILTER_GROUPS.length
         ? new Set<FilterGroup>()
-        : new Set(DEFAULT_GROUPS),
+        : new Set(ALL_GROUPS),
     );
   }, []);
 
@@ -592,14 +582,6 @@ export default function SearchScreen() {
             style={styles.searchBarTrailingIcon}
           />
         )}
-        {chunksUnauthorized && !chunksLoading && (
-          <Ionicons
-            name="lock-closed-outline"
-            size={16}
-            color={colors.onSurfaceVariant}
-            style={styles.searchBarTrailingIcon}
-          />
-        )}
         {/* Filter-Button */}
         <TouchableOpacity
           onPress={() => setFilterOpen((v) => !v)}
@@ -695,7 +677,7 @@ export default function SearchScreen() {
         <View style={styles.center}>
           {debouncedQuery ? (
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              {chunksUnauthorized ? 'Bitte anmelden.' : 'Keine Treffer gefunden.'}
+              Keine Treffer gefunden.
             </Text>
           ) : (
             <ScopeSearchHint
@@ -778,7 +760,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  filterBadgeText: { fontSize: 10, fontWeight: '700', lineHeight: 14 },
+  filterBadgeText: { fontSize: scaleSize(10), fontWeight: '700', lineHeight: scaleSize(14) },
   filterBackdrop: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,

@@ -27,6 +27,7 @@ import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
 import { resolveSegmentSlug } from '@/shared/lib/segmentSlug';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 import { useWarnings } from '@/shared/contexts/WarningsContext';
+import { alertMultipleParagraphNotes } from '@/shared/lib/paragraphOccupiedAlert';
 
 const LOCAL_USER = 'local';
 
@@ -55,6 +56,7 @@ export default function ReadScreen() {
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuParagraphNote, setMenuParagraphNote] = useState<Note | null>(null);
+  const [menuNoteReady, setMenuNoteReady] = useState(false);
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
   const [creatingNoteFor, setCreatingNoteFor] = useState<{ paragraphId?: string; segmentSlug?: string; sourceId?: string; initialContent?: string } | null>(null);
   const [chapterNote, setChapterNote] = useState<Note | null>(null);
@@ -110,13 +112,25 @@ export default function ReadScreen() {
   useEffect(() => {
     const sub = NoteRepository.observeBySource(sourceId).subscribe((notes) => {
       const counts = new Map<string, number>();
+      let duplicateParagraphs = 0;
       for (const n of notes) {
-        if (n.paragraphId) counts.set(n.paragraphId, (counts.get(n.paragraphId) ?? 0) + 1);
+        if (!n.paragraphId) continue;
+        const next = (counts.get(n.paragraphId) ?? 0) + 1;
+        counts.set(n.paragraphId, next);
+        if (next === 2) duplicateParagraphs += 1;
       }
       setNoteCounts(counts);
+      if (duplicateParagraphs > 0) {
+        setWarning(
+          `duplicate-notes-${sourceId}`,
+          `${duplicateParagraphs} Absatz${duplicateParagraphs === 1 ? '' : 'e'} mit mehreren Arbeitstexten — bitte manuell bereinigen.`,
+        );
+      } else {
+        setWarning(`duplicate-notes-${sourceId}`, null);
+      }
     });
     return () => sub.unsubscribe();
-  }, [sourceId]);
+  }, [sourceId, setWarning]);
 
   useEffect(() => {
     const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
@@ -404,13 +418,20 @@ export default function ReadScreen() {
   const handleLongPress = useCallback((p: Paragraph) => setMenuParagraph(p), []);
 
   useEffect(() => {
-    if (!menuParagraph) { setMenuParagraphNote(null); return; }
+    if (!menuParagraph) {
+      setMenuParagraphNote(null);
+      setMenuNoteReady(false);
+      return;
+    }
     let cancelled = false;
+    setMenuNoteReady(false);
     void NoteRepository.findByParagraph(menuParagraph.id).then((notes) => {
-      if (!cancelled) setMenuParagraphNote(notes[0] ?? null);
+      if (cancelled) return;
+      setMenuParagraphNote(notes[0] ?? null);
+      setMenuNoteReady(true);
     });
     return () => { cancelled = true; };
-  }, [menuParagraph]);
+  }, [menuParagraph, sourceId]);
 
   const handleCloseMenu = useCallback(() => {
     setMenuParagraph(null);
@@ -418,19 +439,38 @@ export default function ReadScreen() {
 
   const handleParagraphNotePress = useCallback(() => {
     if (!menuParagraph) return;
-    if (menuParagraphNote) {
-      setPreviewNote(menuParagraphNote);
-    } else {
-      const chapterTitle = currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : '';
-      setCreatingNoteFor({
-        paragraphId: menuParagraph.id,
-        segmentSlug: menuParagraph.segmentSlug ?? undefined,
-        sourceId,
-        initialContent: `# Arbeitstext über Absatz ${menuParagraph.paragraphNumber}${chapterTitle ? ` im Kapitel ${chapterTitle}` : ''}\n\n`,
+    const paragraphId = menuParagraph.id;
+    const count = noteCounts.get(paragraphId) ?? 0;
+
+    if (count > 1) {
+      void NoteRepository.findByParagraph(paragraphId).then((notes) => {
+        alertMultipleParagraphNotes(notes, (n) => setPreviewNote(n));
       });
+      setMenuParagraph(null);
+      return;
     }
+
+    if (menuParagraphNote || count > 0) {
+      if (menuParagraphNote) {
+        setPreviewNote(menuParagraphNote);
+      } else {
+        void NoteRepository.findByParagraph(paragraphId).then((notes) => {
+          if (notes[0]) setPreviewNote(notes[0]);
+        });
+      }
+      setMenuParagraph(null);
+      return;
+    }
+
+    const chapterTitle = currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : '';
+    setCreatingNoteFor({
+      paragraphId,
+      segmentSlug: menuParagraph.segmentSlug ?? undefined,
+      sourceId,
+      initialContent: `# Arbeitstext über Absatz ${menuParagraph.paragraphNumber}${chapterTitle ? ` im Kapitel ${chapterTitle}` : ''}\n\n`,
+    });
     setMenuParagraph(null);
-  }, [menuParagraph, menuParagraphNote, sourceId, currentSegment]);
+  }, [menuParagraph, menuParagraphNote, noteCounts, sourceId, currentSegment]);
 
   const handleStartChatFromMenu = useCallback(() => {
     if (!menuParagraph) return;
@@ -470,10 +510,17 @@ export default function ReadScreen() {
   }, [openContributions, sourceId]);
 
   const handleShowParagraphNote = useCallback((p: Paragraph) => {
+    const count = noteCounts.get(p.id) ?? 0;
+    if (count > 1) {
+      void NoteRepository.findByParagraph(p.id).then((notes) => {
+        alertMultipleParagraphNotes(notes, (n) => setPreviewNote(n));
+      });
+      return;
+    }
     void NoteRepository.findByParagraph(p.id).then((notes) => {
       if (notes[0]) setPreviewNote(notes[0]);
     });
-  }, []);
+  }, [noteCounts]);
 
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
     const noteCount = noteCounts.get(item.id) ?? 0;
@@ -536,6 +583,15 @@ export default function ReadScreen() {
       </Pressable>
     );
   }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions, handleShowParagraphNote, marker]);
+
+  const menuNoteState = useMemo(() => {
+    if (!menuParagraph) return { ready: false, hasNote: false };
+    const count = noteCounts.get(menuParagraph.id) ?? 0;
+    return {
+      ready: menuNoteReady || count > 0,
+      hasNote: count > 0 || menuParagraphNote != null,
+    };
+  }, [menuParagraph, noteCounts, menuNoteReady, menuParagraphNote]);
 
   const typeLabel = 'Kapitel';
 
@@ -666,11 +722,11 @@ export default function ReadScreen() {
                     : 'Lesezeichen setzen'}
                 </Text>
               </TouchableOpacity>
-              {menuParagraphNote ? (
+              {!menuNoteState.ready ? null : menuNoteState.hasNote ? (
                 <TouchableOpacity style={styles.menuRow} onPress={handleParagraphNotePress}>
                   <Ionicons name="document-text-outline" size={20} color={colors.primary} />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    Arbeitstext
+                    Arbeitstext ansehen
                   </Text>
                 </TouchableOpacity>
               ) : (
@@ -721,6 +777,7 @@ export default function ReadScreen() {
           onCreated={(n) => {
             if (!creatingNoteFor.paragraphId) setChapterNote(n);
           }}
+          onOpenExisting={(existing) => setPreviewNote(existing)}
           contextLabel="Neuer Arbeitstext"
         />
       )}

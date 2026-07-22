@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Modal, Pressable,
+  UIManager, findNodeHandle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -70,6 +71,15 @@ const EMPTY_PROMPT_ARBEITSTEXT: EmptyPrompt = {
     'Kürze die Einleitung auf die Hälfte.',
     'Schärfe das Argument im zweiten Abschnitt.',
     'Ergänze eine Gegenposition und eine kurze Antwort darauf.',
+  ],
+};
+
+const EMPTY_PROMPT_BOTH: EmptyPrompt = {
+  headline: 'Absatz und Arbeitstext sind verknüpft — nutze beides.',
+  examples: [
+    'Vergleiche meinen Text mit dem Absatz.',
+    'Baue den Kerngedanken des Absatzes in den Arbeitstext ein.',
+    'Prüfe, ob mein Text dem Absatz gerecht wird.',
   ],
 };
 
@@ -153,6 +163,8 @@ export default function ChatTab({
   const paragraphBadgeStyle = getParagraphBadgeStyle(isDark);
   const insets = useSafeAreaInsets();
   const { navigateToRead } = useReading();
+  const kavRef = useRef<React.ElementRef<typeof KeyboardAvoidingView>>(null);
+  const [kavTop, setKavTop] = useState(0);
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [inputText, setInputText] = useState('');
@@ -185,8 +197,6 @@ export default function ChatTab({
   const flatListRef = useRef<FlatList>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** User hat 📎-Verknüpfung bewusst gelöst — Absatz-Arbeitstext nicht erneut auto-verknüpfen. */
-  const skipParagraphNoteLinkRef = useRef(false);
 
   const clearConnectingTimer = useCallback(() => {
     if (connectingTimerRef.current) {
@@ -248,10 +258,6 @@ export default function ChatTab({
   }, [contextParagraph?.id, onContextParagraphChange]);
 
   useEffect(() => {
-    skipParagraphNoteLinkRef.current = false;
-  }, [contextParagraph?.id]);
-
-  useEffect(() => {
     const sid = contextParagraph?.sourceId;
     if (!sid) {
       setContextSourceTitle(null);
@@ -266,7 +272,7 @@ export default function ChatTab({
 
   // Absatz-Kontext → vorhandenen Arbeitstext am Absatz automatisch verknüpfen (nur Lookup, kein paragraph_id schreiben).
   useEffect(() => {
-    if (!contextParagraph || linkedNote || linkNoteId || skipParagraphNoteLinkRef.current) return;
+    if (!contextParagraph || linkedNote || linkNoteId) return;
     let cancelled = false;
     void NoteRepository.findByParagraph(contextParagraph.id).then(async (notes) => {
       if (cancelled || notes.length === 0) return;
@@ -756,16 +762,6 @@ export default function ChatTab({
     await Clipboard.setStringAsync(markdown);
   }, [activeTalkId, turns, referencesByTurnId]);
 
-  const handleDetachDocument = useCallback(async () => {
-    skipParagraphNoteLinkRef.current = true;
-    if (linkedNote) {
-      await NoteRepository.attachToTalk(linkedNote, null);
-      if (activeTalkId) await TalkRepository.setKontextMeta(activeTalkId, null);
-    }
-    setPendingAttachNote(null);
-    setPreviewVisible(false);
-  }, [linkedNote, activeTalkId]);
-
   const handleAttachPress = useCallback(() => {
     if (linkedNote) {
       setPreviewVisible(true);
@@ -804,17 +800,23 @@ export default function ChatTab({
       : '';
 
   const emptyPrompt =
-    contextParagraph ? EMPTY_PROMPT_PARAGRAPH
-      : linkedNote ? EMPTY_PROMPT_ARBEITSTEXT
-        : EMPTY_PROMPT_FREE;
+    contextParagraph && linkedNote ? EMPTY_PROMPT_BOTH
+      : contextParagraph ? EMPTY_PROMPT_PARAGRAPH
+        : linkedNote ? EMPTY_PROMPT_ARBEITSTEXT
+          : EMPTY_PROMPT_FREE;
 
   const pendingStatusLabel = streamingStatus ?? (connectingVisible ? CONNECTING_MESSAGE : null);
 
   return (
     <KeyboardAvoidingView
+      ref={kavRef}
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.bottom}
+      keyboardVerticalOffset={kavTop}
+      onLayout={() => {
+        const handle = findNodeHandle(kavRef.current);
+        if (handle) UIManager.measureInWindow(handle, (_x, y) => setKavTop(y));
+      }}
     >
       {(activeTalkId || linkedNote || contextParagraph) ? (
         <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
@@ -1183,7 +1185,6 @@ export default function ChatTab({
         <DocumentPreviewOverlay
           note={linkedNote}
           onClose={() => setPreviewVisible(false)}
-          onDetach={() => void handleDetachDocument()}
           onDeleted={() => { if (!activeTalkId) setPendingAttachNote(null); }}
         />
       )}

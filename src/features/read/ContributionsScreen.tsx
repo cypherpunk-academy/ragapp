@@ -74,7 +74,7 @@ export default function ContributionsScreen({
   const contextLabel = useMemo(() => {
     if (!paragraph) return null;
     const typeLabel = 'Kapitel';
-    return `${typeLabel} · ${paragraph.segmentTitle} · ¶${paragraph.paragraphNumber}`;
+    return `${typeLabel} · ${paragraph.segmentTitle} · ${paragraph.paragraphNumber}|`;
   }, [paragraph]);
 
   const handleAskPhilo = useCallback(() => {

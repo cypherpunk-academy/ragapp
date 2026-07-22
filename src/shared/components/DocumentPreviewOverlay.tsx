@@ -22,8 +22,6 @@ import type Note from '@/data/db/models/Note';
 type Props = {
   note: Note | null;
   onClose: () => void;
-  /** Nur im Chat verfügbar (§ 6) — in der Bibliothek gibt es nichts zum Loslösen. */
-  onDetach?: () => void;
   /** Nicht im Chat selbst — navigiert zum Chat-Tab und verknüpft die Note dort. */
   onEditInChat?: () => void;
   /** Aufgerufen nachdem die Note über das Löschen-Icon entfernt wurde. */
@@ -88,9 +86,9 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
 
 /**
  * Preview-Overlay (Bottom Sheet, ~55–65 % Höhe): Verknüpfungs-Breadcrumb, gerendertes Markdown,
- * Undo/Bearbeiten/(Loslösen). Wird von Chat, Absatz, Kapitel und Buch gemeinsam genutzt.
+ * Undo/Bearbeiten. Wird von Chat, Absatz, Kapitel und Buch gemeinsam genutzt.
  */
-export default function DocumentPreviewOverlay({ note, onClose, onDetach, onEditInChat, onDeleted }: Props) {
+export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, onDeleted }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const isDark = colorScheme === 'dark';
@@ -162,11 +160,6 @@ export default function DocumentPreviewOverlay({ note, onClose, onDetach, onEdit
                 accessibilityLabel="Mit Philo am Arbeitstext arbeiten"
               >
                 <AppIcon name={ICONS.arbeitstext.editInChat} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
-            {onDetach && (
-              <TouchableOpacity onPress={onDetach} hitSlop={8} style={styles.iconBtn}>
-                <AppIcon name={ICONS.arbeitstext.detach} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleDelete} hitSlop={8} style={styles.iconBtn}>

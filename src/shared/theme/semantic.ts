@@ -1,8 +1,10 @@
 // Semantic typography — Figma font families & text styles (not in tokens.json).
 // Edit manually when design/figma/inventory.md §6 changes.
 // Token scales: import from ./generated (npm run build:theme).
+// Tablets: fontSize/lineHeight skaliert via tabletScale (FONT_SCALE).
 
 import { fontSize as tokenFontSize } from './generated';
+import { scaleTypeScale } from './tabletScale';
 
 /** Figma font/family/* — see design/figma/inventory.md §6 */
 export const fonts = {
@@ -16,7 +18,7 @@ export const fonts = {
 } as const;
 
 /** Semantic text styles mapped from Figma (Cinzel / Marcellus / Cormorant) */
-export const textStyles = {
+const textStylesBase = {
   titlePage: {
     fontFamily: fonts.display,
     fontSize: tokenFontSize.xl,
@@ -158,8 +160,10 @@ export const textStyles = {
   },
 } as const;
 
+export const textStyles = scaleTypeScale(textStylesBase);
+
 /** Material 3 type scale (sizes only; no custom fontFamily) */
-export const typography = {
+const typographyBase = {
   displayLarge:  { fontSize: 57, lineHeight: 64, fontWeight: '400' as const },
   displayMedium: { fontSize: 45, lineHeight: 52, fontWeight: '400' as const },
   displaySmall:  { fontSize: 36, lineHeight: 44, fontWeight: '400' as const },
@@ -176,3 +180,5 @@ export const typography = {
   labelMedium:   { fontSize: 12, lineHeight: 16, fontWeight: '500' as const },
   labelSmall:    { fontSize: 11, lineHeight: 16, fontWeight: '500' as const },
 } as const;
+
+export const typography = scaleTypeScale(typographyBase);

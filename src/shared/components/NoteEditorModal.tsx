@@ -7,6 +7,7 @@ import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { overlayStyles } from '../styles/overlays';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
+import { alertParagraphOccupied } from '@/shared/lib/paragraphOccupiedAlert';
 import type Note from '@/data/db/models/Note';
 
 const LOCAL_USER = 'local';
@@ -26,11 +27,13 @@ type Props = {
   initialContent?: string;
   /** Feuert nach dem Anlegen eines neuen Arbeitstexts (nicht beim Bearbeiten). */
   onCreated?: (note: Note) => void;
+  /** Vorhandener Absatz-Arbeitstext — z. B. Vorschau öffnen statt neu anlegen. */
+  onOpenExisting?: (note: Note) => void;
   onDeleted?: () => void;
 };
 
 export default function NoteEditorModal({
-  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onDeleted,
+  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onOpenExisting, onDeleted,
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
@@ -48,7 +51,7 @@ export default function NoteEditorModal({
     if (note) {
       await NoteRepository.update(note, trimmed);
     } else {
-      const created = await NoteRepository.create({
+      const result = await NoteRepository.create({
         userId: LOCAL_USER,
         paragraphId: paragraphId ?? undefined,
         segmentSlug: segmentSlug ?? undefined,
@@ -56,7 +59,18 @@ export default function NoteEditorModal({
         talkId: talkId ?? undefined,
         content: trimmed,
       });
-      onCreated?.(created);
+      if (!result.ok) {
+        alertParagraphOccupied(result.existingNote, {
+          onOpen: onOpenExisting
+            ? (existing) => {
+                onOpenExisting(existing);
+                onClose();
+              }
+            : undefined,
+        });
+        return;
+      }
+      onCreated?.(result.note);
     }
     onClose();
   };

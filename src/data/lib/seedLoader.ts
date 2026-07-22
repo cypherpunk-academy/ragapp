@@ -45,7 +45,8 @@ async function seedIfEmptyInternal(): Promise<void> {
   if (snapshot.timestamp === 0) return;
 
   const sourceCount = await database.get('sources').query().fetchCount();
-  if (sourceCount > 0) return;
+  const paragraphCount = await database.get('paragraphs').query().fetchCount();
+  if (sourceCount > 0 && paragraphCount > 0) return;
 
   const paragraphChanges = uuidParagraphChangesFromSnapshot();
   const changes: Record<string, unknown> = {

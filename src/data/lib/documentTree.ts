@@ -247,12 +247,84 @@ export function updateHeading(content: string, headingPath: HeadingPath, newHead
   return { content: serializeDocumentTree(tree), applied: true };
 }
 
-/** `update_section` — Block unter Überschrift bis gleiche/höhere Ebene ersetzen. */
+function normalizeSectionHeading(raw: string, level: '##' | '###'): string {
+  const stripped = raw.replace(/^#+\s*/, '').trim();
+  return `${level} ${stripped}`;
+}
+
+/**
+ * `update_section` — Block unter Überschrift ersetzen.
+ * Fehlt die Ziel-Überschrift (häufig bei leerem Arbeitstext / „als Kapitel schreiben“),
+ * wird ein neuer `##`- bzw. `###`-Abschnitt angehängt — kein stilles `applied: false`.
+ */
 export function updateSection(content: string, headingPath: HeadingPath, newBodyText: string): DocumentPatchResult {
+  if (headingPath.length === 0) return { content, applied: false };
   const tree = parseDocumentTree(content);
-  const loc = findByHeadingPath(tree, headingPath);
-  if (!loc) return { content, applied: false };
-  const newParagraphs = splitParagraphBlocks(newBodyText).map((text, i) => ({
+  let loc = findByHeadingPath(tree, headingPath);
+
+  if (!loc) {
+    if (headingPath.length === 1) {
+      const heading = normalizeSectionHeading(headingPath[0]!, '##');
+      const section: DocumentSection = {
+        heading,
+        headingPath: [heading],
+        paragraphs: [],
+        children: [],
+      };
+      tree.sections.push(section);
+      loc = { section, sub: null };
+    } else if (headingPath.length === 2) {
+      const chapterHeading = normalizeSectionHeading(headingPath[0]!, '##');
+      let section = tree.sections.find(
+        (s) => s.heading === chapterHeading || s.heading === headingPath[0],
+      );
+      if (!section) {
+        // Versuch exakter Match inkl. Rohpfad (Modell liefert manchmal schon "## …")
+        section = tree.sections.find((s) => s.heading === headingPath[0]);
+      }
+      if (!section) {
+        section = {
+          heading: chapterHeading,
+          headingPath: [chapterHeading],
+          paragraphs: [],
+          children: [],
+        };
+        tree.sections.push(section);
+      }
+      const subHeading = normalizeSectionHeading(headingPath[1]!, '###');
+      const existingSub = section.children.find(
+        (c) => c.heading === subHeading || c.heading === headingPath[1],
+      );
+      if (existingSub) {
+        loc = { section, sub: existingSub };
+      } else {
+        const sub: DocumentSubsection = {
+          heading: subHeading,
+          headingPath: [section.heading, subHeading],
+          paragraphs: [],
+        };
+        section.children.push(sub);
+        loc = { section, sub };
+      }
+    } else {
+      return { content, applied: false };
+    }
+  }
+
+  // Modell legt die Überschrift oft nochmal in `content` — nicht als Absatz speichern.
+  let body = newBodyText.trim();
+  const firstLine = body.split('\n')[0]?.trim() ?? '';
+  const targetHeading = (loc.sub ?? loc.section).heading;
+  if (
+    firstLine
+    && (firstLine === targetHeading
+      || firstLine === headingPath[headingPath.length - 1]
+      || normalizeSectionHeading(firstLine, loc.sub ? '###' : '##') === targetHeading)
+  ) {
+    body = body.slice(firstLine.length).replace(/^\n+/, '').trim();
+  }
+
+  const newParagraphs = splitParagraphBlocks(body).map((text, i) => ({
     id: `${headingPath.join('.')}.p${i + 1}`,
     text,
   }));

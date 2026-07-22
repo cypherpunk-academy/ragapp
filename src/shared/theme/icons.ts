@@ -13,7 +13,7 @@ export type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
 /** Semantic keys → Expo MaterialIcons names */
 export const ICONS = {
   contribution: {
-    notes: 'edit' as MaterialIconName,
+    notes: 'attach-file' as MaterialIconName,
     conversations: 'chat-bubble-outline' as MaterialIconName,
     ragHits: 'my-location' as MaterialIconName,
   },
@@ -43,7 +43,6 @@ export const ICONS = {
     preview: 'visibility' as MaterialIconName,
     edit: 'edit' as MaterialIconName,
     undo: 'undo' as MaterialIconName,
-    detach: 'link-off' as MaterialIconName,
     delete: 'delete-outline' as MaterialIconName,
     editInChat: 'auto-awesome' as MaterialIconName,
   },
