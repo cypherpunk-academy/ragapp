@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type Paragraph from '@/data/db/models/Paragraph';
+import { registerChatNavigation } from '@/shared/lib/chatNavigation';
 
 type ContributionsOverlay = {
   paragraph: Paragraph;
@@ -216,6 +217,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const navigateToChat = useCallback(() => {
     setSearchReturnActive(false);
     setSearchReturnOrigin(null);
+    setConversationDetail(null);
+    setContributions(null);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
@@ -226,18 +229,28 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const navigateToChatWithTalk = useCallback((talkId: string) => {
+    setConversationDetail(null);
+    setContributions(null);
     setChatTalkId(talkId);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
   const navigateToChatWithPendingLink = useCallback((noteId: string) => {
+    setConversationDetail(null);
+    setContributions(null);
     setChatPendingLinkNoteId(noteId);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
+  useEffect(() => {
+    registerChatNavigation(navigateToChatWithPendingLink);
+  }, [navigateToChatWithPendingLink]);
+
   const consumeChatPendingLink = useCallback(() => setChatPendingLinkNoteId(null), []);
 
   const navigateToChatWithParagraph = useCallback((paragraphId: string) => {
+    setConversationDetail(null);
+    setContributions(null);
     setChatPendingParagraphId(paragraphId);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
