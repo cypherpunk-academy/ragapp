@@ -802,6 +802,11 @@
   resolved "https://registry.yarnpkg.com/@expo-google-fonts/cormorant-garamond/-/cormorant-garamond-0.4.1.tgz#b748835a4c36e2ebe4ac042441d37feefc3affb6"
   integrity sha512-e8J4Cn13K1txygamg50n3odLUsYP7Ck28XOGobMi7uDsWvFmp/jgK0qcALqJTlmi9NczSWUNdERxcLauHCBa/Q==
 
+"@expo-google-fonts/lora@^0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@expo-google-fonts/lora/-/lora-0.4.2.tgz#cf4464ab37fcbcd3131cba173874690fa3077dc8"
+  integrity sha512-Bnofh2mIOUKp4KUS48VjaBgug4lQOcw/ftU0NFv5OPtiutL422//G1v63xDZEMUEL6ft4fi5q94/uKcpDjbPag==
+
 "@expo-google-fonts/marcellus@^0.4.1":
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/@expo-google-fonts/marcellus/-/marcellus-0.4.1.tgz#4e15ae85ddcad74530da3e0dc102354557dd9a9a"

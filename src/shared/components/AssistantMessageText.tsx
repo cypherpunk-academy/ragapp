@@ -3,6 +3,7 @@ import { Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles, fonts } from '@/shared/theme';
 import { splitTextWithCitations } from '@/shared/lib/citationMarkers';
 import { parseMdInline } from '@/shared/lib/parseMdInline';
+import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 
 type Props = {
   text: string;
@@ -16,18 +17,19 @@ type Props = {
 export default function AssistantMessageText({ text, onCitationPress }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const scaledNoteBody = scaleContentStyle(textStyles.noteBody, useContentScale());
   const segments = splitTextWithCitations(text);
 
   if (segments.length === 0) {
     return (
-      <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
+      <Text style={[scaledNoteBody, { color: colors.onSurface }]}>
         {text}
       </Text>
     );
   }
 
   return (
-    <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
+    <Text style={[scaledNoteBody, { color: colors.onSurface }]}>
       {segments.flatMap((seg, i) => {
         if (seg.kind === 'text') {
           return parseMdInline(seg.value).map((md, j) => (
@@ -59,8 +61,8 @@ export default function AssistantMessageText({ text, onCitationPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  bold: { fontWeight: '700' },
-  italic: { fontStyle: 'italic' },
+  bold: { fontFamily: fonts.derivedBold, fontWeight: '700' },
+  italic: { fontFamily: fonts.derivedItalic, fontStyle: 'italic' },
   underline: { textDecorationLine: 'underline' },
   citation: {
     fontFamily: fonts.derived,

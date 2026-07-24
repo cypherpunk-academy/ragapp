@@ -3,6 +3,7 @@ import { Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles } from '../theme';
 import type { ParagraphAnnotations } from '../types';
 import { useReading } from '../contexts/ReadingContext';
+import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
 import { parseInlineHtml, splitQuoteMarksFromItalicCore } from '../lib/parseInlineHtml';
 
 /** Figma Lesen/Default — rust italic (#b25738) */
@@ -173,6 +174,9 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { navigateToRead } = useReading();
+  const contentScale = useContentScale();
+  const scaledReadingBody = scaleContentStyle(textStyles.readingBody, contentScale);
+  const scaledReadingItalic = scaleContentStyle(textStyles.readingItalic, contentScale);
   const fullQuote = isFullQuoteParagraph(text, annotations);
   const segments = useMemo(() => buildSegments(text, annotations, !fullQuote), [text, annotations, fullQuote]);
   const segmentsWithMarker = useMemo(
@@ -184,7 +188,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   const baseColor = fullQuote ? quoteColor : colors.onBackground;
 
   return (
-    <Text style={[textStyles.readingBody, styles.base, { color: baseColor }, style]}>
+    <Text style={[scaledReadingBody, styles.base, { color: baseColor }, style]}>
       {prefix}
       {segmentsWithMarker.map((seg, i) => {
         if (seg.kind === 'italic') {
@@ -193,7 +197,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
             <Text key={i}>
               {seg.quoteOpener ? '«' : null}
               {outerBefore ? <Text>{outerBefore}</Text> : null}
-              <Text style={[textStyles.readingItalic, { color: READING_ITALIC_COLOR }]}>{core}</Text>
+              <Text style={[scaledReadingItalic, { color: READING_ITALIC_COLOR }]}>{core}</Text>
               {outerAfter ? <Text>{outerAfter}</Text> : null}
               {seg.quoteCloser ? '»' : null}
             </Text>
@@ -211,7 +215,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
         if (seg.kind === 'page_ref') {
           const { icon, rest } = splitPageRefLoupe(seg.text);
           const bodyFontSize =
-            typeof textStyles.readingBody.fontSize === 'number' ? textStyles.readingBody.fontSize : 18;
+            typeof scaledReadingBody.fontSize === 'number' ? scaledReadingBody.fontSize : 18;
           return (
             <Text
               key={i}
@@ -253,6 +257,6 @@ const styles = StyleSheet.create({
   },
   /** Zeilenhöhe wie Fließtext, damit Icons mit der letzten Zeile bündig sind. */
   suffixIcons: {
-    lineHeight: textStyles.readingBody.lineHeight,
+    lineHeight: textStyles.readingBody.lineHeight, // base; ParagraphRenderer überschreibt inline wenn nötig
   },
 });

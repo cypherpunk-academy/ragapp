@@ -5,17 +5,17 @@ import {
 } from 'react-native';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { overlayStyles } from '../styles/overlays';
+import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
 import { alertParagraphOccupied } from '@/shared/lib/paragraphOccupiedAlert';
 import type Note from '@/data/db/models/Note';
 
-const LOCAL_USER = 'local';
-
 type Props = {
   visible: boolean;
   onClose: () => void;
-  /** Label shown above the input, e.g. "Absatz 3 · Kapitel I" */
+  userId: string;
+  /** Label shown above the input, e.g. “Absatz 3 · Kapitel I” */
   contextLabel?: string | null;
   paragraphId?: string | null;
   segmentSlug?: string | null;
@@ -23,7 +23,7 @@ type Props = {
   talkId?: string | null;
   /** Pre-existing note to edit (omit for new note) */
   note?: Note | null;
-  /** Vorbelegter Inhalt für neue Arbeitstexte, z. B. eine kontextuelle „# …“-Überschrift. */
+  /** Vorbelegter Inhalt für neue Arbeitstexte, z. B. eine kontextuelle „# …”-Überschrift. */
   initialContent?: string;
   /** Feuert nach dem Anlegen eines neuen Arbeitstexts (nicht beim Bearbeiten). */
   onCreated?: (note: Note) => void;
@@ -33,10 +33,11 @@ type Props = {
 };
 
 export default function NoteEditorModal({
-  visible, onClose, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onOpenExisting, onDeleted,
+  visible, onClose, userId, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onOpenExisting, onDeleted,
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const scaledNoteBody = scaleContentStyle(textStyles.noteBody, useContentScale());
   const { height: windowHeight } = useWindowDimensions();
   const inputMaxHeight = Math.round(windowHeight * 0.45);
   const [content, setContent] = useState('');
@@ -52,7 +53,7 @@ export default function NoteEditorModal({
       await NoteRepository.update(note, trimmed);
     } else {
       const result = await NoteRepository.create({
-        userId: LOCAL_USER,
+        userId,
         paragraphId: paragraphId ?? undefined,
         segmentSlug: segmentSlug ?? undefined,
         sourceId: sourceId ?? undefined,
@@ -98,7 +99,7 @@ export default function NoteEditorModal({
           </Text>
           <TextInput
             style={[
-              textStyles.noteBody,
+              scaledNoteBody,
               styles.input,
               {
                 color: colors.onSurface,

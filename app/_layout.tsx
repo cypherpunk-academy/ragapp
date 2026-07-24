@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// WatermelonDB Dual-Write: Client und ragrun schreiben denselben Turn (gleiche turn_id
+// aus dem SSE-Stream). WatermelonDB behandelt den Pull-Konflikt korrekt (update statt
+// create). Die Warnung ist rein diagnostisch und wird hier unterdrückt.
+LogBox.ignoreLogs(['[Sync] Server wants client to create record turns#']);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +14,7 @@ import * as Linking from 'expo-linking';
 import { useColorScheme } from 'react-native';
 import { lightColors, darkColors } from '@/shared/theme';
 import { useAppFonts } from '@/shared/hooks/useAppFonts';
+import { SettingsProvider } from '@/shared/contexts/SettingsContext';
 import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { ensureSeeded } from '@/data/lib/seedLoader';
@@ -64,6 +71,7 @@ export default function RootLayout() {
   }
 
   return (
+    <SettingsProvider>
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
       <SafeAreaProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
@@ -76,5 +84,6 @@ export default function RootLayout() {
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </SettingsProvider>
   );
 }

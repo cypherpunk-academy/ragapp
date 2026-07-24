@@ -8,7 +8,12 @@ import {
   CormorantGaramond_400Regular,
   CormorantGaramond_400Regular_Italic,
 } from '@expo-google-fonts/cormorant-garamond';
-import { SpecialElite_400Regular } from '@expo-google-fonts/special-elite';
+import {
+  Lora_400Regular,
+  Lora_400Regular_Italic,
+  Lora_700Bold,
+  Lora_700Bold_Italic,
+} from '@expo-google-fonts/lora';
 
 export function useAppFonts() {
   return useFonts({
@@ -17,6 +22,9 @@ export function useAppFonts() {
     Marcellus_400Regular,
     CormorantGaramond_400Regular,
     CormorantGaramond_400Regular_Italic,
-    SpecialElite_400Regular,
+    Lora_400Regular,
+    Lora_400Regular_Italic,
+    Lora_700Bold,
+    Lora_700Bold_Italic,
   });
 }

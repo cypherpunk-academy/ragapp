@@ -4,7 +4,7 @@ import {
   useColorScheme, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
@@ -146,7 +146,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
                             </Text>
                           )}
                           <Text
-                            style={[typography.bodyMedium, { color: colors.onSurface }]}
+                            style={[textStyles.noteBody, { color: colors.onSurface }]}
                             numberOfLines={3}
                           >
                             {note.content}

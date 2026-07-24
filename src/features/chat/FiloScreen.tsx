@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert } from 'react-native';
 import { router } from 'expo-router';
 import AppBar from '@/shared/components/AppBar';
 import AppIcon from '@/shared/components/AppIcon';
@@ -12,11 +12,14 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { continueReadingLabel } from '@/features/overview/sourceDetail';
 import ChatTab from './ChatTab';
 import GespraecheTab from './GespraecheTab';
+import ArbeitstextTab from './ArbeitstextTab';
+import type Note from '@/data/db/models/Note';
 
-type FiloSegment = 'chat' | 'gespraeche';
+type FiloSegment = 'chat' | 'arbeitstext' | 'gespraeche';
 
-const SEGMENTS: { id: FiloSegment; label: string }[] = [
+const SEGMENTS: { id: FiloSegment; label: string; icon?: string }[] = [
   { id: 'chat', label: 'CHAT' },
+  { id: 'arbeitstext', label: 'ARBEITSTEXT', icon: 'attach-file' },
   { id: 'gespraeche', label: 'GESPRÄCHE' },
 ];
 
@@ -44,14 +47,16 @@ export default function FiloScreen({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const {
-    chatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
+    chatTalkId, consumeChatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
     chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
   } = useReading();
 
   const [activeSegment, setActiveSegment] = useState<FiloSegment>('chat');
   const [activeTalkId, setActiveTalkId] = useState<string | null>(null);
+  const [linkedNote, setLinkedNote] = useState<Note | null>(null);
+  const [createNoteRequest, setCreateNoteRequest] = useState(false);
   const [weiterlesen, setWeiterlesen] = useState<WeiterlesenState | null>(null);
   const [weiterlesenDismissed, setWeiterlesenDismissed] = useState(false);
   const [pendingLinkNoteId, setPendingLinkNoteId] = useState<string | null>(null);
@@ -68,8 +73,9 @@ export default function FiloScreen({
     if (chatTalkId) {
       setActiveTalkId(chatTalkId);
       setActiveSegment('chat');
+      consumeChatTalkId();
     }
-  }, [chatTalkId]);
+  }, [chatTalkId, consumeChatTalkId]);
 
   // Vorgemerkte Note zum Verknüpfen übernehmen (z. B. „Mit Philo bearbeiten" von Absatz/Kapitel/Buch).
   // Erzwingt ein neues Gespräch statt Anhängen ans aktive (aktive Gespräche haben ggf. bereits
@@ -139,6 +145,21 @@ export default function FiloScreen({
     setActiveSegment('chat');
   }, []);
 
+  const handleSegmentPress = useCallback((id: FiloSegment) => {
+    if (id === 'arbeitstext' && !linkedNote && activeTalkId) {
+      Alert.alert(
+        'Arbeitstext anlegen',
+        'Willst du einen Arbeitstext zu dem aktuellen Chat anlegen?',
+        [
+          { text: 'Nicht jetzt', style: 'cancel' },
+          { text: 'Anlegen', onPress: () => setCreateNoteRequest(true) },
+        ],
+      );
+      return;
+    }
+    setActiveSegment(id);
+  }, [linkedNote, activeTalkId]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppBar title={assistant.firstName} />
@@ -163,12 +184,21 @@ export default function FiloScreen({
             <TouchableOpacity
               key={seg.id}
               style={[styles.segment, isActive && { borderBottomColor: colors.primary }]}
-              onPress={() => setActiveSegment(seg.id)}
+              onPress={() => handleSegmentPress(seg.id)}
               activeOpacity={0.7}
             >
-              <Text style={[typography.labelMedium, { color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
-                {seg.label}
-              </Text>
+              <View style={styles.segmentLabel}>
+                <Text style={[typography.labelMedium, { color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
+                  {seg.label}
+                </Text>
+                {seg.icon && (
+                  <AppIcon
+                    name={seg.icon as any}
+                    size={14}
+                    color={isActive ? colors.primary : colors.onSurfaceVariant}
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -195,6 +225,7 @@ export default function FiloScreen({
         <View style={styles.content}>
           {activeSegment === 'chat' && (
             <ChatTab
+              userId={user?.id ?? ''}
               activeTalkId={activeTalkId}
               onActiveTalkChange={setActiveTalkId}
               linkNoteId={pendingLinkNoteId}
@@ -202,6 +233,18 @@ export default function FiloScreen({
               pendingParagraphId={pendingParagraphId}
               onParagraphConsumed={() => setPendingParagraphId(null)}
               onContextParagraphChange={setActiveContextParagraphId}
+              onLinkedNoteChange={setLinkedNote}
+              onSwitchToArbeitstext={() => setActiveSegment('arbeitstext')}
+              createNoteRequest={createNoteRequest}
+              onCreateNoteRequestConsumed={() => setCreateNoteRequest(false)}
+            />
+          )}
+          {activeSegment === 'arbeitstext' && (
+            <ArbeitstextTab
+              userId={user?.id ?? ''}
+              note={linkedNote}
+              activeTalkId={activeTalkId}
+              onDeleted={() => setLinkedNote(null)}
             />
           )}
           {activeSegment === 'gespraeche' && (
@@ -235,6 +278,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+  },
+  segmentLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   content: { flex: 1 },
   loginGate: {

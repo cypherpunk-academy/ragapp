@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Modal, Pressable,
+  Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Pressable,
   UIManager, findNodeHandle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
 import AppIcon from '@/shared/components/AppIcon';
-import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
+import { overlayStyles } from '@/shared/styles/overlays';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import RagInsightsOverlay from '@/shared/components/RagInsightsOverlay';
 import AssistantMessageText from '@/shared/components/AssistantMessageText';
@@ -24,6 +24,7 @@ import InlineMdText from '@/shared/components/InlineMdText';
 import TurnMetaLine from '@/shared/components/TurnMetaLine';
 import { extractDocumentTitle, buildDocumentOutline } from '@/data/lib/documentTree';
 import { dispatchToolEffects } from '@/data/tools';
+import { runSync } from '@/data/lib/sync';
 import { alertParagraphOccupied, alertMultipleParagraphNotes } from '@/shared/lib/paragraphOccupiedAlert';
 import { firstWords } from '@/shared/lib/arbeitstextContext';
 import { formatContextParagraphText } from '@/shared/lib/formatContextParagraphText';
@@ -31,17 +32,16 @@ import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { resolveRagHitsForTurn, citationIndexToListIndex } from '@/shared/lib/ragHits';
 import { countUniqueCitations } from '@/shared/lib/citationMarkers';
 import { formatTalkAsMarkdown } from '@/shared/lib/formatTalkMarkdown';
-import { CHAT_MODES, chatModeLabel } from '@/shared/lib/chatModes';
 import { contextLimitForModel } from '@/shared/lib/modelContextLimits';
 import { computeEffectiveContextTokens } from '@/shared/lib/computeEffectiveContextTokens';
 import { useReading } from '@/shared/contexts/ReadingContext';
+import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 import type { ChatMode, ChatContextMeta } from '@/shared/types/ragrun';
 import type Turn from '@/data/db/models/Turn';
 import type Note from '@/data/db/models/Note';
 import type Reference from '@/data/db/models/Reference';
 import type Paragraph from '@/data/db/models/Paragraph';
 
-const LOCAL_USER = 'local';
 const CONNECTING_MESSAGE_DELAY_MS = 1000;
 const CONNECTING_MESSAGE = 'Verbindung wird aufgebaut…';
 
@@ -139,6 +139,7 @@ function personalityLabel(slug: string | null | undefined): string {
 }
 
 type Props = {
+  userId: string;
   activeTalkId: string | null;
   onActiveTalkChange: (talkId: string | null) => void;
   /** Arbeitstext, der beim Öffnen dieses Tabs verknüpft werden soll (z. B. „In Gespräch bearbeiten”). */
@@ -149,12 +150,21 @@ type Props = {
   onParagraphConsumed?: () => void;
   /** Wird aufgerufen, wenn sich der aktive Absatz-Kontext ändert (für GESPRÄCHE-Tab-Filter). */
   onContextParagraphChange?: (paragraphId: string | null) => void;
+  /** Wird aufgerufen, wenn sich die verknüpfte Note ändert (für Arbeitstext-Tab). */
+  onLinkedNoteChange?: (note: import('@/data/db/models/Note').default | null) => void;
+  /** Wechselt zum Arbeitstext-Tab (statt Preview-Overlay). */
+  onSwitchToArbeitstext?: () => void;
+  /** Signalisiert, dass FiloScreen einen neuen Arbeitstext anlegen möchte. */
+  createNoteRequest?: boolean;
+  onCreateNoteRequestConsumed?: () => void;
 };
 
 /** CHAT-Segment des Filo-Tabs: aktives Gespräch oder Leerzustand mit Eingabefeld. */
 export default function ChatTab({
-  activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed,
+  userId, activeTalkId, onActiveTalkChange, linkNoteId, onLinkNoteConsumed,
   pendingParagraphId, onParagraphConsumed, onContextParagraphChange,
+  onLinkedNoteChange, onSwitchToArbeitstext,
+  createNoteRequest, onCreateNoteRequestConsumed,
 }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -163,6 +173,7 @@ export default function ChatTab({
   const paragraphBadgeStyle = getParagraphBadgeStyle(isDark);
   const insets = useSafeAreaInsets();
   const { navigateToRead } = useReading();
+  const scaledNoteBody = scaleContentStyle(textStyles.noteBody, useContentScale());
   const kavRef = useRef<React.ElementRef<typeof KeyboardAvoidingView>>(null);
   const [kavTop, setKavTop] = useState(0);
 
@@ -175,7 +186,6 @@ export default function ChatTab({
   const [contextParagraph, setContextParagraph] = useState<ContextParagraph | null>(null);
   const [contextSourceTitle, setContextSourceTitle] = useState<string | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
-  const [previewVisible, setPreviewVisible] = useState(false);
   const [lastUpdatedNote, setLastUpdatedNote] = useState<Note | null>(null);
   const [referencesByTurnId, setReferencesByTurnId] = useState<Record<string, Reference[]>>({});
   const [insightsState, setInsightsState] = useState<{
@@ -184,7 +194,6 @@ export default function ChatTab({
   } | null>(null);
   const [pinned, setPinnedState] = useState(false);
   const [mode, setModeState] = useState<ChatMode>('chat');
-  const [modePickerVisible, setModePickerVisible] = useState(false);
   const [menuTurn, setMenuTurn] = useState<{ turn: Turn; part: 'user' | 'assistant' } | null>(null);
   const [compressedUpToTurnIndex, setCompressedUpToTurnIndex] = useState<number | null>(null);
   const [contextMeta, setContextMeta] = useState<ChatContextMeta | null>(null);
@@ -252,6 +261,10 @@ export default function ChatTab({
   const linkedNote = activeTalkId
     ? (observedLinkedNote ?? metaLinkedNote)
     : pendingAttachNote;
+
+  useEffect(() => {
+    onLinkedNoteChange?.(linkedNote);
+  }, [linkedNote, onLinkedNoteChange]);
 
   useEffect(() => {
     onContextParagraphChange?.(contextParagraph?.id ?? null);
@@ -408,6 +421,18 @@ export default function ChatTab({
     let cancelled = false;
 
     const sub = TurnRepository.observeByTalk(activeTalkId).subscribe((list) => {
+      // #region agent log
+      {
+        const keyCounts: Record<string, number> = {};
+        const rows = list.map((t) => {
+          const key = `${t.talkId}-${t.turnIndex}`;
+          keyCounts[key] = (keyCounts[key] ?? 0) + 1;
+          return { id: t.id, talkId: t.talkId, turnIndex: t.turnIndex, key };
+        });
+        const dupKeys = Object.entries(keyCounts).filter(([, n]) => n > 1).map(([k, n]) => ({ key: k, n }));
+        fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9b3751'},body:JSON.stringify({sessionId:'9b3751',location:'ChatTab.tsx:observeByTalk',message:'turns list from observe',data:{activeTalkId,count:list.length,dupKeys,rows},timestamp:Date.now(),hypothesisId:'A-C-E'})}).catch(()=>{});
+      }
+      // #endregion
       if (!cancelled) setTurns(list);
     });
 
@@ -505,9 +530,8 @@ export default function ChatTab({
     }
   }, [activeTalkId, pinned]);
 
-  const handleSelectMode = useCallback(async (next: ChatMode) => {
-    setModePickerVisible(false);
-    if (next === mode) return;
+  const handleToggleMode = useCallback(async () => {
+    const next: ChatMode = mode === 'chat' ? 'nachdenken' : 'chat';
     const previous = mode;
     setModeState(next);
     if (activeTalkId) {
@@ -595,7 +619,7 @@ export default function ChatTab({
           if (isNewTalk) {
             await TalkRepository.create({
               id: event.talk_id,
-              userId: LOCAL_USER,
+              userId,
               title: text.slice(0, 60),
               kontextParagraphId: contextParagraph?.id,
               kontextParagraph: contextParagraph?.label,
@@ -644,9 +668,10 @@ export default function ChatTab({
             paragraphId: contextParagraph?.id,
             sourceId: contextParagraph?.sourceId ?? undefined,
             segmentSlug: contextParagraph?.segmentSlug ?? undefined,
+            userId,
           });
           if (effects.updatedNote) setLastUpdatedNote(effects.updatedNote);
-          if (effects.updateFailed) {
+          if (effects.updateFailed && linkedNote) {
             Alert.alert(
               'Arbeitstext nicht geändert',
               'Die vorgeschlagene Änderung konnte nicht angewendet werden. Bitte erneut bitten, den Text als Kapitel in den Arbeitstext zu schreiben.',
@@ -675,6 +700,9 @@ export default function ChatTab({
           if (effects.createdNote && !linkedNote) {
             await NoteRepository.attachToTalk(effects.createdNote, event.talk_id);
           }
+          if (effects.createdNote || effects.updatedNote) {
+            void runSync();
+          }
           const noteForTalk = effects.createdNote ?? linkedNote;
           if (noteForTalk) {
             await NoteRepository.attachToTalk(noteForTalk, event.talk_id);
@@ -690,7 +718,7 @@ export default function ChatTab({
           let talkId = activeTalkId;
           if (isNewTalk) {
             const newTalk = await TalkRepository.create({
-              userId: LOCAL_USER,
+              userId,
               title: text.slice(0, 60),
               kontextParagraphId: contextParagraph?.id,
               kontextParagraph: contextParagraph?.label,
@@ -762,13 +790,20 @@ export default function ChatTab({
     await Clipboard.setStringAsync(markdown);
   }, [activeTalkId, turns, referencesByTurnId]);
 
+  useEffect(() => {
+    if (createNoteRequest) {
+      setCreatingNote(true);
+      onCreateNoteRequestConsumed?.();
+    }
+  }, [createNoteRequest, onCreateNoteRequestConsumed]);
+
   const handleAttachPress = useCallback(() => {
     if (linkedNote) {
-      setPreviewVisible(true);
+      onSwitchToArbeitstext?.();
       return;
     }
     setCreatingNote(true);
-  }, [linkedNote]);
+  }, [linkedNote, onSwitchToArbeitstext]);
 
   const handleParagraphBadgePress = useCallback(() => {
     if (!contextParagraph?.sourceId) return;
@@ -900,7 +935,7 @@ export default function ChatTab({
       <FlatList
         ref={flatListRef}
         data={turns}
-        keyExtractor={(t) => `${t.talkId}-${t.turnIndex}`}
+        keyExtractor={(t) => t.id}
         contentContainerStyle={styles.turnListContent}
         renderItem={({ item: turn }) => {
           const refs = referencesByTurnId[turn.id] ?? [];
@@ -920,7 +955,7 @@ export default function ChatTab({
             >
               <InlineMdText
                 text={turn.userMessage}
-                style={[textStyles.noteBody, { color: colors.onSurface }]}
+                style={[scaledNoteBody, { color: colors.onSurface }]}
               />
             </TouchableOpacity>
             <TurnMetaLine turn={turn} kind="user" />
@@ -962,7 +997,7 @@ export default function ChatTab({
               {emptyPrompt.examples.map((example) => (
                 <Text
                   key={example}
-                  style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}
+                  style={[textStyles.noteBody, { color: colors.onSurfaceVariant, textAlign: 'center' }]}
                 >
                   {example}
                 </Text>
@@ -976,7 +1011,7 @@ export default function ChatTab({
               <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
                 <InlineMdText
                   text={pendingUserMessage}
-                  style={[textStyles.noteBody, { color: colors.onSurface }]}
+                  style={[scaledNoteBody, { color: colors.onSurface }]}
                 />
               </View>
               <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
@@ -1000,7 +1035,7 @@ export default function ChatTab({
 
       {lastUpdatedNote && !sending && (
         <TouchableOpacity
-          onPress={() => setPreviewVisible(true)}
+          onPress={() => onSwitchToArbeitstext?.()}
           style={[styles.updatedChip, { backgroundColor: noteBadgeStyle.backgroundColor }]}
           activeOpacity={0.8}
         >
@@ -1013,14 +1048,12 @@ export default function ChatTab({
       {/* Eingabe */}
       <View style={[styles.inputRow, { borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom || spacing.m }]}>
         <TouchableOpacity
-          onPress={() => setModePickerVisible(true)}
-          style={[styles.modeChip, { backgroundColor: colors.surfaceContainerHigh }]}
+          onPress={() => void handleToggleMode()}
+          style={[styles.modeChip, { backgroundColor: mode === 'nachdenken' ? colors.primaryContainer : colors.surfaceContainerHigh }]}
           activeOpacity={0.8}
+          accessibilityLabel={mode === 'nachdenken' ? 'Nachdenken aktiv' : 'Nachdenken aktivieren'}
         >
-          <Text style={[textStyles.noteMeta, { color: colors.onSurface }]}>
-            {chatModeLabel(mode)}
-          </Text>
-          <Ionicons name="chevron-down" size={14} color={colors.onSurfaceVariant} />
+          <Text style={{ fontSize: 18, lineHeight: 22 }}>🧠</Text>
         </TouchableOpacity>
         <TextInput
           value={inputText}
@@ -1029,7 +1062,7 @@ export default function ChatTab({
           placeholderTextColor={colors.onSurfaceVariant}
           multiline
           style={[
-            typography.bodyMedium,
+            scaledNoteBody,
             styles.textInput,
             { color: colors.onSurface, backgroundColor: colors.surfaceContainerHigh },
           ]}
@@ -1055,6 +1088,7 @@ export default function ChatTab({
         <NoteEditorModal
           visible
           onClose={() => setCreatingNote(false)}
+          userId={userId}
           talkId={activeTalkId}
           paragraphId={contextParagraph?.id}
           sourceId={contextParagraph?.sourceId}
@@ -1084,28 +1118,11 @@ export default function ChatTab({
           }}
         />
       )}
-      <Modal visible={modePickerVisible} transparent animationType="fade" onRequestClose={() => setModePickerVisible(false)}>
-        <Pressable style={styles.modeBackdrop} onPress={() => setModePickerVisible(false)}>
+      {menuTurn != null && (
+        <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
+          <Pressable style={overlayStyles.sheetBackdrop} onPress={() => setMenuTurn(null)} />
           <View style={[styles.modeMenu, { backgroundColor: colors.surfaceContainerHigh }]}>
-            {CHAT_MODES.map((m) => (
-              <TouchableOpacity
-                key={m.value}
-                onPress={() => void handleSelectMode(m.value)}
-                style={styles.modeMenuItem}
-              >
-                <Text style={[typography.bodyMedium, { color: m.value === mode ? colors.primary : colors.onSurface }]}>
-                  {m.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={menuTurn != null} transparent animationType="fade" onRequestClose={() => setMenuTurn(null)}>
-        <Pressable style={styles.modeBackdrop} onPress={() => setMenuTurn(null)}>
-          <View style={[styles.modeMenu, { backgroundColor: colors.surfaceContainerHigh }]}>
-            {menuTurn?.part === 'user' && (
+            {menuTurn.part === 'user' && (
               <>
                 <TouchableOpacity
                   onPress={() => void handleEditTurn(menuTurn.turn)}
@@ -1127,7 +1144,7 @@ export default function ChatTab({
                 </TouchableOpacity>
               </>
             )}
-            {menuTurn?.part === 'assistant' && (
+            {menuTurn.part === 'assistant' && (
               <TouchableOpacity
                 onPress={() => void handleCopyTurnText(menuTurn.turn.assistantMessage ?? '')}
                 style={styles.modeMenuItem}
@@ -1136,16 +1153,12 @@ export default function ChatTab({
               </TouchableOpacity>
             )}
           </View>
-        </Pressable>
-      </Modal>
+        </View>
+      )}
 
-      <Modal
-        visible={contextSheetVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setContextSheetVisible(false)}
-      >
-        <Pressable style={styles.modeBackdrop} onPress={() => setContextSheetVisible(false)}>
+      {contextSheetVisible && (
+        <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
+          <Pressable style={overlayStyles.sheetBackdrop} onPress={() => setContextSheetVisible(false)} />
           <View style={[styles.contextSheet, { backgroundColor: colors.surfaceContainerHigh }]}>
             <Text style={[typography.titleSmall, { color: colors.onSurface }]}>
               Kontextspeicher
@@ -1178,16 +1191,9 @@ export default function ChatTab({
               )}
             </TouchableOpacity>
           </View>
-        </Pressable>
-      </Modal>
-
-      {previewVisible && (
-        <DocumentPreviewOverlay
-          note={linkedNote}
-          onClose={() => setPreviewVisible(false)}
-          onDeleted={() => { if (!activeTalkId) setPendingAttachNote(null); }}
-        />
+        </View>
       )}
+
       <RagInsightsOverlay
         visible={insightsState != null}
         turn={insightsState?.turn ?? null}
@@ -1288,11 +1294,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.s,
     height: 38,
     borderRadius: 19,
-  },
-  modeBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
   },
   modeMenu: {
     marginHorizontal: spacing.m,

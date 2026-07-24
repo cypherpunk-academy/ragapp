@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme, type TextStyle } from 'react-native';
-import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, fonts } from '@/shared/theme';
 import { parseDocumentTree } from '@/data/lib/documentTree';
 import { parseMdInline } from '@/shared/lib/parseMdInline';
+import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 
 type ColorScheme = Record<string, string>;
 
@@ -31,7 +32,7 @@ function isListBlock(text: string): boolean {
   return lines.length > 0 && lines.every((l) => /^(-|\d+\.)\s+/.test(l));
 }
 
-function ListBlock({ text, colors }: { text: string; colors: ColorScheme }) {
+function ListBlock({ text, colors, noteBodyStyle }: { text: string; colors: ColorScheme; noteBodyStyle: object }) {
   const items = text.split('\n').map((l) => l.trim()).filter(Boolean);
   return (
     <View style={styles.list}>
@@ -40,10 +41,10 @@ function ListBlock({ text, colors }: { text: string; colors: ColorScheme }) {
         const rest = item.replace(/^(-|\d+\.)\s+/, '');
         return (
           <View key={i} style={styles.listItem}>
-            <Text style={[textStyles.noteBody, { color: colors.onSurfaceVariant }]}>
+            <Text style={[noteBodyStyle, { color: colors.onSurfaceVariant }]}>
               {marker === '-' ? '•' : marker}
             </Text>
-            <InlineText text={rest} style={[textStyles.noteBody, styles.listItemText, { color: colors.onSurface }]} />
+            <InlineText text={rest} style={[noteBodyStyle, styles.listItemText, { color: colors.onSurface }] as any} />
           </View>
         );
       })}
@@ -51,10 +52,10 @@ function ListBlock({ text, colors }: { text: string; colors: ColorScheme }) {
   );
 }
 
-function Block({ text, colors }: { text: string; colors: ColorScheme }) {
+function Block({ text, colors, noteBodyStyle }: { text: string; colors: ColorScheme; noteBodyStyle: object }) {
   return isListBlock(text)
-    ? <ListBlock text={text} colors={colors} />
-    : <InlineText text={text} style={[textStyles.noteBody, styles.paragraph, { color: colors.onSurface }]} />;
+    ? <ListBlock text={text} colors={colors} noteBodyStyle={noteBodyStyle} />
+    : <InlineText text={text} style={[noteBodyStyle, styles.paragraph, { color: colors.onSurface }] as any} />;
 }
 
 /**
@@ -64,6 +65,10 @@ function Block({ text, colors }: { text: string; colors: ColorScheme }) {
 export default function DocumentMarkdownView({ content }: { content: string }) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const scale = useContentScale();
+  const scaledNoteBody = scaleContentStyle(textStyles.noteBody, scale);
+  const scaledNoteHeading = scaleContentStyle(textStyles.noteHeading, scale);
+  const scaledNoteSubheading = scaleContentStyle(textStyles.noteSubheading, scale);
   const tree = parseDocumentTree(content);
 
   return (
@@ -74,17 +79,17 @@ export default function DocumentMarkdownView({ content }: { content: string }) {
       {tree.sections.map((section, si) => (
         <View key={si} style={styles.section}>
           {section.heading ? (
-            <Text style={[typography.titleMedium, styles.sectionHeading, { color: colors.onBackground }]}>
+            <Text style={[scaledNoteHeading, styles.sectionHeading, { color: colors.onBackground }]}>
               {section.heading.replace(/^##\s+/, '')}
             </Text>
           ) : null}
-          {section.paragraphs.map((p) => <Block key={p.id} text={p.text} colors={colors} />)}
+          {section.paragraphs.map((p) => <Block key={p.id} text={p.text} colors={colors} noteBodyStyle={scaledNoteBody} />)}
           {section.children.map((child, ci) => (
             <View key={ci} style={styles.subsection}>
-              <Text style={[typography.labelLarge, styles.subsectionHeading, { color: colors.onSurfaceVariant }]}>
+              <Text style={[scaledNoteSubheading, styles.subsectionHeading, { color: colors.onSurfaceVariant }]}>
                 {child.heading.replace(/^###\s+/, '')}
               </Text>
-              {child.paragraphs.map((p) => <Block key={p.id} text={p.text} colors={colors} />)}
+              {child.paragraphs.map((p) => <Block key={p.id} text={p.text} colors={colors} noteBodyStyle={scaledNoteBody} />)}
             </View>
           ))}
         </View>
@@ -103,7 +108,7 @@ const styles = StyleSheet.create({
   list: { gap: spacing.xs },
   listItem: { flexDirection: 'row', gap: spacing.xs, alignItems: 'flex-start' },
   listItemText: { flex: 1 },
-  bold: { fontWeight: '700' },
-  italic: { fontStyle: 'italic' },
+  bold: { fontFamily: fonts.derivedBold, fontWeight: '700' },
+  italic: { fontFamily: fonts.derivedItalic, fontStyle: 'italic' },
   underline: { textDecorationLine: 'underline' },
 });

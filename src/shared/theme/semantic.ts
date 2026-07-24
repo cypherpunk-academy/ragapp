@@ -14,7 +14,10 @@ export const fonts = {
   source: 'CormorantGaramond_400Regular',
   sourceItalic: 'CormorantGaramond_400Regular_Italic',
   /** User-/KI-generierter Text (Notizen, Chat) — Figma font/family/derived */
-  derived: 'SpecialElite_400Regular',
+  derived: 'Lora_400Regular',
+  derivedItalic: 'Lora_400Regular_Italic',
+  derivedBold: 'Lora_700Bold',
+  derivedBoldItalic: 'Lora_700Bold_Italic',
 } as const;
 
 /** Semantic text styles mapped from Figma (Cinzel / Marcellus / Cormorant) */
@@ -99,6 +102,8 @@ const textStylesBase = {
   },
   readingItalic: {
     fontFamily: fonts.sourceItalic,
+    fontSize: tokenFontSize.lg,
+    lineHeight: 28,
     fontStyle: 'italic' as const,
   },
   readingParagraphNumber: {
@@ -157,6 +162,20 @@ const textStylesBase = {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '400' as const,
+  },
+  /** Arbeitstext ##-Abschnittsüberschrift (Lora Bold) */
+  noteHeading: {
+    fontFamily: fonts.derivedBold,
+    fontSize: tokenFontSize.md,
+    lineHeight: 24,
+    fontWeight: '700' as const,
+  },
+  /** Arbeitstext ###-Unterabschnittsüberschrift (Lora Bold, kleiner) */
+  noteSubheading: {
+    fontFamily: fonts.derivedBold,
+    fontSize: tokenFontSize.sm,
+    lineHeight: 20,
+    fontWeight: '700' as const,
   },
 } as const;
 
