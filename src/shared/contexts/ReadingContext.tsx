@@ -66,6 +66,7 @@ type ReadingContextValue = {
    * (z. B. PagerView), bis „Neuer Chat“ oder explizites Lösen.
    */
   filoSessionNoteId: string | null;
+  setFiloSessionNoteId: (id: string | null) => void;
   clearFiloSessionNote: () => void;
   /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
   chatPendingParagraphId: string | null;
@@ -128,6 +129,7 @@ const ReadingContext = createContext<ReadingContextValue>({
   chatTalkId: null,
   chatPendingLinkNoteId: null,
   filoSessionNoteId: null,
+  setFiloSessionNoteId: () => {},
   clearFiloSessionNote: () => {},
   chatPendingParagraphId: null,
   navigateToRead: () => {},
@@ -317,6 +319,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         chatTalkId,
         chatPendingLinkNoteId,
         filoSessionNoteId,
+        setFiloSessionNoteId,
         clearFiloSessionNote,
         chatPendingParagraphId,
         navigateToRead,

@@ -51,7 +51,7 @@ export default function FiloScreen({
   const {
     chatTalkId, consumeChatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
     chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
-    filoSessionNoteId, clearFiloSessionNote,
+    filoSessionNoteId, setFiloSessionNoteId, clearFiloSessionNote,
   } = useReading();
 
   const [activeSegment, setActiveSegment] = useState<FiloSegment>('chat');
@@ -66,8 +66,8 @@ export default function FiloScreen({
 
   const handleLinkedNoteChange = useCallback((note: Note | null) => {
     setLinkedNote(note);
-    if (!note) clearFiloSessionNote();
-  }, [clearFiloSessionNote]);
+    setFiloSessionNoteId(note?.id ?? null);
+  }, [setFiloSessionNoteId]);
 
   // Nach Remount des Philo-Tabs: sticky Arbeitstext wieder als Pending-Link einspielen.
   useEffect(() => {
