@@ -1,8 +1,6 @@
 import { NoteRepository, type CreateNoteResult } from '@/data/repositories/NoteRepository';
 import { MAX_DOCUMENT_CHARS } from '@/data/lib/documentLimits';
 
-const LOCAL_USER = 'local';
-
 /** `create_document`-Payload (Contract §4.1) — `result_key: "suggested_document"`. */
 export type SuggestedDocumentPayload = {
   title: string;
@@ -16,6 +14,7 @@ export type MaterializeDocumentOptions = {
   sourceId?: string;
   segmentSlug?: string;
   paragraphId?: string;
+  userId?: string;
 };
 
 function withTitleLine(payload: SuggestedDocumentPayload): string {
@@ -34,7 +33,7 @@ export async function materializeDocument(
 ): Promise<CreateNoteResult> {
   const content = withTitleLine(payload).slice(0, MAX_DOCUMENT_CHARS);
   return NoteRepository.create({
-    userId: LOCAL_USER,
+    userId: options.userId ?? 'local',
     content,
     talkId: options.talkId,
     turnId: options.turnId,

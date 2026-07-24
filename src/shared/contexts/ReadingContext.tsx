@@ -77,6 +77,8 @@ type ReadingContextValue = {
   resetOverview: () => void;
   /** Wechselt zum KI-Chat-Tab und lädt das angegebene Gespräch vor. */
   navigateToChatWithTalk: (talkId: string) => void;
+  /** Vom Chat-Tab aufgerufen, sobald `chatTalkId` übernommen wurde. */
+  consumeChatTalkId: () => void;
   /** Wechselt zum KI-Chat-Tab und merkt eine Note zum Verknüpfen vor („Mit Philo bearbeiten"). */
   navigateToChatWithPendingLink: (noteId: string) => void;
   /** Vom Chat-Tab aufgerufen, sobald `chatPendingLinkNoteId` übernommen wurde. */
@@ -119,6 +121,7 @@ const ReadingContext = createContext<ReadingContextValue>({
   searchReturnActive: false,
   searchReturnOrigin: null,
   navigateToChatWithTalk: () => {},
+  consumeChatTalkId: () => {},
   navigateToChatWithPendingLink: () => {},
   consumeChatPendingLink: () => {},
   navigateToChatWithParagraph: () => {},
@@ -235,6 +238,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
+  const consumeChatTalkId = useCallback(() => setChatTalkId(null), []);
+
   const navigateToChatWithPendingLink = useCallback((noteId: string) => {
     setConversationDetail(null);
     setContributions(null);
@@ -299,6 +304,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         searchReturnActive,
         searchReturnOrigin,
         navigateToChatWithTalk,
+        consumeChatTalkId,
         navigateToChatWithPendingLink,
         consumeChatPendingLink,
         navigateToChatWithParagraph,

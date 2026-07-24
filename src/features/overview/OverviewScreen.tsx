@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, ActivityIndicator, Modal, Image,
+  View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, useWindowDimensions, ActivityIndicator, Modal, Image,
 } from 'react-native';
 import { coverImageUri } from '@/data/lib/coverUrl';
 import AppBar from '@/shared/components/AppBar';
-import { ICONS, ICON_SIZES } from '@/shared/theme';
+import { ICONS, ICON_SIZES, isTablet, lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
-import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
@@ -41,8 +40,17 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
 export default function OverviewScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { width: windowWidth } = useWindowDimensions();
   const { navigateToRead, navigateToChatWithPendingLink, overviewResetKey } = useReading();
   const [failedCovers, setFailedCovers] = useState<Set<string>>(new Set());
+
+  // Phone: 2 Cover/Zeile, Tablet: 3
+  const coverColumns = isTablet() ? 3 : 2;
+  const coverCardWidth = useMemo(() => {
+    const contentWidth = windowWidth - spacing.m * 2;
+    const gaps = spacing.l * (coverColumns - 1);
+    return Math.floor((contentWidth - gaps) / coverColumns);
+  }, [windowWidth, coverColumns]);
 
   const [sources, setSources] = useState<Source[]>([]);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
@@ -177,7 +185,7 @@ export default function OverviewScreen() {
             {sources.map((source) => (
               <TouchableOpacity
                 key={source.id}
-                style={styles.coverCard}
+                style={[styles.coverCard, { width: coverCardWidth }]}
                 onPress={() => setSelectedSource(source)}
                 activeOpacity={0.8}
               >
@@ -404,8 +412,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.m, paddingTop: spacing.l, gap: spacing.m },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.l, justifyContent: 'center' },
-  coverCard: { width: 292, gap: spacing.s },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.l, justifyContent: 'flex-start' },
+  coverCard: { gap: spacing.s },
   coverShadow: {
     borderRadius: 8,
     marginBottom: spacing.xs,

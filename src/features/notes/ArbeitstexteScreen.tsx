@@ -7,9 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { navigateToChatWithPendingLink } from '@/shared/lib/chatNavigation';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { lightColors, darkColors, spacing, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, NOTE_BADGE_ACCENT } from '@/shared/theme';
+import { colorWithAlpha } from '@/shared/lib/color';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
+import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import AppIcon from '@/shared/components/AppIcon';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
 import type Note from '@/data/db/models/Note';
 
@@ -44,13 +47,17 @@ function formatRelativeDate(date: Date): string {
 /** Bibliothek allgemeiner Arbeitstexte (ohne Buch-/Kapitel-/Absatz-Verknüpfung). */
 export default function ArbeitstexteScreen() {
   const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const isDark = colorScheme === 'dark';
+  const colors = isDark ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
+  const noteCard = getNoteBadgeStyle(isDark);
+  const noteCardBorder = colorWithAlpha(NOTE_BADGE_ACCENT, isDark ? 0.35 : 0.18);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     const sub = NoteRepository.observeGeneral().subscribe((ns) => {
@@ -79,6 +86,21 @@ export default function ArbeitstexteScreen() {
         <Text style={[typography.titleMedium, { color: colors.onSurface, flex: 1, marginLeft: spacing.s }]}>
           Arbeitstexte
         </Text>
+        <TouchableOpacity
+          onPress={() => setCreating(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.createBtn}
+          accessibilityLabel="Neuen Arbeitstext anlegen"
+        >
+          <AppIcon
+            name={ICONS.arbeitstext.attach}
+            size={ICON_SIZES.menu}
+            color={colors.onSurface}
+          />
+          <Text style={[typography.labelMedium, { color: colors.onSurface }]}>
+            Neuer Arbeitstext
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Suchleiste */}
@@ -112,7 +134,7 @@ export default function ArbeitstexteScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.card}
+              style={[styles.card, { backgroundColor: noteCard.backgroundColor, borderColor: noteCardBorder }]}
               onPress={() => setPreviewNote(item)}
               activeOpacity={0.7}
             >
@@ -129,6 +151,19 @@ export default function ArbeitstexteScreen() {
               </View>
             </TouchableOpacity>
           )}
+        />
+      )}
+
+      {creating && (
+        <NoteEditorModal
+          visible
+          onClose={() => setCreating(false)}
+          initialContent="# Arbeitstext\n\n"
+          contextLabel="Neuer Arbeitstext"
+          onCreated={(note) => {
+            setCreating(false);
+            setPreviewNote(note);
+          }}
         />
       )}
 
@@ -154,6 +189,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.s,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   searchWrap: {
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
@@ -173,9 +213,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.m,
     gap: spacing.xs,
-    backgroundColor: '#f0faf0',
     borderWidth: 1,
-    borderColor: '#c2dfc2',
   },
   dates: {
     flexDirection: 'row',

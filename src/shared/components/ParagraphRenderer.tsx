@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Text, StyleSheet, useColorScheme } from 'react-native';
-import { lightColors, darkColors, textStyles } from '../theme';
+import { lightColors, darkColors, textStyles, READING_TABLET_SCALE } from '../theme';
 import type { ParagraphAnnotations } from '../types';
 import { useReading } from '../contexts/ReadingContext';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
@@ -174,7 +174,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { navigateToRead } = useReading();
-  const contentScale = useContentScale();
+  const contentScale = useContentScale() * READING_TABLET_SCALE;
   const scaledReadingBody = scaleContentStyle(textStyles.readingBody, contentScale);
   const scaledReadingItalic = scaleContentStyle(textStyles.readingItalic, contentScale);
   const fullQuote = isFullQuoteParagraph(text, annotations);
@@ -186,6 +186,10 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
 
   const quoteColor = colorScheme === 'dark' ? READING_FOREIGN_QUOTE_COLOR.dark : READING_FOREIGN_QUOTE_COLOR.light;
   const baseColor = fullQuote ? quoteColor : colors.onBackground;
+  const bodyLineHeight =
+    typeof scaledReadingBody.lineHeight === 'number'
+      ? scaledReadingBody.lineHeight
+      : textStyles.readingBody.lineHeight;
 
   return (
     <Text style={[scaledReadingBody, styles.base, { color: baseColor }, style]}>
@@ -241,7 +245,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
       {suffix ? (
         <>
           <Text>{SUFFIX_ICON_GAP_CHARS}</Text>
-          <Text style={styles.suffixIcons}>{suffix}</Text>
+          <Text style={[styles.suffixIcons, { lineHeight: bodyLineHeight }]}>{suffix}</Text>
         </>
       ) : null}
     </Text>
@@ -257,6 +261,6 @@ const styles = StyleSheet.create({
   },
   /** Zeilenhöhe wie Fließtext, damit Icons mit der letzten Zeile bündig sind. */
   suffixIcons: {
-    lineHeight: textStyles.readingBody.lineHeight, // base; ParagraphRenderer überschreibt inline wenn nötig
+    includeFontPadding: false,
   },
 });

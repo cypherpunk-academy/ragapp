@@ -24,6 +24,7 @@ export type DispatchToolEffectsOptions = {
   paragraphId?: string;
   /** Im Chat verknüpfter Arbeitstext — Ziel für `suggested_document_update`. */
   linkedNote?: Note | null;
+  userId?: string;
 };
 
 export type DispatchToolEffectsResult = {
@@ -53,6 +54,7 @@ export async function dispatchToolEffects(
         sourceId: options.sourceId,
         segmentSlug: options.segmentSlug,
         paragraphId: options.paragraphId,
+        userId: options.userId,
       });
       if (created.ok) {
         result.createdNote = created.note;

@@ -10,6 +10,16 @@ export function isTablet(): boolean {
 /** Nur Tablets: +30 %, dann nochmals +30 % (1.3² ≈ 1.69). */
 export const FONT_SCALE = isTablet() ? 1.69 : 1;
 
+/**
+ * Zusätzliche Lesetext-Skalierung nur auf Tablets (+30 %).
+ * Betrifft Kapitelüberschrift, Fließtext und Meta/Navigation im Lesen-Tab.
+ * Zeilenhöhe bleibt über denselben Faktor proportional.
+ */
+export const READING_TABLET_SCALE = isTablet() ? 1.3 : 1;
+
+/** Max. Textbreite (pt) im Lesen-Tab auf Tablets — mehr seitlicher Rand. */
+export const READING_TABLET_MAX_MEASURE = 640;
+
 export function scaleSize(n: number): number {
   return FONT_SCALE === 1 ? n : Math.round(n * FONT_SCALE);
 }

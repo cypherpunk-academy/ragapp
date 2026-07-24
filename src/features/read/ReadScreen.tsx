@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Pressable,
-  StyleSheet, useColorScheme, ActivityIndicator,
+  StyleSheet, useColorScheme, useWindowDimensions, ActivityIndicator,
   type ViewToken, AppState,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import AppBar from '@/shared/components/AppBar';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICONS, ICON_SIZES } from '@/shared/theme';
+import {
+  lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICONS, ICON_SIZES,
+  isTablet, READING_TABLET_SCALE, READING_TABLET_MAX_MEASURE,
+} from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
@@ -28,14 +31,51 @@ import { resolveSegmentSlug } from '@/shared/lib/segmentSlug';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 import { useWarnings } from '@/shared/contexts/WarningsContext';
 import { alertMultipleParagraphNotes } from '@/shared/lib/paragraphOccupiedAlert';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 
-const LOCAL_USER = 'local';
+const READ_PHONE_PAD_H = 22;
 
 type Segment = { segmentIndex: number; segmentTitle: string; segmentSlug: string | null };
 
 export default function ReadScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const { width: windowWidth } = useWindowDimensions();
+  const contentScale = useContentScale();
+  const readingScale = contentScale * READING_TABLET_SCALE;
+  const readPadH = useMemo(() => {
+    if (!isTablet()) return READ_PHONE_PAD_H;
+    const fullPad = Math.floor((windowWidth - READING_TABLET_MAX_MEASURE) / 2);
+    return Math.max(spacing.m, Math.floor(fullPad / 2));
+  }, [windowWidth]);
+
+  // Drei Lesestufen: Kapitelüberschrift · Fließtext · Meta/Kapitelnav — Tablet +30 %, Zeilenhöhe proportional
+  const chapterTitleStyle = useMemo(
+    () => scaleContentStyle(textStyles.readingChapterTitle, READING_TABLET_SCALE),
+    [],
+  );
+  const appBarTitleStyle = useMemo(
+    () => scaleContentStyle(textStyles.chapterTitle, READING_TABLET_SCALE),
+    [],
+  );
+  const appBarBackTitleStyle = useMemo(
+    () => scaleContentStyle(textStyles.labelTab, READING_TABLET_SCALE),
+    [],
+  );
+  const paragraphNumberStyle = useMemo(
+    () => scaleContentStyle(textStyles.readingParagraphNumber, readingScale),
+    [readingScale],
+  );
+  const bodyLineHeight = paragraphNumberStyle.lineHeight ?? textStyles.readingBody.lineHeight;
+  const metaStyle = useMemo(
+    () => scaleContentStyle(textStyles.noteMeta, READING_TABLET_SCALE),
+    [],
+  );
+  const chapNavTitleStyle = useMemo(
+    () => scaleContentStyle(typography.labelSmall, READING_TABLET_SCALE),
+    [],
+  );
   const {
     target, openContributions, navigateToRead, navigateToChatWithParagraph, navigateBack,
     navigationHistory, navigateToSearch, navigateToChat, searchReturnActive, searchReturnOrigin,
@@ -53,6 +93,7 @@ export default function ReadScreen() {
   const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set());
   const { setWarning } = useWarnings();
+  const { user } = useAuth();
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuParagraphNote, setMenuParagraphNote] = useState<Note | null>(null);
@@ -133,7 +174,8 @@ export default function ReadScreen() {
   }, [sourceId, setWarning]);
 
   useEffect(() => {
-    const sub = TalkRepository.observeByUser(LOCAL_USER).subscribe((talks) => {
+    const userId = user?.id ?? 'local';
+    const sub = TalkRepository.observeByUser(userId).subscribe((talks) => {
       const counts = new Map<string, number>();
       for (const t of talks) {
         const pid = t.kontextParagraphId;
@@ -142,7 +184,7 @@ export default function ReadScreen() {
       setTalkCounts(counts);
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const sub = BookmarkRepository.observeManualBookmarks(sourceId).subscribe((bms) => {
@@ -227,7 +269,7 @@ export default function ReadScreen() {
       // eslint-disable-next-line no-console
       console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: sourceId, paragraphId: pid });
     }
-    void BookmarkRepository.setLastRead(LOCAL_USER, sourceIdRef.current, pid);
+    void BookmarkRepository.setLastRead(user?.id ?? 'local', sourceIdRef.current, pid);
   }, []);
 
   const onViewableItemsChanged = useCallback(
@@ -278,7 +320,7 @@ export default function ReadScreen() {
     lastReadWriteParagraphId.current = null;
     if (target.segmentIndex !== null) {
       // Expliziter Kapitelwechsel (aus Übersicht oder Kapitel-Nav): sofort in DB schreiben
-      void BookmarkRepository.setLastRead(LOCAL_USER, sourceId, firstChapterParagraphId);
+      void BookmarkRepository.setLastRead(user?.id ?? 'local', sourceId, firstChapterParagraphId);
     } else {
       // Impliziter Wechsel: nur wenn Capture aktiv und vorher schon ein Kapitel bekannt
       if (prevSeg === null) return;
@@ -488,7 +530,7 @@ export default function ReadScreen() {
 
   const handleToggleBookmarkFromMenu = useCallback(() => {
     if (!menuParagraph) return;
-    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, menuParagraph.id);
+    void BookmarkRepository.toggleManualBookmark(user?.id ?? 'local', sourceId, menuParagraph.id);
     setMenuParagraph(null);
   }, [menuParagraph]);
 
@@ -544,13 +586,13 @@ export default function ReadScreen() {
           style={{ color: colors.onBackground }}
           prefix={
             <>
-              <Text style={[textStyles.readingParagraphNumber, { color: colors.onSurfaceVariant }]}>
+              <Text style={[paragraphNumberStyle, { color: colors.onSurfaceVariant }]}>
                 {item.paragraphNumber}{'| '}
               </Text>
               {isBookmarked ? (
                 <Text
                   onPress={() =>
-                    void BookmarkRepository.toggleManualBookmark(LOCAL_USER, sourceId, item.id)
+                    void BookmarkRepository.toggleManualBookmark(user?.id ?? 'local', sourceId, item.id)
                   }
                   style={styles.inlineContributionHit}
                 >
@@ -562,18 +604,18 @@ export default function ReadScreen() {
           }
           suffix={
             hasStrip ? (
-              <Text style={[styles.inlineContributions, { color: iconMeta }]}>
+              <Text style={[styles.inlineContributions, { color: iconMeta, lineHeight: bodyLineHeight }]}>
                 {noteCount > 0 ? (
                   <Text onPress={() => handleShowParagraphNote(item)} style={styles.inlineContributionHit}>
                     <MaterialIcons name={contributionIcon('notes')} size={iconPx} color={iconMeta} />
-                    <Text style={styles.inlineContributionCount}>{noteCount}</Text>
+                    <Text style={[styles.inlineContributionCount, { lineHeight: bodyLineHeight }]}>{noteCount}</Text>
                   </Text>
                 ) : null}
                 {conversationCount > 0 ? (
                   <Text onPress={() => showContributions(item)} style={styles.inlineContributionHit}>
                     {noteCount > 0 ? '\u2002' : null}
                     <MaterialIcons name={contributionIcon('conversations')} size={iconPx} color={iconMeta} />
-                    <Text style={styles.inlineContributionCount}>{conversationCount}</Text>
+                    <Text style={[styles.inlineContributionCount, { lineHeight: bodyLineHeight }]}>{conversationCount}</Text>
                   </Text>
                 ) : null}
               </Text>
@@ -582,7 +624,7 @@ export default function ReadScreen() {
         />
       </Pressable>
     );
-  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions, handleShowParagraphNote, marker]);
+  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions, handleShowParagraphNote, marker, paragraphNumberStyle, bodyLineHeight]);
 
   const menuNoteState = useMemo(() => {
     if (!menuParagraph) return { ready: false, hasNote: false };
@@ -611,12 +653,13 @@ export default function ReadScreen() {
         </View>
         <SegmentTitleText
           title={currentSegment.segmentTitle}
-          style={[textStyles.readingChapterTitle, { color: colors.onBackground }]}
+          style={[chapterTitleStyle, { color: colors.onBackground }]}
+          italicStyle={chapterTitleStyle}
           accessibilityRole="header"
         />
       </View>
     );
-  }, [currentSegment, typeLabel, colors.primary, colors.onBackground, colors.onSurfaceVariant, chapterNote, handleChapterNotePress]);
+  }, [currentSegment, typeLabel, colors.primary, colors.onBackground, colors.onSurfaceVariant, chapterNote, handleChapterNotePress, chapterTitleStyle]);
 
   if (loading) {
     return (
@@ -630,7 +673,7 @@ export default function ReadScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
         title={hasHistory ? 'Zurück' : searchReturnActive ? (searchReturnOrigin === 'chat' ? 'Quellenverweise' : 'Suche') : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : 'Lesen')}
-        titleStyle={(hasHistory || searchReturnActive) ? textStyles.labelTab : textStyles.chapterTitle}
+        titleStyle={(hasHistory || searchReturnActive) ? appBarBackTitleStyle : appBarTitleStyle}
         onBackPress={hasHistory ? navigateBack : searchReturnActive ? (searchReturnOrigin === 'chat' ? navigateToChat : navigateToSearch) : undefined}
       />
       <FlashList
@@ -640,7 +683,7 @@ export default function ReadScreen() {
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingHorizontal: readPadH }]}
         estimatedItemSize={150}
         onScrollToIndexFailed={(info) => {
           const { index } = info;
@@ -655,11 +698,11 @@ export default function ReadScreen() {
       />
 
       {/* Kapitel-Navigation: Buchkontext, Kapiteltitel, Prev/Next ausgeschrieben */}
-      <View style={[styles.chapNav, { borderTopColor: colors.outlineVariant, backgroundColor: colors.surfaceContainer }]}>
+      <View style={[styles.chapNav, { borderTopColor: colors.outlineVariant, backgroundColor: colors.surfaceContainer, paddingHorizontal: Math.max(0, readPadH - spacing.s) }]}>
         <View style={styles.chapNavCenter} accessibilityRole="text">
           {(sourceMeta?.author || sourceMeta?.title) ? (
             <Text
-              style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]}
+              style={[metaStyle, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]}
               numberOfLines={1}
             >
               {[sourceMeta?.author, sourceMeta?.title].filter(Boolean).join(' · ')}
@@ -678,7 +721,8 @@ export default function ReadScreen() {
             <Ionicons name="chevron-back" size={18} color={prevSegment ? colors.primary : colors.onSurfaceVariant} />
             <SegmentTitleText
               title={prevSegment?.segmentTitle ?? ''}
-              style={[typography.labelSmall, styles.chapNavSideText, { color: prevSegment ? colors.primary : colors.onSurfaceVariant }]}
+              style={[chapNavTitleStyle, styles.chapNavSideText, { color: prevSegment ? colors.primary : colors.onSurfaceVariant }]}
+              italicStyle={chapNavTitleStyle}
               numberOfLines={1}
             />
           </TouchableOpacity>
@@ -692,7 +736,8 @@ export default function ReadScreen() {
           >
             <SegmentTitleText
               title={nextSegment?.segmentTitle ?? ''}
-              style={[typography.labelSmall, styles.chapNavSideText, { color: nextSegment ? colors.primary : colors.onSurfaceVariant, textAlign: 'right' }]}
+              style={[chapNavTitleStyle, styles.chapNavSideText, { color: nextSegment ? colors.primary : colors.onSurfaceVariant, textAlign: 'right' }]}
+              italicStyle={chapNavTitleStyle}
               numberOfLines={1}
             />
             <Ionicons name="chevron-forward" size={18} color={nextSegment ? colors.primary : colors.onSurfaceVariant} />
@@ -702,8 +747,13 @@ export default function ReadScreen() {
 
       {menuParagraph !== null && (
         <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
-          <Pressable style={styles.overlay} onPress={handleCloseMenu}>
-            <View style={[styles.menu, { backgroundColor: colors.surfaceContainer }]}>
+          <Pressable
+            style={overlayStyles.sheetBackdrop}
+            onPress={handleCloseMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Menü schließen"
+          />
+          <View style={[styles.menu, { backgroundColor: colors.surfaceContainer }]}>
               <Text
                 style={[typography.labelSmall, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}
                 numberOfLines={3}
@@ -730,17 +780,25 @@ export default function ReadScreen() {
                   </Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={styles.menuRow} onPress={handleParagraphNotePress}>
-                  <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    Arbeitstext anlegen
+                <TouchableOpacity
+                  style={styles.menuRow}
+                  onPress={user ? handleParagraphNotePress : undefined}
+                  disabled={!user}
+                >
+                  <Ionicons name="pencil-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
+                  <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
+                    {user ? 'Arbeitstext anlegen' : 'Arbeitstext anlegen (bitte einloggen)'}
                   </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.menuRow} onPress={handleStartChatFromMenu}>
-                <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
-                <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                  Philo zu diesem Absatz fragen
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={user ? handleStartChatFromMenu : undefined}
+                disabled={!user}
+              >
+                <Ionicons name="chatbubble-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
+                  {user ? 'Philo zu diesem Absatz fragen' : 'Philo zu diesem Absatz fragen (bitte einloggen)'}
                 </Text>
               </TouchableOpacity>
               {menuParagraph && (talkCounts.get(menuParagraph.id) ?? 0) > 0 && (
@@ -751,8 +809,7 @@ export default function ReadScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
-            </View>
-          </Pressable>
+          </View>
         </View>
       )}
 
@@ -766,10 +823,11 @@ export default function ReadScreen() {
           }}
         />
       )}
-      {creatingNoteFor && (
+      {creatingNoteFor && user && (
         <NoteEditorModal
           visible
           onClose={() => setCreatingNoteFor(null)}
+          userId={user.id}
           paragraphId={creatingNoteFor.paragraphId}
           segmentSlug={creatingNoteFor.segmentSlug}
           sourceId={creatingNoteFor.sourceId}
@@ -789,10 +847,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   list: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { paddingHorizontal: 22, paddingVertical: spacing.l },
+  listContent: { paddingVertical: spacing.l },
   chapterBlock: {
     gap: spacing.s,
-    marginBottom: spacing.s,
+    marginTop: spacing.xl,
+    marginBottom: spacing.l,
     alignItems: 'center',
   },
   chapterTitleRow: {
@@ -846,11 +905,6 @@ const styles = StyleSheet.create({
   chapNavBtnRight: { justifyContent: 'flex-end' },
   chapNavBtnDisabled: { opacity: 0.3 },
   chapNavSideText: { flex: 1, flexShrink: 1 },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
   menu: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

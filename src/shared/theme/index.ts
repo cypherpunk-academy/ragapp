@@ -27,7 +27,13 @@ export const fontSize = FONT_SCALE === 1
     } as typeof rawFontSize;
 
 export { fonts, textStyles, typography } from './semantic';
-export { isTablet, FONT_SCALE, scaleSize } from './tabletScale';
+export {
+  isTablet,
+  FONT_SCALE,
+  READING_TABLET_SCALE,
+  READING_TABLET_MAX_MEASURE,
+  scaleSize,
+} from './tabletScale';
 
 export {
   ICONS,
@@ -40,7 +46,7 @@ export {
   type IconColorRole,
 } from './icons';
 
-export { getNoteBadgeStyle, getParagraphBadgeStyle, type NoteBadgeStyle } from './noteBadge';
+export { getNoteBadgeStyle, getParagraphBadgeStyle, NOTE_BADGE_ACCENT, type NoteBadgeStyle } from './noteBadge';
 
 import { lightColors, darkColors, spacing, borderRadius } from './generated';
 import { fonts, textStyles, typography } from './semantic';

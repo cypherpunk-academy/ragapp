@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
+import { lightColors, darkColors, spacing, typography, getParagraphBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import { firstWords } from '@/shared/lib/arbeitstextContext';
 import TalkCard from '@/shared/components/TalkCard';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
@@ -17,14 +19,28 @@ type Props = {
 /** GESPRÄCHE-Segment des Filo-Tabs: Suchmaske + Liste kontextgefilterter Gespräche. */
 export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Props) {
   const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const isDark = colorScheme === 'dark';
+  const colors = isDark ? darkColors : lightColors;
+  const paragraphBadgeStyle = getParagraphBadgeStyle(isDark);
 
+  const [paragraphLabel, setParagraphLabel] = useState<string | null>(null);
   const [allTalks, setAllTalks] = useState<Talk[]>([]);
   const [talkSnippets, setTalkSnippets] = useState<Map<string, Turn | null>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingTalks, setLoadingTalks] = useState(true);
-  /** Nur angepinnte Gespräche (nur für allgemeine Gespräche wirksam). Default: an. */
-  const [pinnedOnly, setPinnedOnly] = useState(true);
+  /** Nur angepinnte Gespräche (nur für allgemeine Gespräche wirksam). Default: aus. */
+  const [pinnedOnly, setPinnedOnly] = useState(false);
+
+  useEffect(() => {
+    if (!contextParagraphId) { setParagraphLabel(null); return; }
+    let cancelled = false;
+    void ParagraphRepository.findById(contextParagraphId).then((p) => {
+      if (cancelled || !p) return;
+      const num = p.paragraphNumber != null ? `Absatz ${p.paragraphNumber}| ` : '';
+      setParagraphLabel(`${num}${firstWords(p.textRaw, 12)}`);
+    });
+    return () => { cancelled = true; };
+  }, [contextParagraphId]);
 
   useEffect(() => {
     setLoadingTalks(true);
@@ -63,6 +79,13 @@ export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Prop
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.selectorBody}>
+        {paragraphLabel && (
+          <View style={[styles.paragraphBadge, { backgroundColor: paragraphBadgeStyle.backgroundColor }]}>
+            <Text style={[typography.labelMedium, { color: paragraphBadgeStyle.textColor }]} numberOfLines={1}>
+              {paragraphLabel}
+            </Text>
+          </View>
+        )}
         <View style={styles.searchRow}>
           <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh, flex: 1 }]}>
             <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />
@@ -129,6 +152,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.s,
     paddingTop: spacing.s,
     gap: spacing.s,
+  },
+  paragraphBadge: {
+    borderRadius: 8,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.s,
   },
   searchRow: {
     flexDirection: 'row',
