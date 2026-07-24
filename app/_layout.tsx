@@ -7,11 +7,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // React Native kein LogBox-Overlay-Modal erstellt (sonst UIKit-Fehler + Touch-Block).
 const _origConsoleError = console.error;
 console.error = (...args: unknown[]) => {
-  const msg = String(args[0] ?? '');
-  if (
-    msg.includes('[Sync] Server wants client to create record talks#') ||
-    msg.includes('[Sync] Server wants client to create record turns#')
-  ) {
+  const first = args[0];
+  const msg = first instanceof Error
+    ? (first.message ?? '')
+    : String(first ?? '');
+  if (msg.includes('[Sync] Server wants client to create record')) {
     return;
   }
   _origConsoleError(...args);

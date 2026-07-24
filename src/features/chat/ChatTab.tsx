@@ -600,49 +600,18 @@ export default function ChatTab({
           setContextMeta(event.context_meta);
           const isNewTalk = !activeTalkId;
           if (isNewTalk) {
-            await TalkRepository.create({
-              id: event.talk_id,
-              userId,
-              title: text.slice(0, 60),
-              kontextParagraphId: contextParagraph?.id,
-              kontextParagraph: contextParagraph?.label,
-            });
-            if (pendingAttachNote) {
-              await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
-              await TalkRepository.setKontextMeta(event.talk_id, { note_id: pendingAttachNote.id });
-              setPendingAttachNote(null);
-            }
+            // Switch observer to the new talk BEFORE sync so turns land in the right list.
             onActiveTalkChange(event.talk_id);
           }
-          const chunkIndexMap = event.citations.length
-            ? event.citations.map((c, idx) => ({
-                index: c.index ?? idx + 1,
-                chunk_id: c.chunk_id,
-                text: c.text,
-                source_title: c.source_title,
-                segment_title: c.segment_title,
-                source_id: c.source_id,
-                chunk_type: c.chunk_type,
-                source_type: c.source_type,
-                author: c.author,
-                book_title: c.book_title,
-                paragraph_id: c.paragraph_id,
-                segment_index: c.segment_index,
-                lecture_date: c.lecture_date,
-                score: c.score,
-              }))
-            : null;
-          await TurnRepository.create({
-            id: event.turn_id,
-            talkId: event.talk_id,
-            turnIndex: isNewTalk ? 0 : (overrideTurnIndex ?? turns.length),
-            userMessage: text,
-            personality: 'assistant-host',
-            assistantMessage: event.assistant_message,
-            chunkIndexMap,
-            usage: event.usage,
-          });
-          await TalkRepository.touch(event.talk_id);
+          // Pull Talk and Turn from the server instead of creating locally.
+          // Eliminates the dual-write (client + server same UUID) that caused WatermelonDB
+          // sync conflicts → console.error → LogBox modal → GHRV ghost-touch layer.
+          await runSync();
+          if (isNewTalk && pendingAttachNote) {
+            await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
+            await TalkRepository.setKontextMeta(event.talk_id, { note_id: pendingAttachNote.id });
+            setPendingAttachNote(null);
+          }
 
           const effects = await dispatchToolEffects(event, {
             talkId: event.talk_id,
@@ -679,9 +648,6 @@ export default function ChatTab({
                 })();
               },
             });
-          }
-          if (effects.createdNote && !linkedNote) {
-            await NoteRepository.attachToTalk(effects.createdNote, event.talk_id);
           }
           const noteForTalk = effects.createdNote ?? linkedNote;
           if (noteForTalk) {
