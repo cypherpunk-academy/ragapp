@@ -17,8 +17,11 @@ export type ChunkIndexEntry = {
   author?: string;
   book_title?: string;
   paragraph_id?: string;
+  parent_id?: string;
   segment_index?: number;
   lecture_date?: string;
+  venue?: string;
+  vortragstitel?: string;
   score?: number;
   slot?: string;
 };
@@ -52,8 +55,11 @@ export function chunkIndexEntryToSearchResult(entry: ChunkIndexEntry): RagHit {
     author: entry.author,
     book_title: entry.book_title,
     paragraph_id: entry.paragraph_id,
+    parent_id: entry.parent_id,
     segment_index: entry.segment_index,
     lecture_date: entry.lecture_date,
+    venue: entry.venue,
+    vortragstitel: entry.vortragstitel,
     citationIndex: typeof entry.index === 'number' ? entry.index : undefined,
   };
 }

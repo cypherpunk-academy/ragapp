@@ -694,14 +694,29 @@ export default function ReadScreen() {
       {/* Kapitel-Navigation: Buchkontext, Kapiteltitel, Prev/Next ausgeschrieben */}
       <View style={[styles.chapNav, { borderTopColor: colors.outlineVariant, backgroundColor: colors.surfaceContainer, paddingHorizontal: Math.max(0, readPadH - spacing.s) }]}>
         <View style={styles.chapNavCenter} accessibilityRole="text">
-          {(sourceMeta?.author || sourceMeta?.title) ? (
-            <Text
-              style={[metaStyle, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]}
-              numberOfLines={1}
-            >
-              {[sourceMeta?.author, sourceMeta?.title].filter(Boolean).join(' · ')}
-            </Text>
-          ) : null}
+          {(() => {
+            const author = sourceMeta?.author || target.sourceHint?.author;
+            const title = sourceMeta?.title || target.sourceHint?.title;
+            const venue = target.sourceHint?.venue;
+            const lectureDate = target.sourceHint?.lectureDate;
+            const line1 = [author, title].filter(Boolean).join(' · ');
+            const line2 = [lectureDate, venue].filter(Boolean).join(', ');
+            if (!line1 && !line2) return null;
+            return (
+              <>
+                {line1 ? (
+                  <Text style={[metaStyle, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]} numberOfLines={1}>
+                    {line1}
+                  </Text>
+                ) : null}
+                {line2 ? (
+                  <Text style={[metaStyle, { color: colors.onSurfaceVariant, textAlign: 'center', fontWeight: '400' }]} numberOfLines={1}>
+                    {line2}
+                  </Text>
+                ) : null}
+              </>
+            );
+          })()}
         </View>
 
         <View style={styles.chapNavRow}>

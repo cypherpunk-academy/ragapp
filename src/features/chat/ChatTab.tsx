@@ -250,7 +250,14 @@ export default function ChatTab({
     ? (observedLinkedNote ?? metaLinkedNote)
     : pendingAttachNote;
 
+  // Don't push null on first mount — remounts must not wipe FiloScreen's linked Arbeitstext.
+  const linkedNoteNotifyReadyRef = useRef(false);
   useEffect(() => {
+    if (!linkedNoteNotifyReadyRef.current) {
+      linkedNoteNotifyReadyRef.current = true;
+      if (linkedNote) onLinkedNoteChange?.(linkedNote);
+      return;
+    }
     onLinkedNoteChange?.(linkedNote);
   }, [linkedNote, onLinkedNoteChange]);
 
@@ -795,8 +802,9 @@ export default function ChatTab({
     setInputText('');
     setPendingAttachNote(null);
     setContextParagraph(null);
+    onLinkedNoteChange?.(null);
     onActiveTalkChange(null);
-  }, [sending, onActiveTalkChange]);
+  }, [sending, onActiveTalkChange, onLinkedNoteChange]);
 
   const bothBadges = Boolean(linkedNote && contextParagraph);
   const arbeitstextBadgeLabel = bothBadges

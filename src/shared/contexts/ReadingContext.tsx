@@ -34,6 +34,13 @@ type ChunkPreviewOverlay = {
   origin?: 'search' | 'chat';
 };
 
+export type ReadingSourceHint = {
+  author?: string;
+  title?: string;
+  venue?: string;
+  lectureDate?: string;
+};
+
 type ReadingTarget = {
   sourceId: string;
   segmentIndex: number | null;
@@ -42,6 +49,8 @@ type ReadingTarget = {
   markerOffset: number | null;
   /** Zähler, der bei jedem navigateToRead hochzählt — erzwingt erneutes Feuern des Marker-Effekts auch bei gleichem Ziel. */
   navSeq: number;
+  /** Metadaten aus dem Suchtreffer — Fallback wenn Source nicht in der lokalen DB. */
+  sourceHint?: ReadingSourceHint;
 };
 
 type ReadingContextValue = {
@@ -52,10 +61,16 @@ type ReadingContextValue = {
   chatTalkId: string | null;
   /** Note-ID, die im Chat verknüpft werden soll, sobald ein Gespräch existiert (z. B. „Mit Philo bearbeiten" ohne aktives Gespräch). */
   chatPendingLinkNoteId: string | null;
+  /**
+   * Sticky Arbeitstext für die Filo-Session: überlebt Remounts des Philo-Tabs
+   * (z. B. PagerView), bis „Neuer Chat“ oder explizites Lösen.
+   */
+  filoSessionNoteId: string | null;
+  clearFiloSessionNote: () => void;
   /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
   chatPendingParagraphId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
-  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean }) => void;
+  navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean; sourceHint?: ReadingSourceHint }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
@@ -112,6 +127,8 @@ const ReadingContext = createContext<ReadingContextValue>({
   chunkPreview: null,
   chatTalkId: null,
   chatPendingLinkNoteId: null,
+  filoSessionNoteId: null,
+  clearFiloSessionNote: () => {},
   chatPendingParagraphId: null,
   navigateToRead: () => {},
   navigateBack: () => {},
@@ -173,12 +190,13 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [chunkPreview, setChunkPreview] = useState<ChunkPreviewOverlay | null>(null);
   const [chatTalkId, setChatTalkId] = useState<string | null>(null);
   const [chatPendingLinkNoteId, setChatPendingLinkNoteId] = useState<string | null>(null);
+  const [filoSessionNoteId, setFiloSessionNoteId] = useState<string | null>(null);
   const [chatPendingParagraphId, setChatPendingParagraphId] = useState<string | null>(null);
   const [searchReturnActive, setSearchReturnActive] = useState(false);
   const [searchReturnOrigin, setSearchReturnOrigin] = useState<'search' | 'chat' | null>(null);
 
   const navigateToRead = useCallback(
-    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch, switchTab = true }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean }) => {
+    ({ sourceId, segmentIndex, paragraphId, markerOffset, pushHistory, fromParagraphId, fromSearch, switchTab = true, sourceHint }: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean; sourceHint?: ReadingSourceHint }) => {
       const resolvedSourceId = sourceId ?? targetRef.current.sourceId;
       if (pushHistory) {
         const historyEntry = fromParagraphId != null
@@ -200,6 +218,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         paragraphId,
         markerOffset: markerOffset ?? null,
         navSeq: prev.navSeq + 1,
+        sourceHint: sourceHint ?? undefined,
       }));
       if (resolvedSourceId) AsyncStorage.setItem(LAST_SOURCE_KEY, resolvedSourceId);
       if (switchTab) tabNavRef.current?.(TAB_INDEX_READ);
@@ -244,6 +263,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     setConversationDetail(null);
     setContributions(null);
     setChatPendingLinkNoteId(noteId);
+    setFiloSessionNoteId(noteId);
     tabNavRef.current?.(TAB_INDEX_CHAT);
   }, []);
 
@@ -252,6 +272,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }, [navigateToChatWithPendingLink]);
 
   const consumeChatPendingLink = useCallback(() => setChatPendingLinkNoteId(null), []);
+  const clearFiloSessionNote = useCallback(() => setFiloSessionNoteId(null), []);
 
   const navigateToChatWithParagraph = useCallback((paragraphId: string) => {
     setConversationDetail(null);
@@ -295,6 +316,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         chunkPreview,
         chatTalkId,
         chatPendingLinkNoteId,
+        filoSessionNoteId,
+        clearFiloSessionNote,
         chatPendingParagraphId,
         navigateToRead,
         navigateBack,

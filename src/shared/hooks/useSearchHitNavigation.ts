@@ -19,6 +19,7 @@ export function useSearchHitNavigation(origin: 'search' | 'chat' = 'search') {
           paragraphId: nav.paragraphId,
           markerOffset: nav.markerOffset ?? null,
           fromSearch: origin,
+          sourceHint: nav.sourceHint,
         });
       } else if (nav.kind === 'overlay') {
         openChunkPreview({

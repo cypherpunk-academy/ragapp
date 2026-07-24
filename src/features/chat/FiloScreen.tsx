@@ -51,6 +51,7 @@ export default function FiloScreen({
   const {
     chatTalkId, consumeChatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
     chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
+    filoSessionNoteId, clearFiloSessionNote,
   } = useReading();
 
   const [activeSegment, setActiveSegment] = useState<FiloSegment>('chat');
@@ -63,6 +64,18 @@ export default function FiloScreen({
   const [pendingParagraphId, setPendingParagraphId] = useState<string | null>(null);
   const [activeContextParagraphId, setActiveContextParagraphId] = useState<string | null>(null);
 
+  const handleLinkedNoteChange = useCallback((note: Note | null) => {
+    setLinkedNote(note);
+    if (!note) clearFiloSessionNote();
+  }, [clearFiloSessionNote]);
+
+  // Nach Remount des Philo-Tabs: sticky Arbeitstext wieder als Pending-Link einspielen.
+  useEffect(() => {
+    if (!filoSessionNoteId) return;
+    if (pendingLinkNoteId || linkedNote || chatPendingLinkNoteId) return;
+    setPendingLinkNoteId(filoSessionNoteId);
+  }, [filoSessionNoteId, pendingLinkNoteId, linkedNote, chatPendingLinkNoteId]);
+
   const showWeiterlesen = offerWeiterlesenOnLaunch
     && isFiloTabActive
     && weiterlesen != null
@@ -71,11 +84,12 @@ export default function FiloScreen({
   // Aus dem ReadingContext vorgeladenes Gespräch übernehmen (z. B. aus Suche/Lesen).
   useEffect(() => {
     if (chatTalkId) {
+      clearFiloSessionNote();
       setActiveTalkId(chatTalkId);
       setActiveSegment('chat');
       consumeChatTalkId();
     }
-  }, [chatTalkId, consumeChatTalkId]);
+  }, [chatTalkId, consumeChatTalkId, clearFiloSessionNote]);
 
   // Vorgemerkte Note zum Verknüpfen übernehmen (z. B. „Mit Philo bearbeiten" von Absatz/Kapitel/Buch).
   // Erzwingt ein neues Gespräch statt Anhängen ans aktive (aktive Gespräche haben ggf. bereits
@@ -141,9 +155,10 @@ export default function FiloScreen({
   }, [weiterlesen, navigateToRead]);
 
   const handleSelectTalk = useCallback((talkId: string) => {
+    clearFiloSessionNote();
     setActiveTalkId(talkId);
     setActiveSegment('chat');
-  }, []);
+  }, [clearFiloSessionNote]);
 
   const handleSegmentPress = useCallback((id: FiloSegment) => {
     if (id === 'arbeitstext' && !linkedNote && activeTalkId) {
@@ -223,7 +238,11 @@ export default function FiloScreen({
         </View>
       ) : (
         <View style={styles.content}>
-          {activeSegment === 'chat' && (
+          {/* Keep segments mounted so pending Arbeitstext / chat state survives top-tab switches. */}
+          <View
+            style={[styles.segmentPage, activeSegment !== 'chat' && styles.segmentPageHidden]}
+            pointerEvents={activeSegment === 'chat' ? 'auto' : 'none'}
+          >
             <ChatTab
               userId={user?.id ?? ''}
               activeTalkId={activeTalkId}
@@ -233,26 +252,32 @@ export default function FiloScreen({
               pendingParagraphId={pendingParagraphId}
               onParagraphConsumed={() => setPendingParagraphId(null)}
               onContextParagraphChange={setActiveContextParagraphId}
-              onLinkedNoteChange={setLinkedNote}
+              onLinkedNoteChange={handleLinkedNoteChange}
               onSwitchToArbeitstext={() => setActiveSegment('arbeitstext')}
               createNoteRequest={createNoteRequest}
               onCreateNoteRequestConsumed={() => setCreateNoteRequest(false)}
             />
-          )}
-          {activeSegment === 'arbeitstext' && (
+          </View>
+          <View
+            style={[styles.segmentPage, activeSegment !== 'arbeitstext' && styles.segmentPageHidden]}
+            pointerEvents={activeSegment === 'arbeitstext' ? 'auto' : 'none'}
+          >
             <ArbeitstextTab
               userId={user?.id ?? ''}
               note={linkedNote}
               activeTalkId={activeTalkId}
-              onDeleted={() => setLinkedNote(null)}
+              onDeleted={() => handleLinkedNoteChange(null)}
             />
-          )}
-          {activeSegment === 'gespraeche' && (
+          </View>
+          <View
+            style={[styles.segmentPage, activeSegment !== 'gespraeche' && styles.segmentPageHidden]}
+            pointerEvents={activeSegment === 'gespraeche' ? 'auto' : 'none'}
+          >
             <GespraecheTab
               onSelectTalk={handleSelectTalk}
               contextParagraphId={activeContextParagraphId}
             />
-          )}
+          </View>
         </View>
       )}
     </View>
@@ -285,6 +310,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   content: { flex: 1 },
+  segmentPage: { flex: 1 },
+  segmentPageHidden: { display: 'none' },
   loginGate: {
     flex: 1,
     alignItems: 'center',

@@ -122,7 +122,7 @@ export type SummaryReadTarget = {
 };
 
 export type SearchHitNavigation =
-  | { kind: 'read'; sourceId: string; paragraphId: string | null; segmentIndex?: number | null; markerOffset?: number | null }
+  | { kind: 'read'; sourceId: string; paragraphId: string | null; segmentIndex?: number | null; markerOffset?: number | null; sourceHint?: { author?: string; title?: string; venue?: string; lectureDate?: string } }
   | {
       kind: 'overlay';
       sourceId: string;
@@ -220,7 +220,7 @@ export type SearchHitCardModel = {
 export function buildSearchHitCard(result: SearchResult, kind: EntityKind): SearchHitCardModel {
   const preview = chunkPreviewText(result);
 
-  const readNav = (): SearchHitNavigation => {
+  const readNav = (hint?: { author?: string; title?: string; venue?: string; lectureDate?: string }): SearchHitNavigation => {
     if (result.navigation_error) return { kind: 'none' };
     if (!result.paragraph_id?.trim()) return { kind: 'none' };
     return {
@@ -229,6 +229,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       paragraphId: result.paragraph_id,
       segmentIndex: result.source_index ?? null,
       markerOffset: null,
+      ...(hint && Object.values(hint).some(Boolean) ? { sourceHint: hint } : {}),
     };
   };
 
@@ -268,7 +269,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       const metaSmall = joinMeta([displayAuthor(result.author), bookTitle]);
       const headlineLarge =
         result.segment_title?.trim() || result.title?.trim() || result.source_id;
-      const nav = readNav();
+      const nav = readNav({ author: displayAuthor(result.author), title: bookTitle });
       return {
         card: {
           metaSmall,
@@ -282,9 +283,8 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'chunk_vortrag': {
       const { metaSmall, headlineLarge, subHeadSmall } = buildVortragSearchCard(result);
-      const badgeSuffix = formatMetaDate(
-        resolveLectureDisplayDate(result.segment_title, result.lecture_date),
-      );
+      const lectureDate = resolveLectureDisplayDate(result.segment_title, result.lecture_date);
+      const badgeSuffix = formatMetaDate(lectureDate);
       return {
         card: {
           metaSmall,
@@ -294,7 +294,12 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
           bodyText: preview,
           badgeSuffix,
         },
-        navigation: readNav(),
+        navigation: readNav({
+          author: displayAuthor(result.author),
+          title: resolveWorkTitle(result),
+          venue: result.venue?.trim() || undefined,
+          lectureDate: lectureDate ? formatMetaDate(lectureDate) : undefined,
+        }),
       };
     }
     case 'kapitel_zusammenfassung': {
