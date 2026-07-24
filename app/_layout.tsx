@@ -1,14 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // WatermelonDB Dual-Write: Client und ragrun schreiben denselben Talk/Turn (gleiche IDs
 // aus dem SSE-Stream). WatermelonDB behandelt den Pull-Konflikt korrekt (update statt
-// create). Die Warnung ist rein diagnostisch und wird hier unterdrückt.
-LogBox.ignoreLogs([
-  '[Sync] Server wants client to create record turns#',
-  '[Sync] Server wants client to create record talks#',
-]);
+// create). Die Warnung wird direkt auf console.error-Ebene unterdrückt, damit
+// React Native kein LogBox-Overlay-Modal erstellt (sonst UIKit-Fehler + Touch-Block).
+const _origConsoleError = console.error;
+console.error = (...args: unknown[]) => {
+  const msg = String(args[0] ?? '');
+  if (
+    msg.includes('[Sync] Server wants client to create record talks#') ||
+    msg.includes('[Sync] Server wants client to create record turns#')
+  ) {
+    return;
+  }
+  _origConsoleError(...args);
+};
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
