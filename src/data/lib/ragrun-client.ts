@@ -59,10 +59,16 @@ export async function ragrunRequest<T>(
   }
 
   if (!response.ok) {
-    const detail =
+    const rawDetail =
       typeof parsed === 'object' && parsed !== null && 'detail' in parsed
-        ? String((parsed as { detail: unknown }).detail)
-        : response.statusText;
+        ? (parsed as { detail: unknown }).detail
+        : undefined;
+    const detail =
+      rawDetail === undefined
+        ? response.statusText
+        : typeof rawDetail === 'string'
+          ? rawDetail
+          : JSON.stringify(rawDetail);
     throw new RagrunApiError(detail || `HTTP ${response.status}`, response.status, parsed);
   }
 

@@ -13,14 +13,7 @@ import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
 import type Paragraph from '@/data/db/models/Paragraph';
-
-const PERSONALITY_LABELS: Record<string, string> = {
-  sokrates: 'Sokrates',
-  socrates: 'Sokrates',
-  'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': 'Assistant Host',
-  'assistant-host-deep': 'Assistant Host Deep',
-};
+import { personalityLabel } from '@/shared/lib/assistant';
 
 type Props = {
   visible: boolean;
@@ -30,11 +23,6 @@ type Props = {
   sourceId: string;
   onClose: () => void;
 };
-
-function personalityLabel(slug: string | null | undefined): string {
-  if (!slug) return 'KI';
-  return PERSONALITY_LABELS[slug] ?? slug;
-}
 
 export default function ConversationDetailScreen({
   visible, talkId, anchorParagraphId, anchorTurnIndex, sourceId, onClose,

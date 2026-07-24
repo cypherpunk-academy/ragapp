@@ -268,6 +268,7 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
       const metaSmall = joinMeta([displayAuthor(result.author), bookTitle]);
       const headlineLarge =
         result.segment_title?.trim() || result.title?.trim() || result.source_id;
+      const nav = readNav();
       return {
         card: {
           metaSmall,
@@ -275,7 +276,8 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
           bodyMode: 'truncated_text',
           bodyText: preview,
         },
-        navigation: readNav(),
+        // Ohne paragraph_id (z. B. dünne Sync-Referenzen): zumindest Chunk-Text im Overlay
+        navigation: nav.kind !== 'none' ? nav : overlayNav(headlineLarge),
       };
     }
     case 'chunk_vortrag': {
@@ -364,7 +366,11 @@ export function buildSearchHitCard(result: SearchResult, kind: EntityKind): Sear
     }
     case 'chunk_gespraech': {
       const metaSmall = buildNotizSourceContextLine(result)?.trim() || undefined;
-      const headlineLarge = result.title?.trim() || result.segment_title?.trim() || result.source_id;
+      const segment = result.segment_title?.trim();
+      const title = result.title?.trim();
+      // Talk-Ingest speichert oft „Turn 1“ als segment_title — dann den Gesprächstitel zeigen
+      const turnOnly = Boolean(segment && /^turn\s*\d+$/i.test(segment));
+      const headlineLarge = (turnOnly ? title : title || segment) || result.source_id;
       return {
         card: {
           metaSmall,

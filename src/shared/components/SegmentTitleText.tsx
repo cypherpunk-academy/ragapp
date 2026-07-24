@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
-import { Text, type TextProps, type TextStyle } from 'react-native';
+import { Text, useColorScheme, type TextProps, type TextStyle } from 'react-native';
 import { buildSegmentTitleParts } from '@/shared/lib/segmentTitleDisplay';
-import { textStyles } from '@/shared/theme';
-
-const ITALIC_COLOR = '#B25738';
+import { textStyles, readingItalicColor } from '@/shared/theme';
 
 type Props = TextProps & {
   title: string;
@@ -18,6 +16,8 @@ export default function SegmentTitleText({
   italicStyle,
   ...textProps
 }: Props) {
+  const colorScheme = useColorScheme();
+  const italicColor = readingItalicColor(colorScheme === 'dark');
   const parts = useMemo(() => buildSegmentTitleParts(title), [title]);
 
   return (
@@ -26,7 +26,7 @@ export default function SegmentTitleText({
         part.italic ? (
           <Text
             key={i}
-            style={[textStyles.readingItalic, { color: ITALIC_COLOR }, italicStyle]}
+            style={[textStyles.readingItalic, { color: italicColor }, italicStyle]}
           >
             {part.text}
           </Text>

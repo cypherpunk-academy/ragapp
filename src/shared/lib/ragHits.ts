@@ -66,7 +66,10 @@ export function referenceToSearchResult(ref: Reference): RagHit {
     source_id: '',
     title,
     segment_title: segment,
-    snippet: segment ?? title ?? '',
+    // Segment allein (z. B. „Turn 1“) ist als Snippet nutzlos — Titel bevorzugen
+    snippet: title && segment && /^turn\s*\d+$/i.test(segment)
+      ? title
+      : (segment ?? title ?? ''),
     score: typeof ref.relevance === 'number' ? ref.relevance : 0,
     citationIndex: typeof ref.refIndex === 'number' ? ref.refIndex : undefined,
   };
@@ -75,14 +78,33 @@ export function referenceToSearchResult(ref: Reference): RagHit {
 /**
  * Alle RAG-Treffer eines Turns: bevorzugt `chunk_index_map` (volle Qdrant-Liste),
  * sonst normalisierte `references` aus dem Sync.
+ * Anzeige-/Zitat-Indizes sind 1-basiert (falls die Map noch mit 0 startet, wird verschoben).
  */
 export function resolveRagHitsForTurn(turn: Turn, references: Reference[]): RagHit[] {
   const fromMap = parseChunkIndexMap(turn.chunkIndexMap).map(chunkIndexEntryToSearchResult);
-  if (fromMap.length > 0) return fromMap;
+  if (fromMap.length > 0) return ensureOneBasedCitationIndices(fromMap);
 
-  return references
-    .filter((r) => Boolean(r.chunkId?.trim()))
-    .map(referenceToSearchResult);
+  return ensureOneBasedCitationIndices(
+    references
+      .filter((r) => Boolean(r.chunkId?.trim()))
+      .map(referenceToSearchResult),
+  );
+}
+
+/** Verschiebt 0-basierte `citationIndex`-Werte auf 1…n (Zitate im Antworttext sind 1-basiert). */
+export function ensureOneBasedCitationIndices(hits: RagHit[]): RagHit[] {
+  const indices = hits
+    .map((h) => h.citationIndex)
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+  if (indices.length === 0) return hits;
+  const min = Math.min(...indices);
+  if (min >= 1) return hits;
+  const shift = 1 - min;
+  return hits.map((h) =>
+    typeof h.citationIndex === 'number'
+      ? { ...h, citationIndex: h.citationIndex + shift }
+      : h,
+  );
 }
 
 /** Listet `[N]`-Index auf FlatList-Position (0-basiert). */

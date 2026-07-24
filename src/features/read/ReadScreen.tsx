@@ -9,7 +9,7 @@ import AppBar from '@/shared/components/AppBar';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import {
-  lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICONS, ICON_SIZES,
+  lightColors, darkColors, spacing, typography, textStyles, contributionIcon, ICON_SIZES,
   isTablet, READING_TABLET_SCALE, READING_TABLET_MAX_MEASURE,
 } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
@@ -17,9 +17,9 @@ import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
-import AppIcon from '@/shared/components/AppIcon';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import ArbeitstextAttachControl from '@/shared/components/ArbeitstextAttachControl';
 
 import { useReading } from '@/shared/contexts/ReadingContext';
 import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
@@ -643,13 +643,7 @@ export default function ReadScreen() {
       <View style={styles.chapterBlock}>
         <View style={styles.chapterTitleRow}>
           <Text style={[textStyles.labelSection, { color: colors.primary }]}>{typeLabel}</Text>
-          <TouchableOpacity onPress={handleChapterNotePress} hitSlop={8}>
-            <AppIcon
-              name={ICONS.arbeitstext.attach}
-              size={ICON_SIZES.menu}
-              color={chapterNote ? colors.primary : colors.onSurfaceVariant}
-            />
-          </TouchableOpacity>
+          <ArbeitstextAttachControl note={chapterNote} onPress={handleChapterNotePress} />
         </View>
         <SegmentTitleText
           title={currentSegment.segmentTitle}
@@ -659,7 +653,7 @@ export default function ReadScreen() {
         />
       </View>
     );
-  }, [currentSegment, typeLabel, colors.primary, colors.onBackground, colors.onSurfaceVariant, chapterNote, handleChapterNotePress, chapterTitleStyle]);
+  }, [currentSegment, typeLabel, colors.primary, colors.onBackground, chapterNote, handleChapterNotePress, chapterTitleStyle]);
 
   if (loading) {
     return (

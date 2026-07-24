@@ -57,7 +57,7 @@ export default function RagInsightsOverlay({
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      <AppBar title="KI-Suche" onBackPress={onClose} showUserMenu={false} />
+      <AppBar title="KI-Treffer" onBackPress={onClose} showUserMenu={false} />
       {hits.length === 0 ? (
         <ScrollView contentContainerStyle={styles.emptyWrap}>
           {header}

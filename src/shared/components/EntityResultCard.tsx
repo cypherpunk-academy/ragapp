@@ -4,8 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-
 import { parseMdInline } from '@/shared/lib/parseMdInline';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
-const ITALIC_COLOR = '#B25738';
-import { lightColors, darkColors, spacing, textStyles, scaleSize } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, scaleSize, readingItalicColor } from '@/shared/theme';
 import { getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import { colorWithAlpha } from '@/shared/lib/color';
 import type { NotizCardRows } from '@/shared/lib/notizSearchCard';
@@ -63,6 +62,7 @@ export default function EntityResultCard({
   const bodyTextStyle = isExtendedBodyKind
     ? [textStyles.noteBody, { fontSize: scaleSize(14), lineHeight: scaleSize(20) }] as const
     : textStyles.noteBody;
+  const italicColor = readingItalicColor(isDark);
 
   return (
     <TouchableOpacity
@@ -169,7 +169,7 @@ export default function EntityResultCard({
               seg.bold ? (
                 <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text>
               ) : seg.italic ? (
-                <Text key={i} style={[textStyles.readingItalic, { color: ITALIC_COLOR }]}>{seg.text}</Text>
+                <Text key={i} style={[textStyles.readingItalic, { color: italicColor }]}>{seg.text}</Text>
               ) : (
                 <Text key={i}>{seg.text}</Text>
               )

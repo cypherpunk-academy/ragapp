@@ -47,6 +47,7 @@ export {
 } from './icons';
 
 export { getNoteBadgeStyle, getParagraphBadgeStyle, NOTE_BADGE_ACCENT, type NoteBadgeStyle } from './noteBadge';
+export { READING_ITALIC, readingItalicColor } from './readingAccent';
 
 import { lightColors, darkColors, spacing, borderRadius } from './generated';
 import { fonts, textStyles, typography } from './semantic';

@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
 import { Text, StyleSheet, useColorScheme } from 'react-native';
-import { lightColors, darkColors, textStyles, READING_TABLET_SCALE } from '../theme';
+import { lightColors, darkColors, textStyles, READING_TABLET_SCALE, readingItalicColor } from '../theme';
 import type { ParagraphAnnotations } from '../types';
 import { useReading } from '../contexts/ReadingContext';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
 import { parseInlineHtml, splitQuoteMarksFromItalicCore } from '../lib/parseInlineHtml';
 
-/** Figma Lesen/Default — rust italic (#b25738) */
-const READING_ITALIC_COLOR = '#B25738';
 /** Figma Lesen/Default — Fremdzitat, leicht violett (heller als Schemes/Primary) */
 const READING_FOREIGN_QUOTE_COLOR = {
   light: '#6B68AD',
@@ -185,6 +183,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
   );
 
   const quoteColor = colorScheme === 'dark' ? READING_FOREIGN_QUOTE_COLOR.dark : READING_FOREIGN_QUOTE_COLOR.light;
+  const italicColor = readingItalicColor(colorScheme === 'dark');
   const baseColor = fullQuote ? quoteColor : colors.onBackground;
   const bodyLineHeight =
     typeof scaledReadingBody.lineHeight === 'number'
@@ -201,7 +200,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
             <Text key={i}>
               {seg.quoteOpener ? '«' : null}
               {outerBefore ? <Text>{outerBefore}</Text> : null}
-              <Text style={[scaledReadingItalic, { color: READING_ITALIC_COLOR }]}>{core}</Text>
+              <Text style={[scaledReadingItalic, { color: italicColor }]}>{core}</Text>
               {outerAfter ? <Text>{outerAfter}</Text> : null}
               {seg.quoteCloser ? '»' : null}
             </Text>

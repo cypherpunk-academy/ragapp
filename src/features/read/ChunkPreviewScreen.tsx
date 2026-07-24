@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useCol
 import { parseMdInline } from '@/shared/lib/parseMdInline';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, readingItalicColor } from '@/shared/theme';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { useChunkPreviewBody } from '@/shared/hooks/useChunkPreviewBody';
 import type { SummaryReadTarget } from '@/shared/lib/searchHitCard';
@@ -26,6 +26,7 @@ export default function ChunkPreviewScreen({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const italicColor = readingItalicColor(colorScheme === 'dark');
   const insets = useSafeAreaInsets();
   const body = useChunkPreviewBody(chunkId, sourceId, initialText);
   if (!visible) return null;
@@ -71,7 +72,7 @@ export default function ChunkPreviewScreen({
               seg.bold ? (
                 <Text key={i} style={{ fontWeight: '700' }}>{seg.text}</Text>
               ) : seg.italic ? (
-                <Text key={i} style={[textStyles.readingItalic, { color: '#B25738' }]}>{seg.text}</Text>
+                <Text key={i} style={[textStyles.readingItalic, { color: italicColor }]}>{seg.text}</Text>
               ) : (
                 <Text key={i}>{seg.text}</Text>
               )

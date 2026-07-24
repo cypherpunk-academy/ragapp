@@ -2,6 +2,7 @@ import type Turn from '@/data/db/models/Turn';
 import type Reference from '@/data/db/models/Reference';
 import { resolveRagHitsForTurn, citationIndexToListIndex, type RagHit } from './ragHits';
 import { splitTextWithCitations } from './citationMarkers';
+import { assistant } from './assistant';
 
 function keyForHit(hit: RagHit): string {
   return hit.chunk_id?.trim() || `${hit.title ?? ''}|${hit.segment_title ?? ''}`;
@@ -44,7 +45,7 @@ export function formatTalkAsMarkdown(
           return hit ? `[${globalIndexForHit(hit)}]` : seg.value;
         })
         .join('');
-      lines.push(`**Philo:** ${rewritten.trim()}`, '');
+      lines.push(`**${assistant.name}:** ${rewritten.trim()}`, '');
     }
   }
 

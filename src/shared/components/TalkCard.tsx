@@ -2,21 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { getEntityCardStyle } from '@/shared/theme/entityCards';
+import { personalityLabel } from '@/shared/lib/assistant';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
-
-const PERSONALITY_LABELS: Record<string, string> = {
-  sokrates: 'Sokrates',
-  socrates: 'Sokrates',
-  'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': 'Assistant Host',
-  'assistant-host-deep': 'Assistant Host Deep',
-};
-
-function personalityLabel(slug: string | null | undefined): string {
-  if (!slug) return 'KI';
-  return PERSONALITY_LABELS[slug] ?? slug;
-}
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });

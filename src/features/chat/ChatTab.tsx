@@ -5,9 +5,9 @@ import {
   UIManager, findNodeHandle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle, isTablet } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
@@ -36,6 +36,7 @@ import { contextLimitForModel } from '@/shared/lib/modelContextLimits';
 import { computeEffectiveContextTokens } from '@/shared/lib/computeEffectiveContextTokens';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
+import { personalityLabel } from '@/shared/lib/assistant';
 import type { ChatMode, ChatContextMeta } from '@/shared/types/ragrun';
 import type Turn from '@/data/db/models/Turn';
 import type Note from '@/data/db/models/Note';
@@ -123,19 +124,6 @@ function fallbackContextParagraph(
     segmentSlug: null,
     segmentTitle: null,
   };
-}
-
-const PERSONALITY_LABELS: Record<string, string> = {
-  sokrates: 'Sokrates',
-  socrates: 'Sokrates',
-  'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': 'Philo',
-  'assistant-host-deep': 'Assistant Host Deep',
-};
-
-function personalityLabel(slug: string | null | undefined): string {
-  if (!slug) return 'KI';
-  return PERSONALITY_LABELS[slug] ?? slug;
 }
 
 type Props = {
@@ -421,18 +409,6 @@ export default function ChatTab({
     let cancelled = false;
 
     const sub = TurnRepository.observeByTalk(activeTalkId).subscribe((list) => {
-      // #region agent log
-      {
-        const keyCounts: Record<string, number> = {};
-        const rows = list.map((t) => {
-          const key = `${t.talkId}-${t.turnIndex}`;
-          keyCounts[key] = (keyCounts[key] ?? 0) + 1;
-          return { id: t.id, talkId: t.talkId, turnIndex: t.turnIndex, key };
-        });
-        const dupKeys = Object.entries(keyCounts).filter(([, n]) => n > 1).map(([k, n]) => ({ key: k, n }));
-        fetch('http://127.0.0.1:7480/ingest/f96b38f1-0577-4277-afab-70a8601f20d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9b3751'},body:JSON.stringify({sessionId:'9b3751',location:'ChatTab.tsx:observeByTalk',message:'turns list from observe',data:{activeTalkId,count:list.length,dupKeys,rows},timestamp:Date.now(),hypothesisId:'A-C-E'})}).catch(()=>{});
-      }
-      // #endregion
       if (!cancelled) setTurns(list);
     });
 
@@ -1049,11 +1025,19 @@ export default function ChatTab({
       <View style={[styles.inputRow, { borderTopColor: colors.outlineVariant, paddingBottom: insets.bottom || spacing.m }]}>
         <TouchableOpacity
           onPress={() => void handleToggleMode()}
-          style={[styles.modeChip, { backgroundColor: mode === 'nachdenken' ? colors.primaryContainer : colors.surfaceContainerHigh }]}
+          style={[
+            styles.modeChip,
+            isTablet() && styles.modeChipTablet,
+            { backgroundColor: mode === 'nachdenken' ? colors.primaryContainer : colors.surfaceContainerHigh },
+          ]}
           activeOpacity={0.8}
           accessibilityLabel={mode === 'nachdenken' ? 'Nachdenken aktiv' : 'Nachdenken aktivieren'}
         >
-          <Text style={{ fontSize: 18, lineHeight: 22 }}>🧠</Text>
+          <MaterialIcons
+            name="psychology"
+            size={isTablet() ? 32 : 22}
+            color={colors.onSurface}
+          />
         </TouchableOpacity>
         <TextInput
           value={inputText}
@@ -1290,10 +1274,16 @@ const styles = StyleSheet.create({
   modeChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     paddingHorizontal: spacing.s,
     height: 38,
     borderRadius: 19,
+  },
+  modeChipTablet: {
+    height: 48,
+    borderRadius: 24,
+    paddingHorizontal: spacing.m,
   },
   modeMenu: {
     marginHorizontal: spacing.m,

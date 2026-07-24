@@ -3,7 +3,7 @@ import {
   countUniqueCitations,
   splitTextWithCitations,
 } from '@/shared/lib/citationMarkers';
-import { citationIndexToListIndex } from '@/shared/lib/ragHits';
+import { citationIndexToListIndex, ensureOneBasedCitationIndices } from '@/shared/lib/ragHits';
 import type { RagHit } from '@/shared/lib/ragHits';
 
 describe('citationMarkers', () => {
@@ -34,5 +34,23 @@ describe('citationIndexToListIndex', () => {
 
   it('falls back to 1-based position', () => {
     expect(citationIndexToListIndex(1, hits)).toBe(0);
+  });
+});
+
+describe('ensureOneBasedCitationIndices', () => {
+  it('shifts 0-based indices to 1-based', () => {
+    const hits: RagHit[] = [
+      { chunk_id: 'a', source_id: 's', snippet: '', score: 0, citationIndex: 0 },
+      { chunk_id: 'b', source_id: 's', snippet: '', score: 0, citationIndex: 1 },
+    ];
+    expect(ensureOneBasedCitationIndices(hits).map((h) => h.citationIndex)).toEqual([1, 2]);
+  });
+
+  it('leaves already 1-based indices unchanged', () => {
+    const hits: RagHit[] = [
+      { chunk_id: 'a', source_id: 's', snippet: '', score: 0, citationIndex: 1 },
+      { chunk_id: 'b', source_id: 's', snippet: '', score: 0, citationIndex: 2 },
+    ];
+    expect(ensureOneBasedCitationIndices(hits).map((h) => h.citationIndex)).toEqual([1, 2]);
   });
 });

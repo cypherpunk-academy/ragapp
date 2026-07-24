@@ -58,7 +58,7 @@ function TabsInner() {
   };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['left', 'right']}>
       <PagerView
         ref={pagerRef}
         style={[styles.pager, !authResolved && { opacity: 0 }]}

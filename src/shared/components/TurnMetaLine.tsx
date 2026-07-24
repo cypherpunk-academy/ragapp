@@ -17,7 +17,7 @@ function formatTurnTime(createdAt: Date): string {
 }
 
 /**
- * Meta-Zeile unter Chat-Bubbles (Figma §16.6): Zeit · Sender · optional KI-Suche-Link.
+ * Meta-Zeile unter Chat-Bubbles (Figma §16.6): Zeit · Sender · optional KI-Treffer-Link.
  */
 export default function TurnMetaLine({
   turn, kind, personalityLabel, ragHitCount = 0, onRagHitsPress,
@@ -39,7 +39,7 @@ export default function TurnMetaLine({
           <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}> · </Text>
           <TouchableOpacity onPress={onRagHitsPress} hitSlop={6} activeOpacity={0.7}>
             <Text style={[textStyles.noteMeta, { color: colors.primary }]}>
-              KI-Suche ({ragHitCount})
+              KI-Treffer ({ragHitCount})
             </Text>
           </TouchableOpacity>
         </>

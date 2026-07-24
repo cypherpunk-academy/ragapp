@@ -162,7 +162,7 @@ export default function FiloScreen({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppBar title={assistant.firstName} />
+      <AppBar title={assistant.name} />
 
       {showWeiterlesen && (
         <TouchableOpacity

@@ -12,6 +12,7 @@ import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
+import ArbeitstextAttachControl from '@/shared/components/ArbeitstextAttachControl';
 import { useReading } from '@/shared/contexts/ReadingContext';
 import type Paragraph from '@/data/db/models/Paragraph';
 import type Source from '@/data/db/models/Source';
@@ -268,13 +269,7 @@ export default function OverviewScreen() {
                   {selectedSource.title}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleBookNotePress} hitSlop={8}>
-                <AppIcon
-                  name={ICONS.arbeitstext.attach}
-                  size={ICON_SIZES.menu}
-                  color={bookNote ? colors.primary : colors.onSurfaceVariant}
-                />
-              </TouchableOpacity>
+              <ArbeitstextAttachControl note={bookNote} onPress={handleBookNotePress} />
             </View>
             <Text style={[textStyles.sourceEdition, { color: colors.onSurfaceVariant }]}>
               {selectedSource.author.toUpperCase()}{selectedSource.year ? ` · ${selectedSource.year}` : ''}
