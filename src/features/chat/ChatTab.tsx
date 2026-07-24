@@ -683,9 +683,7 @@ export default function ChatTab({
           if (effects.createdNote && !linkedNote) {
             await NoteRepository.attachToTalk(effects.createdNote, event.talk_id);
           }
-          if (effects.createdNote || effects.updatedNote) {
-            void runSync();
-          }
+          void runSync();
           const noteForTalk = effects.createdNote ?? linkedNote;
           if (noteForTalk) {
             await NoteRepository.attachToTalk(noteForTalk, event.talk_id);
