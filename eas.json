@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://duhtxxbynkilpxdpcpsk.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_JzrvHXRfY2wZ2mztMb24aw_yJ2qpfwE",
+        "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-staging-staging.up.railway.app",
+        "EXPO_PUBLIC_COVER_CACHE_VERSION": "5"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rmdqihhjjyizbuhxkxhn.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_6ea5ZGIUrp3Omv5NcMVuXQ_VvNdlBE2",
+        "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-production.up.railway.app",
+        "EXPO_PUBLIC_COVER_CACHE_VERSION": "5"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "<your-apple-id>",
+        "ascAppId": "<your-app-store-connect-app-id>",
+        "appleTeamId": "<your-team-id>"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

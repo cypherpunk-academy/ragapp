@@ -1,8 +1,8 @@
-import type { ExpoConfig } from 'expo/config';
-
-const config: ExpoConfig = {
+/** @type {import('expo/config').ExpoConfig} */
+const config = {
   name: 'ragapp',
   slug: 'ragapp',
+  owner: 'lafisrap',
   scheme: 'ragapp',
   version: '1.0.0',
   orientation: 'portrait',
@@ -16,17 +16,15 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: true,
-    /** Ohne Full Screen erzwingt iOS auf iPad alle Orientierungen (Multitasking). */
     requireFullScreen: true,
-    bundleIdentifier: 'com.anonymous.ragapp',
+    bundleIdentifier: 'berlin.cypherpunkacademy.ragapp',
     usesAppleSignIn: true,
     infoPlist: {
-      'UISupportedInterfaceOrientations~ipad': [
-        'UIInterfaceOrientationPortrait',
-      ],
+      'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'],
     },
   },
   android: {
+    package: 'berlin.cypherpunkacademy.ragapp',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
@@ -43,6 +41,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-font',
     'expo-apple-authentication',
+    'expo-updates',
     [
       'expo-splash-screen',
       {
@@ -57,7 +56,16 @@ const config: ExpoConfig = {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     ragrunBaseUrl: process.env.EXPO_PUBLIC_RAGRUN_BASE_URL ?? '',
+    eas: {
+      projectId: '28c4e815-4398-499c-95e6-67c2d1b87e2d',
+    },
+  },
+  updates: {
+    url: 'https://u.expo.dev/28c4e815-4398-499c-95e6-67c2d1b87e2d',
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
   },
 };
 
-export default config;
+module.exports = config;
