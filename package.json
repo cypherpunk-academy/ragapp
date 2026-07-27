@@ -50,5 +50,16 @@
     "@types/react": "~19.1.0",
     "typescript": "^5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "install": {
+      "exclude": ["expo"]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": ["@nozbe/watermelondb"],
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
