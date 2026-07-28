@@ -7,5 +7,5 @@ const COVER_CACHE_VERSION =
 export function coverImageUri(sourceId: string): string {
   const base = config.supabase.url;
   if (!base) return '';
-  return `${base}/storage/v1/object/public/covers/${sourceId}.png?v=${COVER_CACHE_VERSION}`;
+  return `${base}/storage/v1/object/public/covers/${sourceId}.jpg?v=${COVER_CACHE_VERSION}`;
 }
