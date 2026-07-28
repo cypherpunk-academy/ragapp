@@ -15,6 +15,8 @@ const FONT_SIZE_OPTIONS: { value: FontSizeLevel; label: string }[] = [
   { value: 'small', label: 'A−' },
   { value: 'medium', label: 'A' },
   { value: 'large', label: 'A+' },
+  { value: 'xlarge', label: 'A++' },
+  { value: 'xxlarge', label: 'A+++' },
 ];
 
 export default function SettingsScreen() {

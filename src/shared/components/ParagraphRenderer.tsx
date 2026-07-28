@@ -191,7 +191,7 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
       : textStyles.readingBody.lineHeight;
 
   return (
-    <Text style={[scaledReadingBody, styles.base, { color: baseColor }, style]}>
+    <Text style={[scaledReadingBody, styles.base, { color: baseColor }, style]} android_hyphenationFrequency="full">
       {prefix}
       {segmentsWithMarker.map((seg, i) => {
         if (seg.kind === 'italic') {

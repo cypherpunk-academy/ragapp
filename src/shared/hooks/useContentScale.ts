@@ -4,6 +4,8 @@ const SCALE: Record<FontSizeLevel, number> = {
   small: 0.88,
   medium: 1.0,
   large: 1.15,
+  xlarge: 1.32,
+  xxlarge: 1.50,
 };
 
 /** Gibt den Schriftgrößen-Multiplikator für Lesetext und Chat-Bubbles zurück. */

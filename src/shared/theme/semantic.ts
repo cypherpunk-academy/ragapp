@@ -61,7 +61,6 @@ const textStylesBase = {
     fontFamily: fonts.sourceItalic,
     fontSize: tokenFontSize.sm,
     lineHeight: 20,
-    fontStyle: 'italic' as const,
   },
   sourceEdition: {
     fontFamily: fonts.label,
@@ -104,13 +103,11 @@ const textStylesBase = {
     fontFamily: fonts.sourceItalic,
     fontSize: tokenFontSize.lg,
     lineHeight: 28,
-    fontStyle: 'italic' as const,
   },
   readingParagraphNumber: {
     fontFamily: fonts.sourceItalic,
     fontSize: tokenFontSize.lg,
     lineHeight: 28,
-    fontStyle: 'italic' as const,
   },
   /** Übersicht: expandierte Kapitel-Zusammenfassung — Special Elite, leicht unter Kapitelüberschrift (chapterTitle) */
   aiSummary: {

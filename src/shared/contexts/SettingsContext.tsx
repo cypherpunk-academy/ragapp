@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = '@philo/settings';
 
 export type ColorSchemePreference = 'system' | 'light' | 'dark';
-export type FontSizeLevel = 'small' | 'medium' | 'large';
+export type FontSizeLevel = 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge';
 
 type Settings = {
   colorScheme: ColorSchemePreference;
@@ -17,7 +17,8 @@ type SettingsContextValue = Settings & {
   setFontSizeLevel: (value: FontSizeLevel) => void;
 };
 
-const DEFAULT: Settings = { colorScheme: 'system', fontSizeLevel: 'medium' };
+const VALID_FONT_LEVELS: FontSizeLevel[] = ['small', 'medium', 'large', 'xlarge', 'xxlarge'];
+const DEFAULT: Settings = { colorScheme: 'system', fontSizeLevel: 'large' };
 
 const SettingsContext = createContext<SettingsContextValue>({
   ...DEFAULT,
@@ -40,7 +41,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(raw) as Partial<Settings>;
         const merged: Settings = {
           colorScheme: parsed.colorScheme ?? DEFAULT.colorScheme,
-          fontSizeLevel: parsed.fontSizeLevel ?? DEFAULT.fontSizeLevel,
+          fontSizeLevel: VALID_FONT_LEVELS.includes(parsed.fontSizeLevel as FontSizeLevel)
+            ? (parsed.fontSizeLevel as FontSizeLevel)
+            : DEFAULT.fontSizeLevel,
         };
         setSettings(merged);
         applyColorScheme(merged.colorScheme);
