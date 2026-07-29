@@ -1,32 +1,18 @@
-import Constants from 'expo-constants';
-
-type AppExtra = {
-  supabaseUrl?: string;
-  supabaseAnonKey?: string;
-  ragrunBaseUrl?: string;
-};
-
-function readExtra(): AppExtra {
-  return (Constants.expoConfig?.extra ?? {}) as AppExtra;
-}
-
 function requireNonEmpty(value: string | undefined): string {
   return value?.trim() ?? '';
 }
 
-const extra = readExtra();
-
 export const config = {
   supabase: {
-    url: requireNonEmpty(extra.supabaseUrl),
-    anonKey: requireNonEmpty(extra.supabaseAnonKey),
+    url: requireNonEmpty(process.env.EXPO_PUBLIC_SUPABASE_URL),
+    anonKey: requireNonEmpty(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY),
     get isConfigured(): boolean {
       return Boolean(this.url && this.anonKey);
     },
   },
   ragrun: {
     // /app/* routes live at server root — not under /api/v1
-    baseUrl: requireNonEmpty(extra.ragrunBaseUrl)
+    baseUrl: requireNonEmpty(process.env.EXPO_PUBLIC_RAGRUN_BASE_URL)
       .replace(/\/$/, '')
       .replace(/\/api\/v1$/, ''),
     get isConfigured(): boolean {
