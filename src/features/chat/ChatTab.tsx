@@ -795,7 +795,7 @@ export default function ChatTab({
     <KeyboardAvoidingView
       ref={kavRef}
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={kavTop}
       onLayout={() => {
         const handle = findNodeHandle(kavRef.current);
