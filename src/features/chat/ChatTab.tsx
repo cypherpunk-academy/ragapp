@@ -655,6 +655,7 @@ export default function ChatTab({
             await TalkRepository.setKontextMeta(event.talk_id, { note_id: noteForTalk.id });
           }
           void runSync();
+          break; // SSE ping disabled server-side (ping=None); break to exit cleanly
         }
       }
     } catch {
