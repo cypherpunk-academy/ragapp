@@ -91,7 +91,7 @@ export default function NoteEditorModal({
 
   return (
     <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.overlay} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.xs, textTransform: 'none' }]}>

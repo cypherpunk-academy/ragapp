@@ -1,6 +1,6 @@
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
-  name: 'ragapp',
+  name: 'Philo von Freisinn',
   slug: 'ragapp',
   owner: 'lafisrap',
   scheme: 'ragapp',
@@ -31,6 +31,7 @@ const config = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    softwareKeyboardLayoutMode: 'pan',
   },
   web: {
     bundler: 'metro',
