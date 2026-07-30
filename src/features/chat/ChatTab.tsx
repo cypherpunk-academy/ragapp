@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Pressable,
-  UIManager, findNodeHandle,
+  UIManager, findNodeHandle, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle, isTablet } from '@/shared/theme';
@@ -160,6 +161,23 @@ export default function ChatTab({
   const noteBadgeStyle = getNoteBadgeStyle(isDark);
   const paragraphBadgeStyle = getParagraphBadgeStyle(isDark);
   const insets = useSafeAreaInsets();
+  const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
+  const kbFallback = useSharedValue(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      kbFallback.value = e.endCoordinates.height;
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      kbFallback.value = 0;
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const androidKeyboardStyle = useAnimatedStyle(() => {
+    if (Platform.OS !== 'android') return { flex: 1 };
+    const kb = Math.max(keyboard.height.value, kbFallback.value);
+    return { flex: 1, paddingBottom: kb > 0 ? kb - insets.bottom : 0 };
+  });
   const { navigateToRead } = useReading();
   const scaledNoteBody = scaleContentStyle(textStyles.noteBody, useContentScale());
   const kavRef = useRef<React.ElementRef<typeof KeyboardAvoidingView>>(null);
@@ -795,13 +813,14 @@ export default function ChatTab({
     <KeyboardAvoidingView
       ref={kavRef}
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={kavTop}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? kavTop : 0}
       onLayout={() => {
         const handle = findNodeHandle(kavRef.current);
         if (handle) UIManager.measureInWindow(handle, (_x, y) => setKavTop(y));
       }}
     >
+      <Animated.View style={androidKeyboardStyle}>
       {(activeTalkId || linkedNote || contextParagraph) ? (
         <View style={[styles.talkHeader, { borderBottomColor: colors.outlineVariant }]}>
           <View style={styles.talkTitle}>
@@ -1165,6 +1184,7 @@ export default function ChatTab({
         scrollToIndex={insightsState?.scrollToIndex}
         onClose={() => setInsightsState(null)}
       />
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
