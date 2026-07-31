@@ -624,6 +624,7 @@ export default function ChatTab({
           // Pull Talk and Turn from the server instead of creating locally.
           // Eliminates the dual-write (client + server same UUID) that caused WatermelonDB
           // sync conflicts → console.error → LogBox modal → GHRV ghost-touch layer.
+          setStreamingStatus('Schaue Ergebnisse an und speichere.');
           await runSync();
           if (isNewTalk && pendingAttachNote) {
             await NoteRepository.attachToTalk(pendingAttachNote, event.talk_id);
@@ -645,16 +646,6 @@ export default function ChatTab({
             Alert.alert(
               'Arbeitstext nicht geändert',
               'Die vorgeschlagene Änderung konnte nicht angewendet werden. Bitte erneut bitten, den Text als Kapitel in den Arbeitstext zu schreiben.',
-            );
-          } else if (
-            linkedNote
-            && !effects.updatedNote
-            && !effects.createdNote
-            && /arbeitstext|als\s+(?:erstes\s+)?kapitel|hinein(?:schreib|schreib)|einfüg|ergänz/i.test(text)
-          ) {
-            Alert.alert(
-              'Arbeitstext unverändert',
-              'Philo hat den Text nur im Chat gezeigt, nicht in den verknüpften Arbeitstext geschrieben. Bitte noch einmal ausdrücklich darum bitten.',
             );
           }
           if (effects.paragraphOccupied) {

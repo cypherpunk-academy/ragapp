@@ -192,7 +192,7 @@ export default function FiloScreen({
         </TouchableOpacity>
       )}
 
-      {(authLoading || isAuthenticated) && <View style={[styles.segmented, { borderBottomColor: colors.outlineVariant }]}>
+      {(authLoading || isAuthenticated) && <View style={[styles.segmented, { backgroundColor: colors.secondaryContainer, borderColor: colors.outlineVariant }]}>
         {SEGMENTS.map((seg) => {
           const isActive = seg.id === activeSegment;
           return (
@@ -203,7 +203,7 @@ export default function FiloScreen({
               activeOpacity={0.7}
             >
               <View style={styles.segmentLabel}>
-                <Text style={[typography.labelMedium, { color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
+                <Text style={[typography.labelMedium, { fontSize: 13, color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
                   {seg.label}
                 </Text>
                 {seg.icon && (
@@ -295,12 +295,14 @@ const styles = StyleSheet.create({
   },
   segmented: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
   },
   segment: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.s,
+    paddingVertical: Math.round(spacing.s * 1.1),
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

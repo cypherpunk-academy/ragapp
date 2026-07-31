@@ -74,7 +74,7 @@ export default function ReadScreen() {
     [],
   );
   const chapNavTitleStyle = useMemo(
-    () => scaleContentStyle(typography.labelSmall, READING_TABLET_SCALE),
+    () => scaleContentStyle({ ...typography.labelSmall, fontSize: 12 }, READING_TABLET_SCALE),
     [],
   );
   const {
