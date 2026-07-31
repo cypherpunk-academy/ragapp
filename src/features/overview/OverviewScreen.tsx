@@ -5,6 +5,7 @@ import {
 import { coverImageUri } from '@/data/lib/coverUrl';
 import AppBar from '@/shared/components/AppBar';
 import { ICONS, ICON_SIZES, isTablet, lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
+import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 import AppIcon from '@/shared/components/AppIcon';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
@@ -43,6 +44,10 @@ export default function OverviewScreen() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { width: windowWidth } = useWindowDimensions();
   const { navigateToRead, navigateToChatWithPendingLink, overviewResetKey } = useReading();
+  const scale = useContentScale();
+  const scaledTitlePage = scaleContentStyle(textStyles.titlePage, scale);
+  const scaledTitleCard = scaleContentStyle(textStyles.titleCard, scale);
+  const scaledChapterTitle = scaleContentStyle(textStyles.chapterTitle, scale);
   const [failedCovers, setFailedCovers] = useState<Set<string>>(new Set());
 
   // Phone: 2 Cover/Zeile, Tablet: 3
@@ -171,7 +176,7 @@ export default function OverviewScreen() {
       return (
         <View style={[styles.center, { backgroundColor: colors.background }]}>
           <AppBar title="Übersicht" />
-          <Text style={[textStyles.chapterTitle, { color: colors.onSurfaceVariant }]}>
+          <Text style={[scaledChapterTitle, { color: colors.onSurfaceVariant }]}>
             Noch keine Bücher synchronisiert.
           </Text>
         </View>
@@ -208,7 +213,7 @@ export default function OverviewScreen() {
                 <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center' }]} numberOfLines={1}>
                   {source.author}
                 </Text>
-                <Text style={[textStyles.titleCard, { color: colors.onSurface, textAlign: 'center' }]} numberOfLines={3}>
+                <Text style={[scaledTitleCard, { color: colors.onSurface, textAlign: 'center' }]} numberOfLines={3}>
                   {source.title}
                 </Text>
                 {source.year ? (
@@ -265,7 +270,7 @@ export default function OverviewScreen() {
                 onPress={() => navigateToRead({ sourceId: selectedSource.id, segmentIndex: null, paragraphId: null })}
                 activeOpacity={0.8}
               >
-                <Text style={[textStyles.titlePage, { color: colors.onBackground }]}>
+                <Text style={[scaledTitlePage, { color: colors.onBackground }]}>
                   {selectedSource.title}
                 </Text>
               </TouchableOpacity>
@@ -331,7 +336,7 @@ export default function OverviewScreen() {
                     <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
                     {stripSegmentTitleHtml(segmentTitle)} · {paragraph.paragraphNumber}|
                   </Text>
-                  <Text style={[textStyles.chapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
+                  <Text style={[scaledChapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
                     {paragraph.textRaw.replace(/\u00AD/g, '').trim()}
                   </Text>
                 </View>
@@ -361,7 +366,7 @@ export default function OverviewScreen() {
                   >
                     <SegmentTitleText
                       title={seg.segmentTitle}
-                      style={[textStyles.chapterTitle, { color: colors.onSurface }]}
+                      style={[scaledChapterTitle, { color: colors.onSurface }]}
                       numberOfLines={3}
                     />
                   </TouchableOpacity>
