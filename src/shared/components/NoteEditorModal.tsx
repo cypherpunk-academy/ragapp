@@ -4,6 +4,7 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme, useWindowDimensions,
 } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { overlayStyles } from '../styles/overlays';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
@@ -38,6 +39,7 @@ export default function NoteEditorModal({
 }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const insets = useSafeAreaInsets();
   const scaledNoteBody = scaleContentStyle(textStyles.noteBody, useContentScale());
   const { height: windowHeight } = useWindowDimensions();
   const inputMaxHeight = Math.round(windowHeight * 0.45);
@@ -99,9 +101,9 @@ export default function NoteEditorModal({
     return () => { show.remove(); hide.remove(); };
   }, []);
   const noteKbStyle = useAnimatedStyle(() => {
-    if (Platform.OS !== 'android') return {};
+    if (Platform.OS !== 'android') return { flex: 1, justifyContent: 'flex-end' as const };
     const kb = Math.max(noteKeyboard.height.value, noteKbFallback.value);
-    return kb > 0 ? { marginBottom: kb } : {};
+    return { flex: 1, justifyContent: 'flex-end' as const, paddingBottom: kb > 0 ? kb - insets.bottom : 0 };
   });
 
   if (!visible) return null;
@@ -111,8 +113,9 @@ export default function NoteEditorModal({
   return (
     <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Animated.View style={noteKbStyle}>
         <Pressable style={styles.overlay} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { backgroundColor: colors.surfaceContainer }, noteKbStyle]}>
+        <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.xs, textTransform: 'none' }]}>
             {label}
           </Text>
@@ -153,6 +156,7 @@ export default function NoteEditorModal({
               <Text style={[textStyles.contributionsTab, { color: colors.onPrimary }]}>Speichern</Text>
             </TouchableOpacity>
           </View>
+        </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </View>

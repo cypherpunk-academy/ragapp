@@ -31,6 +31,7 @@ import { resolveSegmentSlug } from '@/shared/lib/segmentSlug';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 import { useWarnings } from '@/shared/contexts/WarningsContext';
 import { alertMultipleParagraphNotes } from '@/shared/lib/paragraphOccupiedAlert';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 
@@ -94,6 +95,7 @@ export default function ReadScreen() {
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set());
   const { setWarning } = useWarnings();
   const { user } = useAuth();
+  const router = useRouter();
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
   const [menuParagraphNote, setMenuParagraphNote] = useState<Note | null>(null);
@@ -509,7 +511,7 @@ export default function ReadScreen() {
       paragraphId,
       segmentSlug: menuParagraph.segmentSlug ?? undefined,
       sourceId,
-      initialContent: `# Arbeitstext über Absatz ${menuParagraph.paragraphNumber}${chapterTitle ? ` im Kapitel ${chapterTitle}` : ''}\n\n`,
+      initialContent: `# ${chapterTitle ? `${chapterTitle}, ` : ''}Absatz ${menuParagraph.paragraphNumber}\n\n`,
     });
     setMenuParagraph(null);
   }, [menuParagraph, menuParagraphNote, noteCounts, sourceId, currentSegment]);
@@ -791,8 +793,7 @@ export default function ReadScreen() {
               ) : (
                 <TouchableOpacity
                   style={styles.menuRow}
-                  onPress={user ? handleParagraphNotePress : undefined}
-                  disabled={!user}
+                  onPress={user ? handleParagraphNotePress : () => { setMenuParagraph(null); router.push('/auth/login'); }}
                 >
                   <Ionicons name="pencil-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
                   <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
@@ -802,8 +803,7 @@ export default function ReadScreen() {
               )}
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={user ? handleStartChatFromMenu : undefined}
-                disabled={!user}
+                onPress={user ? handleStartChatFromMenu : () => { setMenuParagraph(null); router.push('/auth/login'); }}
               >
                 <Ionicons name="chatbubble-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
                 <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
