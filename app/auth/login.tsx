@@ -33,6 +33,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { isConfigured } = useAuth();
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -70,11 +71,30 @@ export default function LoginScreen() {
     try {
       await authService.signInWithMagicLinkExistingUser(trimmed);
       setSent(true);
+      setOtp('');
     } catch (e) {
       if (authErrorSuggestsNewAccount(e)) {
         router.push({ pathname: '/auth/register', params: { email: trimmed } });
         return;
       }
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setError(null);
+    const code = otp.trim();
+    if (code.length < 6) {
+      setError('Bitte den Code aus der E-Mail eingeben.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await authService.verifyEmailOtp(trimmed, code);
+      router.replace('/(tabs)');
+    } catch (e) {
       setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -109,15 +129,49 @@ export default function LoginScreen() {
         {sent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Wir haben einen Anmeldelink an{' '}
+              Wir haben eine E-Mail an{' '}
               <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmed}</Text>
-              {' '}gesendet. Öffnen Sie die E-Mail auf diesem Gerät, um die Anmeldung abzuschließen.
+              {' '}gesendet. Auf Android ist der Anmeldelink oft unzuverlässig — bitte den Code aus der Mail hier eingeben
+              (oder den Link auf diesem Gerät öffnen).
             </Text>
+            <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
+              Code aus der E-Mail
+            </Text>
+            <TextInput
+              value={otp}
+              onChangeText={setOtp}
+              placeholder="123456"
+              placeholderTextColor={colors.onSurfaceVariant + '80'}
+              keyboardType="number-pad"
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              editable={!busy}
+              style={[
+                styles.input,
+                textStyles.noteBody,
+                { color: colors.onSurface, borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLowest },
+              ]}
+            />
+            {error ? (
+              <Text style={[typography.bodySmall, { color: colors.error }]}>{error}</Text>
+            ) : null}
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.back()}
+              style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: busy ? 0.7 : 1 }]}
+              onPress={() => void handleVerifyOtp()}
+              disabled={busy}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Zurück</Text>
+              {busy ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
+              onPress={() => { setSent(false); setError(null); setOtp(''); }}
+              disabled={busy}
+            >
+              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>Andere E-Mail</Text>
             </TouchableOpacity>
           </View>
         ) : (

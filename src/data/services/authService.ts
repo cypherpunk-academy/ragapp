@@ -141,12 +141,29 @@ export const authService = {
     // PKCE flow — exchange the one-time code for a session
     const codeMatch = url.match(/[?&]code=([^&#]+)/);
     if (codeMatch) {
-      const { error } = await getSupabase().auth.exchangeCodeForSession(codeMatch[1]);
+      const { error } = await getSupabase().auth.exchangeCodeForSession(decodeURIComponent(codeMatch[1]));
       if (error) console.warn('[handleDeepLink] exchangeCodeForSession error:', error.message);
       return;
     }
 
-    // Implicit flow — tokens arrive in the URL hash fragment
+    // Tokens in query (falls Redirect den Hash schon in Query umgeschrieben hat)
+    try {
+      const parsed = new URL(url.replace(/^ragapp:/, 'https:placeholder'));
+      const accessToken = parsed.searchParams.get('access_token');
+      const refreshToken = parsed.searchParams.get('refresh_token');
+      if (accessToken && refreshToken) {
+        const { error } = await getSupabase().auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) console.warn('[handleDeepLink] setSession (query) error:', error.message);
+        return;
+      }
+    } catch {
+      /* not a parseable URL — fall through to hash handling */
+    }
+
+    // Implicit flow — tokens arrive in the URL hash fragment (works on iOS; often stripped on Android)
     const hashIndex = url.indexOf('#');
     if (hashIndex !== -1) {
       const params = new URLSearchParams(url.slice(hashIndex + 1));
@@ -160,6 +177,19 @@ export const authService = {
         if (error) console.warn('[handleDeepLink] setSession error:', error.message);
       }
     }
+  },
+
+  /** 6–8-stelliger Code aus der Magic-Link-Mail (zuverlässig auf Android). */
+  async verifyEmailOtp(email: string, token: string): Promise<void> {
+    if (!this.isAvailable()) {
+      throw new Error('Supabase is not configured.');
+    }
+    const { error } = await getSupabase().auth.verifyOtp({
+      email: email.trim(),
+      token: token.trim(),
+      type: 'email',
+    });
+    if (error) throw error;
   },
 
   async signOut(): Promise<void> {

@@ -20,6 +20,9 @@ export function getSupabase(): SupabaseClient {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // PKCE: tokens kommen als ?code=… (Query). Implicit (#access_token=…)
+      // geht auf Android kaputt — Intents liefern den Hash-Fragment nicht.
+      flowType: 'pkce',
     },
   });
   return client;

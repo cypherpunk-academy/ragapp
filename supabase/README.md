@@ -48,8 +48,9 @@ Oder alles auf einmal im SQL-Editor einfügen (die Dateien sind idempotent — `
 - Apple Sign-In: aktiviert unter *Auth → Providers → Apple* (benötigt Apple Developer-Konto + Services ID)
 - **Deep Link**: In *Auth → URL Configuration* folgende Redirect-URL eintragen:
   ```
-  ragapp://auth/callback
+  ragapp://auth-callback
   ```
+  (nicht `ragapp://auth/callback` — das ist eine andere URL und wird von der App nicht gesendet.)
 
 ## Daten laden (ragprep)
 

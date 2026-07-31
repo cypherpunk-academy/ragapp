@@ -19,6 +19,7 @@
       }
     },
     "production": {
+      "distribution": "internal",
       "autoIncrement": true,
       "channel": "production",
       "env": {
@@ -26,6 +27,12 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_6ea5ZGIUrp3Omv5NcMVuXQ_VvNdlBE2",
         "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-production.up.railway.app",
         "EXPO_PUBLIC_COVER_CACHE_VERSION": "5"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
       }
     }
   },
