@@ -37,6 +37,13 @@ import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentSca
 
 const READ_PHONE_PAD_H = 22;
 
+/** Rough FlashList height hint — long German paragraphs with soft hyphens otherwise start ~150px and can clip on Android before remeasure. */
+function estimateParagraphHeight(textRaw: string | undefined, lineHeight: number): number {
+  const chars = (textRaw ?? '').replace(/\u00AD/g, '').length;
+  const lines = Math.max(2, Math.ceil(chars / 42));
+  return Math.min(2400, lines * lineHeight + 28);
+}
+
 type Segment = { segmentIndex: number; segmentTitle: string; segmentSlug: string | null };
 
 export default function ReadScreen() {
@@ -680,7 +687,10 @@ export default function ReadScreen() {
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={[styles.listContent, { paddingHorizontal: readPadH }]}
-        estimatedItemSize={150}
+        estimatedItemSize={Math.max(180, bodyLineHeight * 8)}
+        overrideItemLayout={(layout, item) => {
+          layout.size = estimateParagraphHeight(item.textRaw, bodyLineHeight);
+        }}
         onScrollToIndexFailed={(info) => {
           const { index } = info;
           setTimeout(() => {

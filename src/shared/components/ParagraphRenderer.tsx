@@ -1,10 +1,35 @@
 import React, { useMemo } from 'react';
-import { Text, StyleSheet, useColorScheme } from 'react-native';
+import { Platform, Text, StyleSheet, useColorScheme } from 'react-native';
 import { lightColors, darkColors, textStyles, READING_TABLET_SCALE, readingItalicColor } from '../theme';
 import type { ParagraphAnnotations } from '../types';
 import { useReading } from '../contexts/ReadingContext';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
 import { parseInlineHtml, splitQuoteMarksFromItalicCore } from '../lib/parseInlineHtml';
+
+/**
+ * Android 15+/RN 0.81: StaticLayout can measure shorter than the final paint when
+ * soft hyphens + auto-hyphenation + fixed lineHeight interact (text clipped mid-paragraph).
+ * Soft hyphens (\u00AD) stay in the string; we only tone down auto-hyphenation and add
+ * a tiny vertical slack so the last lines are not cropped.
+ */
+const ANDROID_READING_TEXT_PROPS =
+  Platform.OS === 'android'
+    ? ({
+        android_hyphenationFrequency: 'normal' as const,
+        textBreakStrategy: 'highQuality' as const,
+      } as const)
+    : ({
+        android_hyphenationFrequency: 'full' as const,
+      } as const);
+
+const ANDROID_READING_TEXT_STYLE =
+  Platform.OS === 'android'
+    ? {
+        // Known workaround for RN 0.81 Android text clipping (facebook/react-native#53286 / #53666).
+        paddingBottom: 2,
+        includeFontPadding: true,
+      }
+    : null;
 
 /** Figma Lesen/Default — Fremdzitat, leicht violett (heller als Schemes/Primary) */
 const READING_FOREIGN_QUOTE_COLOR = {
@@ -191,7 +216,10 @@ export default function ParagraphRenderer({ text, annotations, style, prefix, su
       : textStyles.readingBody.lineHeight;
 
   return (
-    <Text style={[scaledReadingBody, styles.base, { color: baseColor }, style]} android_hyphenationFrequency="full">
+    <Text
+      style={[scaledReadingBody, styles.base, { color: baseColor }, ANDROID_READING_TEXT_STYLE, style]}
+      {...ANDROID_READING_TEXT_PROPS}
+    >
       {prefix}
       {segmentsWithMarker.map((seg, i) => {
         if (seg.kind === 'italic') {
