@@ -91,12 +91,16 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+        <TouchableOpacity
+          style={[styles.card, { backgroundColor: colors.surfaceContainer }]}
+          onPress={() => router.push('/about')}
+          activeOpacity={0.7}
+        >
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
             ÜBER
           </Text>
-          <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>ragapp · Version 1.0.0</Text>
-        </View>
+          <Text style={[typography.bodyMedium, { color: colors.primary }]}>Über Philo von Freisinn →</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </View>

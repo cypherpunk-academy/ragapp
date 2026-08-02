@@ -12,75 +12,57 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService } from '@/data/services/authService';
-import { checkEmailExists } from '@/data/services/invitationService';
-import { useAuth } from '@/shared/hooks/useAuth';
+import { redeemInvitation } from '@/data/services/invitationService';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
-const appleSignInAvailable = authService.isAppleSignInAvailable();
-
 function errorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
-    return (err as { message: string }).message;
+  if (err && typeof err === 'object') {
+    // RagrunApiError has body.detail
+    const body = (err as { body?: { detail?: string } }).body;
+    if (body?.detail) return body.detail;
+    if ('message' in err && typeof (err as { message: unknown }).message === 'string') {
+      return (err as { message: string }).message;
+    }
   }
   return 'Ein Fehler ist aufgetreten.';
 }
 
-export default function LoginScreen() {
+export default function RedeemInvitationScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
-  const { isConfigured } = useAuth();
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const params = useLocalSearchParams<{ email?: string }>();
+
+  const [email, setEmail] = useState(params.email ?? '');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const [inviteOnly, setInviteOnly] = useState(false);
+  const [redeemed, setRedeemed] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
 
-  const trimmed = email.trim();
+  const trimmedEmail = email.trim();
 
-  const handleApple = async () => {
+  const handleRedeem = async () => {
     setError(null);
-    setBusy(true);
-    try {
-      await authService.signInWithApple();
-      router.replace('/(tabs)');
-    } catch (e: unknown) {
-      // User cancelled — Apple throws ERR_REQUEST_CANCELED
-      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
-      if (code !== 'ERR_REQUEST_CANCELED') {
-        setError(errorMessage(e));
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSend = async () => {
-    setError(null);
-    setInviteOnly(false);
-    if (!trimmed || !trimmed.includes('@')) {
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
       setError('Bitte eine gültige E-Mail-Adresse eingeben.');
       return;
     }
-    if (!authService.isAvailable()) {
-      setError('Anmeldung ist hier noch nicht eingerichtet (Supabase fehlt).');
+    if (code.trim().length !== 4) {
+      setError('Bitte den 4-stelligen Einladungscode eingeben.');
       return;
     }
     setBusy(true);
     try {
-      // Check if user exists before sending OTP
-      const exists = await checkEmailExists(trimmed);
-      if (!exists) {
-        setInviteOnly(true);
-        return;
-      }
-      await authService.signInWithMagicLinkExistingUser(trimmed);
-      setSent(true);
-      setOtp('');
+      await redeemInvitation(trimmedEmail, code.trim());
+      setRedeemed(true);
+      // Now send magic link to the newly created user
+      await authService.signInWithMagicLinkExistingUser(trimmedEmail);
+      setOtpSent(true);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -90,14 +72,14 @@ export default function LoginScreen() {
 
   const handleVerifyOtp = async () => {
     setError(null);
-    const code = otp.trim();
-    if (code.length < 6) {
+    const otpCode = otp.trim();
+    if (otpCode.length < 6) {
       setError('Bitte den Code aus der E-Mail eingeben.');
       return;
     }
     setBusy(true);
     try {
-      await authService.verifyEmailOtp(trimmed, code);
+      await authService.verifyEmailOtp(trimmedEmail, otpCode);
       router.replace('/(tabs)');
     } catch (e) {
       setError(errorMessage(e));
@@ -116,7 +98,7 @@ export default function LoginScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Anmelden
+          Einladung einlösen
         </Text>
       </View>
 
@@ -124,41 +106,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + spacing.xl }]}
       >
-        {!isConfigured ? (
-          <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, marginBottom: spacing.m }]}>
-            Supabase ist nicht konfiguriert. Tragen Sie EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_ANON_KEY in der
-            Umgebung ein und starten Sie die App neu.
-          </Text>
-        ) : null}
-
-        {inviteOnly ? (
+        {otpSent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Die Teilnahme ist nur auf Einladung durch einen anderen Teilnehmer möglich.
-            </Text>
-            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-              Wenn Sie einen Einladungscode erhalten haben, können Sie sich damit registrieren.
-            </Text>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push({ pathname: '/auth/redeem-invitation', params: { email: trimmed } })}
-            >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Einladungscode eingeben</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
-              onPress={() => { setInviteOnly(false); setError(null); }}
-            >
-              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>Andere E-Mail</Text>
-            </TouchableOpacity>
-          </View>
-        ) : sent ? (
-          <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Wir haben eine E-Mail an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmed}</Text>
-              {' '}gesendet. Auf Android ist der Anmeldelink oft unzuverlässig — bitte den Code aus der Mail hier eingeben
-              (oder den Link auf diesem Gerät öffnen).
+              Willkommen! Wir haben eine E-Mail an{' '}
+              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmedEmail}</Text>
+              {' '}gesendet. Bitte den Code aus der Mail hier eingeben.
             </Text>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
               Code aus der E-Mail
@@ -192,13 +145,6 @@ export default function LoginScreen() {
                 <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
-              onPress={() => { setSent(false); setError(null); setOtp(''); }}
-              disabled={busy}
-            >
-              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>Andere E-Mail</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
@@ -213,7 +159,24 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              editable={!busy}
+              editable={!busy && !redeemed}
+              style={[
+                styles.input,
+                textStyles.noteBody,
+                { color: colors.onSurface, borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLowest },
+              ]}
+            />
+            <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
+              Einladungscode (4 Ziffern)
+            </Text>
+            <TextInput
+              value={code}
+              onChangeText={setCode}
+              placeholder="1234"
+              placeholderTextColor={colors.onSurfaceVariant + '80'}
+              keyboardType="number-pad"
+              maxLength={4}
+              editable={!busy && !redeemed}
               style={[
                 styles.input,
                 textStyles.noteBody,
@@ -225,36 +188,15 @@ export default function LoginScreen() {
             ) : null}
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary, opacity: busy ? 0.7 : 1 }]}
-              onPress={() => void handleSend()}
+              onPress={() => void handleRedeem()}
               disabled={busy}
             >
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Link senden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Einlösen</Text>
               )}
             </TouchableOpacity>
-
-            {appleSignInAvailable && (
-              <>
-                <View style={[styles.dividerRow, { marginTop: spacing.m }]}>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
-                  <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, marginHorizontal: spacing.s }]}>
-                    oder
-                  </Text>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
-                </View>
-                <TouchableOpacity
-                  style={[styles.appleBtn, { backgroundColor: colors.onBackground }]}
-                  onPress={() => void handleApple()}
-                  disabled={busy}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="logo-apple" size={20} color={colors.background} />
-                  <Text style={[textStyles.continueCta, { color: colors.background }]}>Mit Apple anmelden</Text>
-                </TouchableOpacity>
-              </>
-            )}
           </View>
         )}
       </ScrollView>
@@ -288,23 +230,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  appleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s,
-    borderRadius: 999,
-    paddingVertical: spacing.s,
-    minHeight: 44,
-    marginTop: spacing.m,
   },
 });

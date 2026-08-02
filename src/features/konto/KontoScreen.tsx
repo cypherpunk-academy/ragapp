@@ -151,6 +151,20 @@ export default function KontoScreen({ variant }: Props) {
               </View>
             </View>
 
+            {/* Einladung */}
+            <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+              <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
+                EINLADUNG
+              </Text>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/auth/invite')}
+                activeOpacity={0.85}
+              >
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Neuen Teilnehmer einladen</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Aktionen */}
             <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
               <TouchableOpacity
