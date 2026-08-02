@@ -56,9 +56,9 @@ export const authService = {
   },
 
   /**
-   * Magic link — creates the account if it doesn't exist yet.
-   * Supabase no longer throws for unknown users with shouldCreateUser: false,
-   * so we always allow creation here to guarantee email delivery.
+   * Send OTP to an existing user. shouldCreateUser: false ensures
+   * Supabase sends a numeric code (not just a magic link).
+   * Unknown-email detection is handled by checkEmailExists() before this call.
    */
   async signInWithMagicLinkExistingUser(email: string): Promise<void> {
     if (!this.isAvailable()) {
@@ -68,7 +68,7 @@ export const authService = {
     const { error } = await getSupabase().auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: true,
+        shouldCreateUser: false,
         ...(redirect ? { emailRedirectTo: redirect } : {}),
       },
     });
