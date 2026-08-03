@@ -1,6 +1,8 @@
+const IS_STAGING = process.env.APP_VARIANT === 'staging';
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
-  name: 'Philo von Freisinn',
+  name: IS_STAGING ? 'Philo (Staging)' : 'Philo von Freisinn',
   slug: 'ragapp',
   owner: 'lafisrap',
   scheme: 'ragapp',
@@ -17,14 +19,18 @@ const config = {
   ios: {
     supportsTablet: true,
     requireFullScreen: true,
-    bundleIdentifier: 'berlin.cypherpunkacademy.ragapp',
+    bundleIdentifier: IS_STAGING
+      ? 'berlin.cypherpunkacademy.ragapp.staging'
+      : 'berlin.cypherpunkacademy.ragapp',
     usesAppleSignIn: true,
     infoPlist: {
       'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'],
     },
   },
   android: {
-    package: 'berlin.cypherpunkacademy.ragapp',
+    package: IS_STAGING
+      ? 'berlin.cypherpunkacademy.ragapp.staging'
+      : 'berlin.cypherpunkacademy.ragapp',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',

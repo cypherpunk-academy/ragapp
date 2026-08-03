@@ -29,6 +29,7 @@ import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { ensureSeeded } from '@/data/lib/seedLoader';
 import { runSync } from '@/data/lib/sync';
+import BootLoadingView from '@/shared/components/BootLoadingView';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -77,7 +78,7 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return null;
+    return <BootLoadingView />;
   }
 
   return (

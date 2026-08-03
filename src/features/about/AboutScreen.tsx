@@ -16,11 +16,14 @@ function BookListInner({ sources }: BookListProps) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
-  const primary = sources
+  // sortOrder 9999 = not in Philo's manifest
+  const assigned = sources.filter((s) => (s.sortOrder ?? 9999) < 9999);
+
+  const primary = assigned
     .filter((s) => s.isPrimary)
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-  const secondary = sources.filter((s) => !s.isPrimary);
+  const secondary = assigned.filter((s) => !s.isPrimary);
 
   // Group secondary by author
   const byAuthor = new Map<string, Source[]>();

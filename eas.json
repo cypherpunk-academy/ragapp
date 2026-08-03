@@ -12,6 +12,7 @@
       "distribution": "internal",
       "channel": "staging",
       "env": {
+        "APP_VARIANT": "staging",
         "EXPO_PUBLIC_SUPABASE_URL": "https://duhtxxbynkilpxdpcpsk.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_JzrvHXRfY2wZ2mztMb24aw_yJ2qpfwE",
         "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-staging-staging.up.railway.app",
@@ -27,6 +28,12 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_6ea5ZGIUrp3Omv5NcMVuXQ_VvNdlBE2",
         "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-production.up.railway.app",
         "EXPO_PUBLIC_COVER_CACHE_VERSION": "5"
+      }
+    },
+    "staging-apk": {
+      "extends": "staging",
+      "android": {
+        "buildType": "apk"
       }
     },
     "production-apk": {

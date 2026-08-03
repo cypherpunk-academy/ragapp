@@ -3,6 +3,7 @@ import { View, StyleSheet, useColorScheme } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TabBar from '@/shared/components/TabBar';
+import BootLoadingView from '@/shared/components/BootLoadingView';
 import { lightColors, darkColors } from '@/shared/theme';
 import {
   ReadingProvider, useReading, TAB_INDEX_CHAT, TAB_INDEX_OVERVIEW,
@@ -77,7 +78,13 @@ function TabsInner() {
         <View key="2" style={styles.page}><ReadScreen /></View>
         <View key="3" style={styles.page}><SearchScreen /></View>
       </PagerView>
-      <TabBar activeIndex={activeIndex} onTabPress={handleTabPress} />
+      {authResolved ? (
+        <TabBar activeIndex={activeIndex} onTabPress={handleTabPress} />
+      ) : (
+        <View style={styles.bootOverlay} pointerEvents="auto">
+          <BootLoadingView />
+        </View>
+      )}
       {contributions && (
         <ContributionsScreen
           visible
@@ -141,5 +148,9 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
+  },
+  bootOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
   },
 });

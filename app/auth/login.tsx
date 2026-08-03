@@ -72,8 +72,13 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      // Check if user exists before sending OTP
-      const exists = await checkEmailExists(trimmed);
+      // Check if user exists before sending OTP; if check fails (server down), skip gate
+      let exists = true;
+      try {
+        exists = await checkEmailExists(trimmed);
+      } catch {
+        // Backend unreachable — allow login attempt anyway
+      }
       if (!exists) {
         setInviteOnly(true);
         return;

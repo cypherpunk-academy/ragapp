@@ -12,7 +12,7 @@ export default function UserMenuButton() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const [open, setOpen] = useState(false);
   const pendingAction = useRef<(() => void) | null>(null);
-  const { openKonto, openSettings, openArbeitstexte } = useAccountMenu();
+  const { openKonto, openSettings, openArbeitstexte, openAbout } = useAccountMenu();
 
   const flushPending = () => {
     const action = pendingAction.current;
@@ -61,9 +61,12 @@ export default function UserMenuButton() {
           <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openKonto)} activeOpacity={0.7}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Konto</Text>
           </TouchableOpacity>
-          <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
           <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openSettings)} activeOpacity={0.7}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Einstellungen</Text>
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+          <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openAbout)} activeOpacity={0.7}>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Über Philo</Text>
           </TouchableOpacity>
         </View>
       </Modal>

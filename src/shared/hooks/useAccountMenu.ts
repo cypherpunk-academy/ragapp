@@ -22,5 +22,9 @@ export function useAccountMenu() {
     router.push('/arbeitstexte');
   }, []);
 
-  return { openKonto, openSettings, openArbeitstexte };
+  const openAbout = useCallback(() => {
+    router.push('/about');
+  }, []);
+
+  return { openKonto, openSettings, openArbeitstexte, openAbout };
 }
