@@ -58,9 +58,17 @@ export default function RedeemInvitationScreen() {
     }
     setBusy(true);
     try {
-      await redeemInvitation(trimmedEmail, code.trim());
+      const { email_otp } = await redeemInvitation(trimmedEmail, code.trim());
       setRedeemed(true);
-      // Now send magic link to the newly created user
+
+      if (email_otp) {
+        // Auto-login: verify the OTP returned by the server directly
+        await authService.verifyEmailOtp(trimmedEmail, email_otp);
+        router.replace('/(tabs)');
+        return;
+      }
+
+      // Fallback: server couldn't generate OTP — send a login code via email
       await authService.signInWithMagicLinkExistingUser(trimmedEmail);
       setOtpSent(true);
     } catch (e) {

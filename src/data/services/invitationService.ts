@@ -8,12 +8,13 @@ export async function sendInvitation(inviteeEmail: string): Promise<void> {
   });
 }
 
-export async function redeemInvitation(email: string, code: string): Promise<void> {
-  await ragrunRequest('/app/invitations/redeem', {
+export async function redeemInvitation(email: string, code: string): Promise<{ email_otp: string | null }> {
+  const result = await ragrunRequest<{ redeemed: boolean; email_otp: string | null }>('/app/invitations/redeem', {
     method: 'POST',
     body: { email, code },
     authenticated: false,
   });
+  return { email_otp: result.email_otp ?? null };
 }
 
 export async function checkEmailExists(email: string): Promise<boolean> {
