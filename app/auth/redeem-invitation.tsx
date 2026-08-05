@@ -18,13 +18,25 @@ import { authService } from '@/data/services/authService';
 import { redeemInvitation } from '@/data/services/invitationService';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
+/** Map common Supabase/backend English messages to German. */
+function translateError(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (lower.includes('security purposes') && lower.includes('request this after')) {
+    const secs = msg.match(/after\s+(\d+)\s+seconds/i);
+    return secs
+      ? `Bitte ${secs[1]} Sekunden warten, bevor du es erneut versuchst.`
+      : 'Bitte einen Moment warten, bevor du es erneut versuchst.';
+  }
+  return msg;
+}
+
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
     // RagrunApiError has body.detail
     const body = (err as { body?: { detail?: string } }).body;
-    if (body?.detail) return body.detail;
+    if (body?.detail) return translateError(body.detail);
     if ('message' in err && typeof (err as { message: unknown }).message === 'string') {
-      return (err as { message: string }).message;
+      return translateError((err as { message: string }).message);
     }
   }
   return 'Ein Fehler ist aufgetreten.';
