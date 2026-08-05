@@ -7,8 +7,8 @@ export function isTablet(): boolean {
   return Math.min(width, height) >= 600;
 }
 
-/** Nur Tablets: +10 % gegenüber Phone. */
-export const FONT_SCALE = isTablet() ? 1.1 : 1;
+/** Tablets: gleiche Fontgröße wie Phone. */
+export const FONT_SCALE = 1;
 
 /**
  * Zusätzliche Lesetext-Skalierung nur auf Tablets (+30 %, dann −10 % → 1.17).
