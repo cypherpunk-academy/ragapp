@@ -185,7 +185,7 @@ export default function FiloScreen({
           onPress={handleWeiterlesen}
           activeOpacity={0.85}
         >
-          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
+          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.tabHeader} color={colors.onPrimaryContainer} />
           <Text style={[textStyles.continueCta, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
             {continueReadingLabel(weiterlesen.segmentTitle)}
           </Text>
@@ -203,13 +203,13 @@ export default function FiloScreen({
               activeOpacity={0.7}
             >
               <View style={styles.segmentLabel}>
-                <Text style={[typography.labelMedium, { fontSize: 13, color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
+                <Text style={[textStyles.labelTab, { color: isActive ? colors.primary : colors.onSurfaceVariant, textTransform: 'none' as const, letterSpacing: 0.2 }]}>
                   {seg.label}
                 </Text>
                 {seg.icon && (
                   <AppIcon
                     name={seg.icon as any}
-                    size={14}
+                    size={16}
                     color={isActive ? colors.primary : colors.onSurfaceVariant}
                   />
                 )}

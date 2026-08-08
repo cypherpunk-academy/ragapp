@@ -24,7 +24,8 @@ import { execFileSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const PACKAGE = 'berlin.cypherpunkacademy.ragapp';
+const PACKAGE =
+  process.env.RAGAPP_PACKAGE || 'berlin.cypherpunkacademy.ragapp';
 
 const env = {};
 for (const file of ['.env', '.env.local']) {

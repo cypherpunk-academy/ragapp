@@ -146,7 +146,11 @@ export default function KontoScreen({ variant }: Props) {
                 >
                   {syncing
                     ? <ActivityIndicator size="small" color={colors.onPrimary} />
-                    : <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Jetzt</Text>}
+                    : (
+                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]} numberOfLines={1}>
+                        Synchronisieren
+                      </Text>
+                    )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.m,
-    minWidth: 64,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 36,

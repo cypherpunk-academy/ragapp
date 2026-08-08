@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle, isTablet } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, typography, fonts, ICONS, ICON_SIZES, getNoteBadgeStyle, getParagraphBadgeStyle, isTablet } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ReferenceRepository } from '@/data/repositories/ReferenceRepository';
@@ -950,7 +950,7 @@ export default function ChatTab({
         ListEmptyComponent={
           pendingUserMessage ? null : (
             <View style={styles.emptyPrompt}>
-              <Text style={[typography.bodyMedium, styles.emptyHeadline, { color: colors.onSurface }]}>
+              <Text style={[textStyles.noteBody, styles.emptyHeadline, { color: colors.onSurface }]}>
                 {emptyPrompt.headline}
               </Text>
               {emptyPrompt.examples.map((example) => (
@@ -1191,7 +1191,8 @@ const styles = StyleSheet.create({
     gap: spacing.s,
   },
   emptyHeadline: {
-    fontWeight: '600',
+    fontFamily: fonts.derivedBold,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: spacing.xs,
   },

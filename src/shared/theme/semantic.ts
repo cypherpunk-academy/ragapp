@@ -37,8 +37,8 @@ const textStylesBase = {
   },
   labelTab: {
     fontFamily: fonts.label,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: tokenFontSize.sm,
+    lineHeight: 20,
     fontWeight: '400' as const,
     letterSpacing: 0.5,
     textTransform: 'uppercase' as const,
@@ -72,8 +72,8 @@ const textStylesBase = {
   },
   continueCta: {
     fontFamily: fonts.label,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: tokenFontSize.sm,
+    lineHeight: 20,
     fontWeight: '400' as const,
     letterSpacing: 0.6,
     textTransform: 'uppercase' as const,

@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 
 import { parseMdInline } from '@/shared/lib/parseMdInline';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
-import { lightColors, darkColors, spacing, textStyles, scaleSize, readingItalicColor } from '@/shared/theme';
+import { lightColors, darkColors, spacing, textStyles, scaleSize, readingItalicColor, ICON_SIZES } from '@/shared/theme';
 import { getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import { colorWithAlpha } from '@/shared/lib/color';
+import { formatQuoteClipboardText } from '@/shared/lib/formatQuoteClipboard';
 import type { NotizCardRows } from '@/shared/lib/notizSearchCard';
 import type { SearchHitCardBodyMode } from '@/shared/lib/searchHitCard';
 
@@ -63,6 +66,13 @@ export default function EntityResultCard({
     ? [textStyles.noteBody, { fontSize: scaleSize(14), lineHeight: scaleSize(20) }] as const
     : textStyles.noteBody;
   const italicColor = readingItalicColor(isDark);
+  const showQuoteCopy = kind === 'zitat' && Boolean(trimmedBody);
+
+  const handleCopyQuote = useCallback(() => {
+    const text = formatQuoteClipboardText(trimmedBody, headlineLarge, metaSmall);
+    if (!text) return;
+    void Clipboard.setStringAsync(text);
+  }, [trimmedBody, headlineLarge, metaSmall]);
 
   return (
     <TouchableOpacity
@@ -186,6 +196,23 @@ export default function EntityResultCard({
         )
       ) : null}
 
+      {showQuoteCopy ? (
+        <View style={styles.copyRow}>
+          <TouchableOpacity
+            onPress={handleCopyQuote}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Zitat kopieren"
+          >
+            <Ionicons
+              name="copy-outline"
+              size={ICON_SIZES.menu}
+              color={cardStyle.accentColor}
+            />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
     </TouchableOpacity>
   );
 }
@@ -195,4 +222,5 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   lozenge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.xs, alignSelf: 'stretch' },
+  copyRow: { flexDirection: 'row', justifyContent: 'flex-end' },
 });

@@ -3,6 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Refresh .env.local with current WiFi IP so emulators can reach ragrun.
+bash scripts/env-local.sh
+
 ANDROID_AVD="Pixel_8"
 IPAD_SIM="iPad Pro 13-inch (M4)"
 METRO_PORT=8081

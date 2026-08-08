@@ -46,14 +46,17 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "<your-apple-id>",
-        "ascAppId": "<your-app-store-connect-app-id>",
-        "appleTeamId": "<your-team-id>"
+        "appleId": "m@michaelschmidt.berlin",
+        "ascAppId": "6798671805",
+        "appleTeamId": "J424WHTQX5"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
       }
+    },
+    "production-store": {
+      "extends": "production"
     }
   }
 }
