@@ -26,7 +26,7 @@ CREATE POLICY "starter_prompts readable by authenticated" ON app_starter_prompts
 INSERT INTO app_starter_prompts (id, prompt, sort_order) VALUES
   ('20fe8ae4-37f3-56dc-9ac0-110899275361', 'Was meint Steiner mit sozialer Dreigliederung?', 1),
   ('1a39b884-490b-5be5-9bcb-f0589337645f', 'Wie hängt Freiheit mit Verantwortung zusammen?', 2),
-  ('ab953ad3-c1ea-5827-a590-536a69860977', 'Erklär mir den Unterschied zwischen Rechts- und Wirtschaftsleben.', 3),
+  ('ab953ad3-c1ea-5827-a590-536a69860977', 'Was ist der Unterschied zwischen Rechtsleben und Wirtschaftsleben bei Steiner?', 3),
   ('f3c4d411-739c-568d-87d1-a4750754df50', 'Was schreibt Steiner über Gefühle — und was können wir mit ihnen machen?', 4),
   ('89730b79-094f-5a1e-b41f-489d79efa111', 'Warum quälen sich Menschen mit Selbstvorwürfen, wenn sie Fehler gemacht haben?', 5),
   ('41aeb93a-1ee8-5b4b-950d-274c445d14ba', 'Was ist sinnlichkeitsfreies Denken und welche Bedeutung hat es heute im Leben?', 6),
