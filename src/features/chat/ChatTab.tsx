@@ -17,6 +17,8 @@ import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
+import { starterPromptService } from '@/data/services/starterPromptService';
+import { useStarterPrompts } from '@/shared/hooks/useStarterPrompts';
 import AppIcon from '@/shared/components/AppIcon';
 import { overlayStyles } from '@/shared/styles/overlays';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
@@ -151,6 +153,7 @@ export default function ChatTab({
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [inputText, setInputText] = useState('');
+  const [promptShuffleKey, setPromptShuffleKey] = useState(0);
   const [sending, setSending] = useState(false);
   const [observedLinkedNote, setObservedLinkedNote] = useState<Note | null>(null);
   const [metaLinkedNote, setMetaLinkedNote] = useState<Note | null>(null);
@@ -750,6 +753,7 @@ export default function ChatTab({
     setContextParagraph(null);
     onLinkedNoteChange?.(null);
     onActiveTalkChange(null);
+    setPromptShuffleKey((k) => k + 1);
   }, [sending, onActiveTalkChange, onLinkedNoteChange]);
 
   const bothBadges = Boolean(linkedNote && contextParagraph);
@@ -768,7 +772,7 @@ export default function ChatTab({
 
   const emptyPromptFree = useMemo((): EmptyPrompt => ({
     headline: t('chat.emptyFreeHeadline'),
-    examples: [t('chat.emptyFreeExample1'), t('chat.emptyFreeExample2'), t('chat.emptyFreeExample3')],
+    examples: [],
   }), [t]);
   const emptyPromptParagraph = useMemo((): EmptyPrompt => ({
     headline: t('chat.emptyParagraphHeadline'),
@@ -788,6 +792,14 @@ export default function ChatTab({
       : contextParagraph ? emptyPromptParagraph
         : linkedNote ? emptyPromptArbeitstext
           : emptyPromptFree;
+
+  const isFreeEmptyChat = !contextParagraph && !linkedNote;
+  const starterExamples = useStarterPrompts(isFreeEmptyChat, promptShuffleKey);
+
+  const handleStarterExamplePress = useCallback((id: string, prompt: string) => {
+    setInputText(prompt);
+    starterPromptService.incrementClick(id);
+  }, []);
 
   const pendingStatusLabel = streamingStatus ?? (connectingVisible ? t('chat.connecting') : null);
 
@@ -944,14 +956,35 @@ export default function ChatTab({
               <Text style={[textStyles.noteBody, styles.emptyHeadline, { color: colors.onSurface }]}>
                 {emptyPrompt.headline}
               </Text>
-              {emptyPrompt.examples.map((example) => (
-                <Text
-                  key={example}
-                  style={[textStyles.noteBody, { color: colors.onSurfaceVariant, textAlign: 'center' }]}
-                >
-                  {example}
-                </Text>
-              ))}
+              {isFreeEmptyChat
+                ? starterExamples.map((example) => (
+                  <TouchableOpacity
+                    key={example.id}
+                    onPress={() => handleStarterExamplePress(example.id, example.prompt)}
+                    activeOpacity={0.7}
+                    accessibilityRole="link"
+                  >
+                    <Text
+                      style={[
+                        scaledNoteBody,
+                        {
+                          color: colors.primary,
+                          textAlign: 'center',
+                        },
+                      ]}
+                    >
+                      {example.prompt}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+                : emptyPrompt.examples.map((example) => (
+                  <Text
+                    key={example}
+                    style={[textStyles.noteBody, { color: colors.onSurfaceVariant, textAlign: 'center' }]}
+                  >
+                    {example}
+                  </Text>
+                ))}
             </View>
           )
         }

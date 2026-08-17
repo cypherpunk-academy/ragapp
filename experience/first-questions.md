@@ -46,28 +46,25 @@ App-Feature (überwiegend interne Tests, Michael):
 
 ---
 
-## Vorschläge für neue Starterfragen
+## Starterfragen (in der App)
 
-Bereits in der App:
+Source of truth: Supabase-Tabelle `app_starter_prompts` (Migration `016_app_starter_prompts.sql`).  
+Die App zeigt im leeren Free-Chat drei zufällige Einträge als klickbare Links.
 
 1. Was meint Steiner mit sozialer Dreigliederung?
 2. Wie hängt Freiheit mit Verantwortung zusammen?
 3. Erklär mir den Unterschied zwischen Rechts- und Wirtschaftsleben.
-
-Neu, aus den Production-Einstiegen verdichtet (kurz, tippbar, nicht die drei oben):
-
-1. Was schreibt Steiner über Gefühle — und was können wir mit ihnen machen?
-2. Warum quälen sich Menschen mit Selbstvorwürfen, wenn sie Fehler gemacht haben?
-3. Was ist sinnlichkeitsfreies Denken und welche Bedeutung hat es heute im Leben?
-4. Ist Wahlfreiheit nur eine Illusion?
-5. Warum fällt es so schwer, meine Impulse zu leben?
-6. Traurigkeit und Schwere: Was sind das für Gefühle, und was kann ich mit ihnen tun?
-7. Gibt mir eine Liste aller 12 Weltanschauungen und sag mir welche davon deine ist.
-8. Welche Verbindungen gibt es zwischen Menschen, die wir nicht sehen, weil sie uns nicht direkt ersichtlich sind?
-9. Wie gehe ich mit einem Schmerz um, der mich überwältigt?
-10. Steiner sagt, die meisten Menschen haben keine Gedanken, nur Worte — was meint er damit?
-12. Hilf mir, Gedanken zu sortieren, ohne vorschnelle Annahmen.
-14. Beschreibe die zwölf Weltanschauungen so, dass ich damit arbeiten kann.
+4. Was schreibt Steiner über Gefühle — und was können wir mit ihnen machen?
+5. Warum quälen sich Menschen mit Selbstvorwürfen, wenn sie Fehler gemacht haben?
+6. Was ist sinnlichkeitsfreies Denken und welche Bedeutung hat es heute im Leben?
+7. Ist Wahlfreiheit nur eine Illusion?
+8. Warum fällt es so schwer, meine Impulse zu leben?
+9. Traurigkeit und Schwere: Was sind das für Gefühle, und was kann ich mit ihnen tun?
+10. Gibt mir eine Liste aller 12 Weltanschauungen und sag mir welche davon deine ist.
+11. Welche Verbindungen gibt es zwischen Menschen, die wir nicht sehen, weil sie uns nicht direkt ersichtlich sind?
+12. Wie gehe ich mit einem Schmerz um, der mich überwältigt?
+13. Steiner sagt, die meisten Menschen haben keine Gedanken, nur Worte — was meint er damit?
+14. Hilf mir, Gedanken zu sortieren, ohne vorschnelle Annahmen.
 
 ---
 

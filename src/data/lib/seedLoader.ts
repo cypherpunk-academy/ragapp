@@ -4,7 +4,7 @@
  * The snapshot is generated at build time via:
  *   npm run seed:fetch
  *
- * It contains only read-only content (sources, paragraphs).
+ * It contains read-only content (sources, paragraphs, starter_prompts).
  * WatermelonDB's synchronize() handles record creation and sets last_pulled_at
  * to the snapshot timestamp, so the first real sync only fetches the delta.
  */
@@ -52,6 +52,9 @@ async function seedIfEmptyInternal(): Promise<void> {
   const changes: Record<string, unknown> = {
     sources: (snapshot.changes as { sources: unknown }).sources,
     ...(paragraphChanges ? { paragraphs: paragraphChanges } : {}),
+    ...((snapshot.changes as { starter_prompts?: unknown }).starter_prompts
+      ? { starter_prompts: (snapshot.changes as { starter_prompts: unknown }).starter_prompts }
+      : {}),
   };
 
   if (!changes.sources) return;

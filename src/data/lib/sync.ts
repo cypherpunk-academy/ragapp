@@ -16,7 +16,7 @@ import { getAccessToken } from './supabase';
 import { ensureSeeded, seedSnapshotTimestamp, withSynchronizeLock } from './seedLoader';
 import i18n from '@/shared/i18n';
 
-const SCHEMA_VERSION = 21; // keep in sync with db/schema.ts version
+const SCHEMA_VERSION = 24; // keep in sync with db/schema.ts version
 
 type SyncPullResponse = {
   changes: Record<string, unknown>;
