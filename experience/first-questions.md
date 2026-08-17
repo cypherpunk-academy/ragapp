@@ -53,7 +53,7 @@ Die App zeigt im leeren Free-Chat drei zufällige Einträge als klickbare Links.
 
 1. Was meint Steiner mit sozialer Dreigliederung?
 2. Wie hängt Freiheit mit Verantwortung zusammen?
-3. Erklär mir den Unterschied zwischen Rechts- und Wirtschaftsleben.
+3. Was ist der Unterschied zwischen Rechtsleben und Wirtschaftsleben bei Steiner?
 4. Was schreibt Steiner über Gefühle — und was können wir mit ihnen machen?
 5. Warum quälen sich Menschen mit Selbstvorwürfen, wenn sie Fehler gemacht haben?
 6. Was ist sinnlichkeitsfreies Denken und welche Bedeutung hat es heute im Leben?
