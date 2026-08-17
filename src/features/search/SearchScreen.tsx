@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, FlatList, TextInput, StyleSheet, useColorScheme, Platform,
   ActivityIndicator, TouchableOpacity, ScrollView,
@@ -144,13 +145,13 @@ const ENTITY_KIND_TO_API_TYPE: Partial<Record<EntityKind, string>> = {
 /** Zusammengefasste Filter-Gruppen. */
 type FilterGroup = 'texte' | 'zusammenfassungen' | 'begriffe' | 'zitate' | 'gespraeche' | 'notizen';
 
-const FILTER_GROUPS: { group: FilterGroup; label: string; subtitle?: string; kinds: EntityKind[] }[] = [
-  { group: 'texte',            label: 'Bücher / Vorträge', kinds: ['chunk_buch', 'chunk_vortrag'] },
-  { group: 'zusammenfassungen', label: 'Zusammenfassungen', kinds: ['kapitel_zusammenfassung'] },
-  { group: 'begriffe',         label: 'Begriffe',           kinds: ['begriff', 'typology'] },
-  { group: 'zitate',           label: 'Zitate',             kinds: ['zitat'] },
-  { group: 'gespraeche',       label: 'Gespräche',          kinds: ['talk', 'chunk_gespraech'] },
-  { group: 'notizen',          label: 'Notizen',            kinds: ['notiz'] },
+const FILTER_GROUPS: { group: FilterGroup; labelKey: string; subtitle?: string; kinds: EntityKind[] }[] = [
+  { group: 'texte',            labelKey: 'search.filterTexte', kinds: ['chunk_buch', 'chunk_vortrag'] },
+  { group: 'zusammenfassungen', labelKey: 'search.filterZusammenfassungen', kinds: ['kapitel_zusammenfassung'] },
+  { group: 'begriffe',         labelKey: 'search.filterBegriffe', kinds: ['begriff', 'typology'] },
+  { group: 'zitate',           labelKey: 'search.filterZitate', kinds: ['zitat'] },
+  { group: 'gespraeche',       labelKey: 'search.filterGespraeche', kinds: ['talk', 'chunk_gespraech'] },
+  { group: 'notizen',          labelKey: 'search.filterNotizen', kinds: ['notiz'] },
 ];
 
 /** Startauswahl: Bücher/Vorträge, Zusammenfassungen, Begriffe, Zitate (ohne Gespräche/Notizen). */
@@ -212,27 +213,22 @@ function clampSearchInputHeight(height: number): number {
   );
 }
 
-function selectedScopeTerms(selectedGroups: Set<FilterGroup>): string[] {
+function selectedScopeTerms(selectedGroups: Set<FilterGroup>, translate: (key: string) => string): string[] {
   return FILTER_GROUPS
     .filter(({ group }) => selectedGroups.has(group))
-    .map(({ label }) => label);
+    .map(({ labelKey }) => translate(labelKey));
 }
 
 type SearchScopeParts = { prefix: string; suffix: string };
 
 /** Such-Hinweis: aktive Filter + „durchsuchen” (einheitlicher Stil). */
-function searchScopeParts(selectedGroups: Set<FilterGroup>): SearchScopeParts {
-  const terms = selectedScopeTerms(selectedGroups);
+function searchScopeParts(selectedGroups: Set<FilterGroup>, translate: (key: string) => string): SearchScopeParts {
+  const terms = selectedScopeTerms(selectedGroups, translate);
   if (terms.length === 0) {
-    return { prefix: 'Typ auswählen und', suffix: ' durchsuchen…' };
+    return { prefix: translate('search.scopeSelectPrefix'), suffix: translate('search.scopeSuffix') };
   }
-  return { prefix: terms.join(', '), suffix: ' durchsuchen…' };
+  return { prefix: terms.join(', '), suffix: translate('search.scopeSuffix') };
 }
-
-const SEARCH_EMPTY_HINT: SearchScopeParts = {
-  prefix: 'Stellen Sie eine Frage in eigenen Worten.',
-  suffix: '\nDie KI findet passende Texte – auch ohne das exakte Wort.',
-};
 
 function searchHintStyle(baseColor: string, baseStyle: TextStyle): TextStyle {
   const flat = StyleSheet.flatten(baseStyle);
@@ -287,6 +283,7 @@ function talkScore(talk: Talk, q: string): number {
 }
 
 export default function SearchScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -497,15 +494,21 @@ export default function SearchScreen() {
   const isEmpty = !isLoading && filteredItems.length === 0;
   const isFiltered = selectedGroups.size < FILTER_GROUPS.length;
   const scopeParts = useMemo(
-    () => searchScopeParts(selectedGroups),
-    [selectedGroups],
+    () => searchScopeParts(selectedGroups, t),
+    [selectedGroups, t],
   );
-  const scopeEmptyParts = SEARCH_EMPTY_HINT;
+  const scopeEmptyParts = useMemo(
+    (): SearchScopeParts => ({
+      prefix: t('search.emptyHintPrefix'),
+      suffix: t('search.emptyHintSuffix'),
+    }),
+    [t],
+  );
   const searchPlaceholderText = `${scopeParts.prefix}${scopeParts.suffix}`;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppBar title="KI-Suche" />
+      <AppBar title={t('search.title')} />
       {/* Suchleiste */}
       <View
         style={[styles.searchBar, { backgroundColor: colors.surfaceContainerHigh }]}
@@ -631,12 +634,12 @@ export default function SearchScreen() {
                   <Ionicons name="checkmark" size={12} color={colors.onPrimary} />
                 )}
               </View>
-              <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Alle</Text>
+              <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>{t('common.all')}</Text>
             </TouchableOpacity>
             <View style={[styles.filterDivider, { backgroundColor: colors.outlineVariant }]} />
             {/* Gruppe-Zeilen */}
             <ScrollView style={styles.filterScroll} showsVerticalScrollIndicator={false}>
-              {FILTER_GROUPS.map(({ group, label, subtitle, kinds }) => {
+              {FILTER_GROUPS.map(({ group, labelKey, subtitle, kinds }) => {
                 const cs = getEntityCardStyle(colors, kinds[0]!, isDark);
                 const checked = selectedGroups.has(group);
                 return (
@@ -653,7 +656,7 @@ export default function SearchScreen() {
                     </View>
                     <View>
                       <Text style={[textStyles.labelSection, { color: checked ? cs.accentColor : colors.onSurfaceVariant }]}>
-                        {label}
+                        {t(labelKey)}
                       </Text>
                       {subtitle ? (
                         <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, opacity: 0.6 }]}>
@@ -677,7 +680,7 @@ export default function SearchScreen() {
         <View style={styles.center}>
           {debouncedQuery ? (
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              Keine Treffer gefunden.
+              {t('search.noHits')}
             </Text>
           ) : (
             <ScopeSearchHint

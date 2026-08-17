@@ -5,8 +5,9 @@ import {
   buildNotizSourceContextLine,
   notizBodyPreviewText,
 } from '@/shared/lib/notizSearchCard';
+import { getDateLocale } from '@/shared/i18n';
 
-/** ISO-Datum → de-DE Kurzdatum; sonst String durchreichen. */
+/** ISO-Datum → Kurzdatum per App-Locale; sonst String durchreichen. */
 function formatMetaDate(raw?: string): string | undefined {
   if (!raw?.trim()) return undefined;
   const s = raw.trim();
@@ -14,7 +15,7 @@ function formatMetaDate(raw?: string): string | undefined {
   if (iso) {
     const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+      return d.toLocaleDateString(getDateLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
     }
   }
   return s;

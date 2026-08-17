@@ -134,6 +134,22 @@ if (printOnly) {
   process.exit(0);
 }
 
+const METRO_PORT = Number(process.env.METRO_PORT || 8081);
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function isMetroRunning() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${METRO_PORT}/status`);
+    const text = await res.text();
+    return text.includes('running');
+  } catch {
+    return false;
+  }
+}
+
 function adbDevices() {
   try {
     const out = execFileSync('adb', ['devices'], { encoding: 'utf8' });
@@ -180,7 +196,23 @@ function openOnAndroid(serial) {
   );
 }
 
-function openOnIos(udid, name) {
+async function openOnIos(udid, name) {
+  const metroUp = await isMetroRunning();
+  if (!metroUp) {
+    console.warn(`Metro not running on :${METRO_PORT}. Start first: yarn start`);
+    console.warn('(Without Metro the app shows "No script URL provided".)');
+  } else {
+    console.log(`Connecting dev client to Metro on :${METRO_PORT} …`);
+    const devUrl =
+      `ragapp://expo-development-client/?url=${encodeURIComponent(`http://localhost:${METRO_PORT}`)}`;
+    try {
+      execFileSync('xcrun', ['simctl', 'launch', udid, PACKAGE], { stdio: 'ignore' });
+    } catch {
+      /* app may not be installed */
+    }
+    execFileSync('xcrun', ['simctl', 'openurl', udid, devUrl], { stdio: 'ignore' });
+    await sleep(2500);
+  }
   console.log(`Opening deep link on iOS Simulator ${name} (${udid}) …`);
   try {
     execFileSync('xcrun', ['simctl', 'terminate', udid, PACKAGE], { stdio: 'ignore' });
@@ -203,7 +235,7 @@ if (openIos) {
   }
   for (const sim of sims) {
     try {
-      openOnIos(sim.udid, sim.name);
+      await openOnIos(sim.udid, sim.name);
       opened += 1;
     } catch (e) {
       console.error(`simctl failed for ${sim.name}:`, e.message);

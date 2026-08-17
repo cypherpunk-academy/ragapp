@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useTranslation } from 'react-i18next';
 
 import { parseMdInline } from '@/shared/lib/parseMdInline';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
@@ -53,6 +54,7 @@ export default function EntityResultCard({
   citationIndex,
   onPress,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -202,7 +204,7 @@ export default function EntityResultCard({
             onPress={handleCopyQuote}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Zitat kopieren"
+            accessibilityLabel={t('entityResultCard.copyQuoteA11y')}
           >
             <Ionicons
               name="copy-outline"

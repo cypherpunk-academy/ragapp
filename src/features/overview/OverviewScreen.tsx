@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, useWindowDimensions, ActivityIndicator, Modal, Image,
 } from 'react-native';
@@ -40,6 +41,7 @@ function groupBySegment(paragraphs: Paragraph[]): Segment[] {
 }
 
 export default function OverviewScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { width: windowWidth } = useWindowDimensions();
@@ -175,9 +177,9 @@ export default function OverviewScreen() {
     if (sources.length === 0) {
       return (
         <View style={[styles.center, { backgroundColor: colors.background }]}>
-          <AppBar title="Übersicht" />
+          <AppBar title={t('overview.title')} />
           <Text style={[scaledChapterTitle, { color: colors.onSurfaceVariant }]}>
-            Noch keine Bücher synchronisiert.
+            {t('overview.emptyBooks')}
           </Text>
         </View>
       );
@@ -185,7 +187,7 @@ export default function OverviewScreen() {
 
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <AppBar title="Übersicht" />
+        <AppBar title={t('overview.title')} />
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.grid}>
             {sources.map((source) => (
@@ -348,7 +350,7 @@ export default function OverviewScreen() {
         {segments.length === 0 && (
           <View style={[styles.emptyChapters, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]}>
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              Kapitel werden geladen…
+              {t('overview.loadingChapters')}
             </Text>
           </View>
         )}
@@ -391,9 +393,9 @@ export default function OverviewScreen() {
           visible
           onClose={() => setCreatingNote(false)}
           sourceId={selectedSource.id}
-          initialContent={`# Arbeitstext über das Buch ${selectedSource.title}\n\n`}
+          initialContent={t('overview.initialContentBook', { title: selectedSource.title })}
           onCreated={setBookNote}
-          contextLabel="Neuer Arbeitstext"
+          contextLabel={t('common.newArbeitstext')}
         />
       )}
       {previewNote && (

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import AppBar from '@/shared/components/AppBar';
 import SearchHitList from '@/shared/components/SearchHitList';
 import { overlayStyles } from '@/shared/styles/overlays';
@@ -25,6 +26,7 @@ type Props = {
 export default function RagInsightsOverlay({
   visible, turn, hits, onClose, scrollToIndex,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -44,7 +46,7 @@ export default function RagInsightsOverlay({
         </Text>
       ) : null}
       <Text style={[textStyles.labelSection, { color: colors.onSurface, marginTop: spacing.s }]}>
-        {hits.length} {hits.length === 1 ? 'Treffer' : 'Treffer'}
+        {t('ragInsights.hitCount', { count: hits.length })}
       </Text>
     </View>
   );
@@ -57,12 +59,12 @@ export default function RagInsightsOverlay({
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      <AppBar title="KI-Treffer" onBackPress={onClose} showUserMenu={false} />
+      <AppBar title={t('ragInsights.title')} onBackPress={onClose} showUserMenu={false} />
       {hits.length === 0 ? (
         <ScrollView contentContainerStyle={styles.emptyWrap}>
           {header}
           <Text style={[textStyles.noteBody, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-            Keine Treffer für diese Antwort gespeichert.
+            {t('ragInsights.empty')}
           </Text>
         </ScrollView>
       ) : (

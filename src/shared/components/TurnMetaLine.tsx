@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
+import { getDateLocale } from '@/shared/i18n';
 import type Turn from '@/data/db/models/Turn';
 
 type Props = {
@@ -13,7 +15,7 @@ type Props = {
 };
 
 function formatTurnTime(createdAt: Date): string {
-  return createdAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return createdAt.toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
@@ -22,24 +24,28 @@ function formatTurnTime(createdAt: Date): string {
 export default function TurnMetaLine({
   turn, kind, personalityLabel, ragHitCount = 0, onRagHitsPress,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const time = formatTurnTime(turn.createdAt);
   const showRagLink = kind === 'assistant' && ragHitCount > 0 && onRagHitsPress;
+  const sender = kind === 'user'
+    ? t('common.me')
+    : (personalityLabel ?? t('common.ki')).toUpperCase();
 
   return (
     <View style={[styles.row, kind === 'user' ? styles.rowUser : styles.rowAssistant]}>
       <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
         {time}
         {' · '}
-        {kind === 'user' ? 'ICH' : (personalityLabel ?? 'KI').toUpperCase()}
+        {sender}
       </Text>
       {showRagLink ? (
         <>
           <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}> · </Text>
           <TouchableOpacity onPress={onRagHitsPress} hitSlop={6} activeOpacity={0.7}>
             <Text style={[textStyles.noteMeta, { color: colors.primary }]}>
-              KI-Treffer ({ragHitCount})
+              {t('ragInsights.linkLabel', { count: ragHitCount })}
             </Text>
           </TouchableOpacity>
         </>

@@ -67,6 +67,7 @@ const config = {
     'expo-router',
     'expo-font',
     'expo-apple-authentication',
+    'expo-localization',
     'expo-updates',
     [
       'expo-splash-screen',
@@ -82,7 +83,12 @@ const config = {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     ragrunBaseUrl: process.env.EXPO_PUBLIC_RAGRUN_BASE_URL ?? '',
-    buildNumber: process.env.EAS_BUILD_APP_VERSION_CODE ?? '',
+    // Optional override; About prefers Application.nativeBuildVersion at runtime.
+    buildNumber:
+      process.env.EAS_BUILD_ANDROID_VERSION_CODE
+      || process.env.EAS_BUILD_IOS_BUILD_NUMBER
+      || process.env.EAS_BUILD_APP_VERSION_CODE
+      || '',
     gitCommitShort,
     eas: {
       projectId: '28c4e815-4398-499c-95e6-67c2d1b87e2d',

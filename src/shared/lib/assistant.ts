@@ -1,4 +1,5 @@
 import type { ColorScheme } from '@/shared/theme';
+import i18n from '@/shared/i18n';
 import { colorWithAlpha } from './color';
 
 /** Bundled assistant — mirrors ragkeep/assistants/philo-von-freisinn/assistant-manifest.yaml */
@@ -9,18 +10,12 @@ export const assistant = {
   firstName: 'Philo',
 } as const;
 
-/** Anzeigenamen für Turn-/Talk-Persönlichkeiten. */
-const PERSONALITY_LABELS: Record<string, string> = {
-  sokrates: 'Sokrates',
-  socrates: 'Sokrates',
-  'der-machtarchitekt': 'Der Machtarchitekt',
-  'assistant-host': assistant.name,
-  'assistant-host-deep': assistant.name,
-};
-
 export function personalityLabel(slug: string | null | undefined): string {
-  if (!slug) return 'KI';
-  return PERSONALITY_LABELS[slug] ?? slug;
+  if (!slug) return i18n.t('common.ki');
+  if (slug === 'sokrates' || slug === 'socrates') return i18n.t('chat.personalities.sokrates');
+  if (slug === 'der-machtarchitekt') return i18n.t('chat.personalities.derMachtarchitekt');
+  if (slug === 'assistant-host' || slug === 'assistant-host-deep') return assistant.name;
+  return slug;
 }
 
 /** Akzent für Philo-Tab: Hellmodus onErrorContainer, Darkmode helleres error (#FFB4AB). */

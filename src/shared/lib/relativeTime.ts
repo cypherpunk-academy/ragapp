@@ -1,16 +1,18 @@
-/** Kurzes relatives Datum (de-DE) — z. B. für `updated_at` in Listenzeilen. */
+import i18n, { getDateLocale } from '@/shared/i18n';
+
+/** Kurzes relatives Datum — z. B. für `updated_at` in Listenzeilen. */
 export function formatRelativeTime(date: Date): string {
   const diffMs = Date.now() - date.getTime();
   const diffMin = Math.round(diffMs / 60_000);
 
-  if (diffMin < 1) return 'gerade eben';
-  if (diffMin < 60) return `vor ${diffMin} Min.`;
+  if (diffMin < 1) return i18n.t('relativeTime.justNow');
+  if (diffMin < 60) return i18n.t('relativeTime.minutes', { count: diffMin });
 
   const diffH = Math.round(diffMin / 60);
-  if (diffH < 24) return `vor ${diffH} Std.`;
+  if (diffH < 24) return i18n.t('relativeTime.hours', { count: diffH });
 
   const diffD = Math.round(diffH / 24);
-  if (diffD < 7) return `vor ${diffD} Tag${diffD === 1 ? '' : 'en'}`;
+  if (diffD < 7) return i18n.t('relativeTime.days', { count: diffD });
 
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }

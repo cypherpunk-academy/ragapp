@@ -129,6 +129,11 @@ function TabsInner() {
 }
 
 export default function TabsLayout() {
+  React.useEffect(() => {
+    console.warn('[TabsLayout] MOUNTED');
+    return () => console.warn('[TabsLayout] UNMOUNTED');
+  }, []);
+
   return (
     <WarningsProvider>
       <ReadingProvider>

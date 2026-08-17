@@ -14,6 +14,7 @@ import { ragrunRequest, RagrunApiError } from './ragrun-client';
 import { config } from './config';
 import { getAccessToken } from './supabase';
 import { ensureSeeded, seedSnapshotTimestamp, withSynchronizeLock } from './seedLoader';
+import i18n from '@/shared/i18n';
 
 const SCHEMA_VERSION = 21; // keep in sync with db/schema.ts version
 
@@ -76,7 +77,7 @@ export async function runSync(): Promise<SyncResult> {
 
   const sourceCount = await database.get('sources').query().fetchCount();
   if (sourceCount === 0) {
-    return { ok: false, error: 'Buchkatalog fehlt — npm run seed:fetch ausführen und App neu bauen.' };
+    return { ok: false, error: i18n.t('konto.catalogMissing') };
   }
 
   let pulledAt = 0;

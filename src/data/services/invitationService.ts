@@ -1,5 +1,7 @@
 import { ragrunRequest } from '@/data/lib/ragrun-client';
 
+export type InvitationStatus = 'none' | 'pending' | 'expired' | 'redeemed';
+
 export async function sendInvitation(inviteeEmail: string): Promise<void> {
   await ragrunRequest('/app/invitations/send', {
     method: 'POST',
@@ -18,10 +20,23 @@ export async function redeemInvitation(email: string, code: string): Promise<{ e
 }
 
 export async function checkEmailExists(email: string): Promise<boolean> {
-  const result = await ragrunRequest<{ exists: boolean }>('/app/invitations/check-email', {
-    method: 'POST',
-    body: { email },
-    authenticated: false,
-  });
+  const result = await lookupEmail(email);
   return result.exists;
+}
+
+export async function lookupEmail(
+  email: string,
+): Promise<{ exists: boolean; invitation_status: InvitationStatus }> {
+  const result = await ragrunRequest<{ exists: boolean; invitation_status?: InvitationStatus }>(
+    '/app/invitations/check-email',
+    {
+      method: 'POST',
+      body: { email },
+      authenticated: false,
+    },
+  );
+  return {
+    exists: result.exists,
+    invitation_status: result.invitation_status ?? 'none',
+  };
 }

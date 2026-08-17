@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Build & run on iPad simulator via xcodebuild.
+# expo run:ios requires code signing here because Sign in with Apple is enabled;
+# xcodebuild installs on the simulator without a development certificate.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+START_METRO=1
+if [[ "${1:-}" == "--no-metro" ]]; then
+  START_METRO=0
+fi
+
+bash scripts/env-local.sh
+
+IPAD_SIM="${IOS_SIMULATOR:-iPad Pro 13-inch (M4)}"
+METRO_PORT="${METRO_PORT:-8081}"
+SCHEME=ragapp
+BUNDLE_ID=berlin.cypherpunkacademy.ragapp
+
+IPAD_UDID=$(xcrun simctl list devices available | grep "${IPAD_SIM}" | head -1 | sed 's/.*(\([A-F0-9-]*\)).*/\1/')
+if [[ -z "${IPAD_UDID}" ]]; then
+  echo "ERROR: Simulator '${IPAD_SIM}' not found." >&2
+  echo "List devices: xcrun simctl list devices available" >&2
+  exit 1
+fi
+
+echo "→ Booting ${IPAD_SIM} (${IPAD_UDID})…"
+xcrun simctl boot "${IPAD_UDID}" 2>/dev/null || true
+open -a Simulator --args -CurrentDeviceUDID "${IPAD_UDID}"
+
+if [[ ! -d ios ]]; then
+  echo "→ ios/ missing — running expo prebuild…"
+  npx expo prebuild --platform ios
+fi
+
+bash scripts/sync-ios-assets.sh
+
+echo "→ Building iOS debug app for simulator…"
+(
+  cd ios
+  xcodebuild \
+    -workspace ragapp.xcworkspace \
+    -scheme "${SCHEME}" \
+    -configuration Debug \
+    -destination "id=${IPAD_UDID}" \
+    -derivedDataPath build \
+    -quiet \
+    build
+)
+
+APP_PATH=$(find ios/build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' -print -quit)
+if [[ -z "${APP_PATH}" || ! -d "${APP_PATH}" ]]; then
+  echo "ERROR: Simulator .app not found under ios/build/Build/Products/Debug-iphonesimulator" >&2
+  exit 1
+fi
+
+echo "→ Installing ${APP_PATH}…"
+xcrun simctl install "${IPAD_UDID}" "${APP_PATH}"
+
+if [[ "${START_METRO}" -eq 1 ]]; then
+  echo "→ Starting Metro on port ${METRO_PORT}…"
+  # Start Metro in background, wait for it to be ready, then connect the app.
+  npx expo start --dev-client -p "${METRO_PORT}" --non-interactive &
+  METRO_PID=$!
+  echo "  Waiting for Metro…"
+  for i in $(seq 1 30); do
+    sleep 1
+    if curl -sf "http://localhost:${METRO_PORT}/status" 2>/dev/null | grep -q running; then
+      break
+    fi
+  done
+  echo "→ Launching ${BUNDLE_ID}…"
+  xcrun simctl launch "${IPAD_UDID}" "${BUNDLE_ID}" >/dev/null
+  sleep 1
+  # Connect dev client to Metro via deep link.
+  xcrun simctl openurl "${IPAD_UDID}" \
+    "ragapp://expo-development-client/?url=http%3A%2F%2Flocalhost%3A${METRO_PORT}" 2>/dev/null || true
+  wait "${METRO_PID}"
+else
+  echo "→ Launching ${BUNDLE_ID}…"
+  xcrun simctl launch "${IPAD_UDID}" "${BUNDLE_ID}" >/dev/null
+fi
