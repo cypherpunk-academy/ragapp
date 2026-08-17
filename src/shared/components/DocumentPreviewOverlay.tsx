@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme, useWindowDimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
 import { overlayStyles } from '@/shared/styles/overlays';
 import AppIcon from '@/shared/components/AppIcon';
@@ -32,6 +33,7 @@ type NoteBreadcrumb = { label: string; onPress: () => void };
 
 /** Löst die Verknüpfungs-Herkunft einer Note auf (Gespräch/Absatz/Kapitel/Buch) — für den Header. */
 function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
+  const { t } = useTranslation();
   const { navigateToRead, navigateToChatWithTalk } = useReading();
   const [breadcrumb, setBreadcrumb] = useState<NoteBreadcrumb | null>(null);
 
@@ -48,28 +50,30 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
         const paragraph = await ParagraphRepository.findById(note.paragraphId);
         if (cancelled || !paragraph) return;
         setBreadcrumb({
-          label: `Absatz: ${firstWords(paragraph.textRaw)}`,
+          label: t('documentPreview.breadcrumbParagraph', { preview: firstWords(paragraph.textRaw) }),
           onPress: () => navigateToRead({ sourceId: paragraph.sourceId, segmentIndex: paragraph.segmentIndex, paragraphId: paragraph.id }),
         });
       } else if (tier === 'segment' && note.sourceId && note.segmentSlug) {
         const paragraph = await ParagraphRepository.findFirstBySegmentSlug(note.sourceId, note.segmentSlug);
         if (cancelled || !paragraph) return;
         setBreadcrumb({
-          label: `Kapitel: ${firstWords(stripSegmentTitleHtml(paragraph.segmentTitle))}`,
+          label: t('documentPreview.breadcrumbChapter', { preview: firstWords(stripSegmentTitleHtml(paragraph.segmentTitle)) }),
           onPress: () => navigateToRead({ sourceId: paragraph.sourceId, segmentIndex: paragraph.segmentIndex, paragraphId: null }),
         });
       } else if (tier === 'source' && note.sourceId) {
         const source = await SourceRepository.findById(note.sourceId);
         if (cancelled || !source) return;
         setBreadcrumb({
-          label: `Buch: ${source.title}`,
+          label: t('documentPreview.breadcrumbBook', { title: source.title }),
           onPress: () => navigateToRead({ sourceId: source.id, segmentIndex: null, paragraphId: null }),
         });
       } else if (note.talkId) {
         const talk = await TalkRepository.findById(note.talkId);
         if (cancelled) return;
         setBreadcrumb({
-          label: `Gespräch: ${firstWords(talk?.title ?? 'Gespräch')}`,
+          label: t('documentPreview.breadcrumbTalk', {
+            preview: firstWords(talk?.title ?? t('common.conversation')),
+          }),
           onPress: () => navigateToChatWithTalk(note.talkId!),
         });
       } else {
@@ -79,7 +83,7 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id, note?.paragraphId, note?.segmentSlug, note?.sourceId, note?.talkId]);
+  }, [note?.id, note?.paragraphId, note?.segmentSlug, note?.sourceId, note?.talkId, t]);
 
   return breadcrumb;
 }
@@ -89,6 +93,7 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
  * Undo/Bearbeiten. Wird von Chat, Absatz, Kapitel und Buch gemeinsam genutzt.
  */
 export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, onDeleted }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const isDark = colorScheme === 'dark';
@@ -157,7 +162,7 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
                 onPress={handleEditInChat}
                 hitSlop={8}
                 style={styles.iconBtn}
-                accessibilityLabel="Mit Philo am Arbeitstext arbeiten"
+                accessibilityLabel={t('documentPreview.editInChatA11y')}
               >
                 <AppIcon name={ICONS.arbeitstext.editInChat} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
               </TouchableOpacity>
@@ -179,7 +184,7 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
         visible={editing}
         onClose={() => setEditing(false)}
         note={note}
-        contextLabel="Arbeitstext bearbeiten"
+        contextLabel={t('common.editArbeitstext')}
       />
     </>
   );

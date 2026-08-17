@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { overlayStyles } from '../styles/overlays';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
@@ -37,6 +38,7 @@ type Props = {
 export default function NoteEditorModal({
   visible, onClose, userId, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onOpenExisting, onDeleted,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -108,7 +110,7 @@ export default function NoteEditorModal({
 
   if (!visible) return null;
 
-  const label = contextLabel ?? (note ? 'Arbeitstext bearbeiten' : 'Neuer Arbeitstext');
+  const label = contextLabel ?? (note ? t('common.editArbeitstext') : t('common.newArbeitstext'));
 
   return (
     <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
@@ -134,7 +136,7 @@ export default function NoteEditorModal({
             scrollEnabled
             textAlignVertical="top"
             autoFocus
-            placeholder="Arbeitstext eingeben..."
+            placeholder={t('noteEditor.placeholder')}
             placeholderTextColor={colors.outline}
             value={content}
             onChangeText={setContent}
@@ -142,18 +144,18 @@ export default function NoteEditorModal({
           <View style={styles.actions}>
             {note && (
               <TouchableOpacity style={styles.btnDestructive} onPress={handleDelete}>
-                <Text style={[textStyles.contributionsTab, { color: colors.error }]}>Löschen</Text>
+                <Text style={[textStyles.contributionsTab, { color: colors.error }]}>{t('common.delete')}</Text>
               </TouchableOpacity>
             )}
             <View style={styles.spacer} />
             <TouchableOpacity style={styles.btn} onPress={onClose}>
-              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant }]}>Abbrechen</Text>
+              <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, styles.btnFilled, { backgroundColor: colors.primary }]}
               onPress={handleSave}
             >
-              <Text style={[textStyles.contributionsTab, { color: colors.onPrimary }]}>Speichern</Text>
+              <Text style={[textStyles.contributionsTab, { color: colors.onPrimary }]}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>

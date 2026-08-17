@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   useColorScheme, ActivityIndicator,
@@ -17,12 +18,14 @@ import {
 } from '@/shared/lib/noteContext';
 import type Note from '@/data/db/models/Note';
 import type Paragraph from '@/data/db/models/Paragraph';
+import { getDateLocale } from '@/shared/i18n';
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return date.toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export default function NotesScreen({ sourceId }: { sourceId: string }) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
@@ -80,9 +83,9 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
     const meta = slug ? segmentMap.get(slug) : null;
     const paraNum = noteParagraphNumber(note, paragraphById);
     if (paraNum !== null && meta) {
-      return `Absatz ${paraNum} · ${meta.segmentTitle}`;
+      return t('common.paragraphNumberDotTitle', { number: paraNum, title: meta.segmentTitle });
     }
-    return 'Notiz bearbeiten';
+    return t('common.editNote');
   };
 
   if (loading) {
@@ -93,18 +96,18 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
     );
   }
 
-  const typeLabel = 'Kapitel';
+  const typeLabel = t('common.chapter');
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[typography.titleLarge, { color: colors.onBackground }]}>Notizen</Text>
+        <Text style={[typography.titleLarge, { color: colors.onBackground }]}>{t('notes.title')}</Text>
 
         {notes.length === 0 && (
           <View style={[styles.emptyCard, { backgroundColor: colors.surfaceContainer }]}>
             <Ionicons name="pencil-outline" size={32} color={colors.onSurfaceVariant} style={{ marginBottom: spacing.s }} />
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-              Noch keine Notizen.{'\n'}Halte im Lesen-Tab einen Absatz gedrückt.
+              {t('notes.empty')}
             </Text>
           </View>
         )}
@@ -124,7 +127,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
                     </Text>
                   </>
                 ) : (
-                  <Text style={[typography.titleSmall, { color: colors.onBackground }]}>Freie Notizen</Text>
+                  <Text style={[typography.titleSmall, { color: colors.onBackground }]}>{t('notes.freeNotes')}</Text>
                 )}
               </View>
 
@@ -142,7 +145,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
                         <View style={styles.noteContent}>
                           {paraNum !== null && (
                             <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant }]}>
-                              Absatz {paraNum}
+                              {t('common.paragraphNumber', { number: paraNum })}
                             </Text>
                           )}
                           <Text
@@ -171,7 +174,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
         onClose={handleCloseEditor}
         onDeleted={handleCloseEditor}
         note={editNote}
-        contextLabel={editNote ? contextLabelForNote(editNote) : 'Notiz bearbeiten'}
+        contextLabel={editNote ? contextLabelForNote(editNote) : t('common.editNote')}
       />
     </View>
   );

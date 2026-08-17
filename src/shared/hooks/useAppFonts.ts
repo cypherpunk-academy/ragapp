@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import {
   Cinzel_400Regular,
@@ -15,8 +16,10 @@ import {
   Lora_700Bold_Italic,
 } from '@expo-google-fonts/lora';
 
-export function useAppFonts() {
-  return useFonts({
+const FONT_LOAD_TIMEOUT_MS = 10_000;
+
+export function useAppFonts(): [boolean, Error | null] {
+  const [loaded, error] = useFonts({
     Cinzel_400Regular,
     Cinzel_700Bold,
     Marcellus_400Regular,
@@ -27,4 +30,23 @@ export function useAppFonts() {
     Lora_700Bold,
     Lora_700Bold_Italic,
   });
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (loaded) {
+      console.log('[useAppFonts] loaded');
+      return;
+    }
+    if (error) {
+      console.warn('[useAppFonts] error:', error.message);
+      return;
+    }
+    const timer = setTimeout(() => {
+      console.warn('[useAppFonts] timeout — proceeding with system fonts');
+      setTimedOut(true);
+    }, FONT_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [loaded, error]);
+
+  return [loaded || !!error || timedOut, error];
 }

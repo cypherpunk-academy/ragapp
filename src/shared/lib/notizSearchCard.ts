@@ -1,6 +1,7 @@
 import type { SearchResult } from '@/shared/types/ragrun';
+import i18n, { getDateLocale } from '@/shared/i18n';
 
-/** ISO 8601 Datum (nur Datum) oder mit Zeit — für de-DE Kurzdatum. */
+/** ISO 8601 Datum (nur Datum) oder mit Zeit — Kurzdatum per App-Locale. */
 function formatDisplayDate(raw?: string): string | undefined {
   if (!raw?.trim()) return undefined;
   const s = raw.trim();
@@ -8,7 +9,7 @@ function formatDisplayDate(raw?: string): string | undefined {
   if (iso) {
     const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+      return d.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
     }
   }
   return s;
@@ -58,7 +59,7 @@ export function buildNotizCardRows(r: SearchResult): NotizCardRows {
   const noteAuthor = r.note_author?.trim();
   const noteDateDisplay = formatDisplayDate(r.note_date) ?? r.note_date?.trim();
   const authorDateBold =
-    joinParts([noteAuthor, noteDateDisplay]) ?? 'Notiz';
+    joinParts([noteAuthor, noteDateDisplay]) ?? i18n.t('entityCards.notiz');
 
   const contextSmall = buildNotizSourceContextLine(r);
 

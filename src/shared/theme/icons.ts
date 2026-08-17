@@ -65,7 +65,7 @@ export const ICON_SIZES = {
   menu: 18,
   tabHeader: 20,
   appBar: 24,
-  tabBar: 26,
+  tabBar: 28,
   hero: 40,
 } as const;
 

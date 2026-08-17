@@ -311,5 +311,19 @@ export const migrations = schemaMigrations({
         }),
       ],
     },
+    {
+      toVersion: 24,
+      steps: [
+        createTable({
+          name: 'starter_prompts',
+          columns: [
+            { name: 'prompt',     type: 'string' },
+            { name: 'sort_order', type: 'number' },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

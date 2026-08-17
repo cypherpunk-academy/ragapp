@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, typography, getParagraphBadgeStyle } from '@/shared/theme';
 import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { TurnRepository } from '@/data/repositories/TurnRepository';
@@ -18,6 +19,7 @@ type Props = {
 
 /** GESPRÄCHE-Segment des Filo-Tabs: Suchmaske + Liste kontextgefilterter Gespräche. */
 export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -36,11 +38,13 @@ export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Prop
     let cancelled = false;
     void ParagraphRepository.findById(contextParagraphId).then((p) => {
       if (cancelled || !p) return;
-      const num = p.paragraphNumber != null ? `Absatz ${p.paragraphNumber}| ` : '';
+      const num = p.paragraphNumber != null
+        ? t('common.paragraphNumberPipe', { number: p.paragraphNumber }) + ' '
+        : '';
       setParagraphLabel(`${num}${firstWords(p.textRaw, 12)}`);
     });
     return () => { cancelled = true; };
-  }, [contextParagraphId]);
+  }, [contextParagraphId, t]);
 
   useEffect(() => {
     setLoadingTalks(true);
@@ -92,7 +96,7 @@ export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Prop
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Gespräch suchen…"
+              placeholder={t('gespraeche.searchPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant}
               style={[typography.bodyMedium, styles.searchInput, { color: colors.onSurface }]}
             />
@@ -104,7 +108,7 @@ export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Prop
                 styles.pinButton,
                 { backgroundColor: pinnedOnly ? colors.primaryContainer : colors.surfaceContainerHigh },
               ]}
-              accessibilityLabel={pinnedOnly ? 'Alle Gespräche anzeigen' : 'Nur angepinnte anzeigen'}
+              accessibilityLabel={pinnedOnly ? t('gespraeche.showAllA11y') : t('gespraeche.showPinnedOnlyA11y')}
             >
               <Ionicons
                 name={pinnedOnly ? 'bookmark' : 'bookmark-outline'}
@@ -123,7 +127,7 @@ export default function GespraecheTab({ onSelectTalk, contextParagraphId }: Prop
       ) : filteredTalks.length === 0 ? (
         <View style={styles.center}>
           <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-            {searchQuery ? 'Keine Gespräche gefunden.' : 'Noch keine Gespräche vorhanden.'}
+            {searchQuery ? t('gespraeche.emptySearch') : t('gespraeche.empty')}
           </Text>
         </View>
       ) : (

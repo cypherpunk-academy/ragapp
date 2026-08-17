@@ -11,6 +11,8 @@ android/
 .env
 .env.local
 .env.*.local
+*.bak
+.temp/
 
 .vscode/
 *.swp

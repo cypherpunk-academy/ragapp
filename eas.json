@@ -12,6 +12,7 @@
       "distribution": "internal",
       "channel": "staging",
       "env": {
+        "APP_VARIANT": "staging",
         "EXPO_PUBLIC_SUPABASE_URL": "https://duhtxxbynkilpxdpcpsk.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_JzrvHXRfY2wZ2mztMb24aw_yJ2qpfwE",
         "EXPO_PUBLIC_RAGRUN_BASE_URL": "https://ragrun-staging-staging.up.railway.app",
@@ -29,6 +30,12 @@
         "EXPO_PUBLIC_COVER_CACHE_VERSION": "5"
       }
     },
+    "staging-apk": {
+      "extends": "staging",
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production-apk": {
       "extends": "production",
       "android": {
@@ -39,14 +46,17 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "<your-apple-id>",
-        "ascAppId": "<your-app-store-connect-app-id>",
-        "appleTeamId": "<your-team-id>"
+        "appleId": "m@michaelschmidt.berlin",
+        "ascAppId": "6798671805",
+        "appleTeamId": "J424WHTQX5"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
       }
+    },
+    "production-store": {
+      "extends": "production"
     }
   }
 }

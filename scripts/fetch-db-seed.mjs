@@ -105,12 +105,32 @@ const mapParagraph = (r) => ({
   updated_at: toMs(r.updated_at),
 });
 
+console.log('Fetching app_starter_prompts…');
+const { data: starterData, error: stpErr } = await supabase
+  .from('app_starter_prompts')
+  .select('id, prompt, sort_order, created_at, updated_at')
+  .order('sort_order', { ascending: true });
+
+if (stpErr) {
+  console.error('app_starter_prompts query failed:', stpErr.message);
+  process.exit(1);
+}
+
+const mapStarter = (r) => ({
+  id: r.id,
+  prompt: r.prompt,
+  sort_order: r.sort_order,
+  created_at: toMs(r.created_at),
+  updated_at: toMs(r.updated_at),
+});
+
 // All records go in "created" — this is a full snapshot, not a delta.
 const snapshot = {
   timestamp: Date.now(),
   changes: {
-    sources:    { created: sourcesData.map(mapSource),    updated: [], deleted: [] },
-    paragraphs: { created: paragraphsData.map(mapParagraph), updated: [], deleted: [] },
+    sources:          { created: sourcesData.map(mapSource),    updated: [], deleted: [] },
+    paragraphs:       { created: paragraphsData.map(mapParagraph), updated: [], deleted: [] },
+    starter_prompts:  { created: (starterData ?? []).map(mapStarter), updated: [], deleted: [] },
   },
 };
 
@@ -121,5 +141,6 @@ writeFileSync(outPath, JSON.stringify(snapshot));
 
 const s  = snapshot.changes.sources.created.length;
 const p  = snapshot.changes.paragraphs.created.length;
+const st = snapshot.changes.starter_prompts.created.length;
 const kb = Math.round(JSON.stringify(snapshot).length / 1024);
-console.log(`✓ db-snapshot.json — ${s} sources, ${p} paragraphs — ${kb} KB  (timestamp: ${snapshot.timestamp})`);
+console.log(`✓ db-snapshot.json — ${s} sources, ${p} paragraphs, ${st} starter_prompts — ${kb} KB  (timestamp: ${snapshot.timestamp})`);

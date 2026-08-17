@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import AppBar from '@/shared/components/AppBar';
 import AppIcon from '@/shared/components/AppIcon';
 import { ICONS, ICON_SIZES, lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
@@ -16,12 +17,6 @@ import ArbeitstextTab from './ArbeitstextTab';
 import type Note from '@/data/db/models/Note';
 
 type FiloSegment = 'chat' | 'arbeitstext' | 'gespraeche';
-
-const SEGMENTS: { id: FiloSegment; label: string; icon?: string }[] = [
-  { id: 'chat', label: 'CHAT' },
-  { id: 'arbeitstext', label: 'ARBEITSTEXT', icon: 'attach-file' },
-  { id: 'gespraeche', label: 'GESPRÄCHE' },
-];
 
 type WeiterlesenState = {
   sourceId: string;
@@ -45,17 +40,35 @@ export default function FiloScreen({
   isFiloTabActive = true,
   offerWeiterlesenOnLaunch = true,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const segments = useMemo(
+    () => [
+      { id: 'chat' as const, label: t('filo.segmentChat') },
+      { id: 'arbeitstext' as const, label: t('filo.segmentArbeitstext'), icon: 'attach-file' },
+      { id: 'gespraeche' as const, label: t('filo.segmentGespraeche') },
+    ],
+    [t],
+  );
   const {
     chatTalkId, consumeChatTalkId, chatPendingLinkNoteId, consumeChatPendingLink,
     chatPendingParagraphId, consumeChatPendingParagraph, navigateToRead,
     filoSessionNoteId, setFiloSessionNoteId, clearFiloSessionNote,
   } = useReading();
 
+  useEffect(() => {
+    console.warn('[FiloScreen] MOUNTED');
+    return () => console.warn('[FiloScreen] UNMOUNTED');
+  }, []);
+
   const [activeSegment, setActiveSegment] = useState<FiloSegment>('chat');
   const [activeTalkId, setActiveTalkId] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.warn('[FiloScreen] activeTalkId =', activeTalkId);
+  }, [activeTalkId]);
   const [linkedNote, setLinkedNote] = useState<Note | null>(null);
   const [createNoteRequest, setCreateNoteRequest] = useState(false);
   const [weiterlesen, setWeiterlesen] = useState<WeiterlesenState | null>(null);
@@ -84,6 +97,7 @@ export default function FiloScreen({
   // Aus dem ReadingContext vorgeladenes Gespräch übernehmen (z. B. aus Suche/Lesen).
   useEffect(() => {
     if (chatTalkId) {
+      console.warn('[FiloScreen] chatTalkId effect → setActiveTalkId:', chatTalkId);
       clearFiloSessionNote();
       setActiveTalkId(chatTalkId);
       setActiveSegment('chat');
@@ -96,6 +110,7 @@ export default function FiloScreen({
   // einen anderen Kontext/Arbeitstext).
   useEffect(() => {
     if (chatPendingLinkNoteId) {
+      console.warn('[FiloScreen] chatPendingLinkNoteId effect → setActiveTalkId(null)');
       setActiveTalkId(null);
       setPendingLinkNoteId(chatPendingLinkNoteId);
       setActiveSegment('chat');
@@ -107,6 +122,7 @@ export default function FiloScreen({
   // Erzwingt ein neues Gespräch — bestehendes Gespräch hat bereits einen anderen Kontext.
   useEffect(() => {
     if (chatPendingParagraphId) {
+      console.warn('[FiloScreen] chatPendingParagraphId effect → setActiveTalkId(null)');
       setActiveTalkId(null);
       setPendingParagraphId(chatPendingParagraphId);
       setActiveSegment('chat');
@@ -163,17 +179,17 @@ export default function FiloScreen({
   const handleSegmentPress = useCallback((id: FiloSegment) => {
     if (id === 'arbeitstext' && !linkedNote && activeTalkId) {
       Alert.alert(
-        'Arbeitstext anlegen',
-        'Willst du einen Arbeitstext zu dem aktuellen Chat anlegen?',
+        t('filo.createArbeitstextTitle'),
+        t('filo.createArbeitstextMessage'),
         [
-          { text: 'Nicht jetzt', style: 'cancel' },
-          { text: 'Anlegen', onPress: () => setCreateNoteRequest(true) },
+          { text: t('filo.notNow'), style: 'cancel' },
+          { text: t('filo.create'), onPress: () => setCreateNoteRequest(true) },
         ],
       );
       return;
     }
     setActiveSegment(id);
-  }, [linkedNote, activeTalkId]);
+  }, [linkedNote, activeTalkId, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -185,7 +201,7 @@ export default function FiloScreen({
           onPress={handleWeiterlesen}
           activeOpacity={0.85}
         >
-          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.menu} color={colors.onPrimaryContainer} />
+          <AppIcon name={ICONS.tab.read} size={ICON_SIZES.tabHeader} color={colors.onPrimaryContainer} />
           <Text style={[textStyles.continueCta, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
             {continueReadingLabel(weiterlesen.segmentTitle)}
           </Text>
@@ -193,7 +209,7 @@ export default function FiloScreen({
       )}
 
       {(authLoading || isAuthenticated) && <View style={[styles.segmented, { backgroundColor: colors.secondaryContainer, borderColor: colors.outlineVariant }]}>
-        {SEGMENTS.map((seg) => {
+        {segments.map((seg) => {
           const isActive = seg.id === activeSegment;
           return (
             <TouchableOpacity
@@ -203,13 +219,13 @@ export default function FiloScreen({
               activeOpacity={0.7}
             >
               <View style={styles.segmentLabel}>
-                <Text style={[typography.labelMedium, { fontSize: 13, color: isActive ? colors.primary : colors.onSurfaceVariant }]}>
+                <Text style={[textStyles.labelTab, { color: isActive ? colors.primary : colors.onSurfaceVariant, textTransform: 'none' as const, letterSpacing: 0.2 }]}>
                   {seg.label}
                 </Text>
                 {seg.icon && (
                   <AppIcon
                     name={seg.icon as any}
-                    size={14}
+                    size={16}
                     color={isActive ? colors.primary : colors.onSurfaceVariant}
                   />
                 )}
@@ -219,67 +235,70 @@ export default function FiloScreen({
         })}
       </View>}
 
-      {!authLoading && !isAuthenticated ? (
-        <View style={styles.loginGate}>
+      {/* Login-Gate als Overlay — Content bleibt IMMER gemountet, damit
+           Chat-State (activeTalkId, turns) bei kurzzeitigem Auth-Flicker
+           (Token-Refresh) nicht verloren geht. */}
+      {!authLoading && !isAuthenticated && (
+        <View style={[styles.loginGate, styles.loginGateOverlay, { backgroundColor: colors.background }]}>
           <AppIcon name={ICONS.account.avatar} size={48} color={colors.onSurfaceVariant} />
           <Text style={[typography.titleMedium, styles.loginGateTitle, { color: colors.onSurface }]}>
-            Anmeldung erforderlich
+            {t('filo.loginRequiredTitle')}
           </Text>
           <Text style={[typography.bodyMedium, styles.loginGateBody, { color: colors.onSurfaceVariant }]}>
-            Für den Chat mit Philo musst du angemeldet sein und über Credits verfügen.
+            {t('filo.loginRequiredBody')}
           </Text>
           <TouchableOpacity
             style={[styles.loginBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push('/auth/login')}
             activeOpacity={0.85}
           >
-            <Text style={[typography.labelLarge, { color: colors.onPrimary }]}>Anmelden</Text>
+            <Text style={[typography.labelLarge, { color: colors.onPrimary }]}>{t('common.signIn')}</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.content}>
-          {/* Keep segments mounted so pending Arbeitstext / chat state survives top-tab switches. */}
-          <View
-            style={[styles.segmentPage, activeSegment !== 'chat' && styles.segmentPageHidden]}
-            pointerEvents={activeSegment === 'chat' ? 'auto' : 'none'}
-          >
-            <ChatTab
-              userId={user?.id ?? ''}
-              activeTalkId={activeTalkId}
-              onActiveTalkChange={setActiveTalkId}
-              linkNoteId={pendingLinkNoteId}
-              onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
-              pendingParagraphId={pendingParagraphId}
-              onParagraphConsumed={() => setPendingParagraphId(null)}
-              onContextParagraphChange={setActiveContextParagraphId}
-              onLinkedNoteChange={handleLinkedNoteChange}
-              onSwitchToArbeitstext={() => setActiveSegment('arbeitstext')}
-              createNoteRequest={createNoteRequest}
-              onCreateNoteRequestConsumed={() => setCreateNoteRequest(false)}
-            />
-          </View>
-          <View
-            style={[styles.segmentPage, activeSegment !== 'arbeitstext' && styles.segmentPageHidden]}
-            pointerEvents={activeSegment === 'arbeitstext' ? 'auto' : 'none'}
-          >
-            <ArbeitstextTab
-              userId={user?.id ?? ''}
-              note={linkedNote}
-              activeTalkId={activeTalkId}
-              onDeleted={() => handleLinkedNoteChange(null)}
-            />
-          </View>
-          <View
-            style={[styles.segmentPage, activeSegment !== 'gespraeche' && styles.segmentPageHidden]}
-            pointerEvents={activeSegment === 'gespraeche' ? 'auto' : 'none'}
-          >
-            <GespraecheTab
-              onSelectTalk={handleSelectTalk}
-              contextParagraphId={activeContextParagraphId}
-            />
-          </View>
-        </View>
       )}
+      <View style={styles.content}>
+        {/* Keep segments mounted so pending Arbeitstext / chat state survives top-tab switches. */}
+        <View
+          style={[styles.segmentPage, activeSegment !== 'chat' && styles.segmentPageHidden]}
+          pointerEvents={activeSegment === 'chat' ? 'auto' : 'none'}
+        >
+          <ChatTab
+            userId={user?.id ?? ''}
+            activeTalkId={activeTalkId}
+            onActiveTalkChange={setActiveTalkId}
+            linkNoteId={pendingLinkNoteId}
+            onLinkNoteConsumed={() => setPendingLinkNoteId(null)}
+            pendingParagraphId={pendingParagraphId}
+            onParagraphConsumed={() => setPendingParagraphId(null)}
+            onContextParagraphChange={setActiveContextParagraphId}
+            onLinkedNoteChange={handleLinkedNoteChange}
+            onSwitchToArbeitstext={() => setActiveSegment('arbeitstext')}
+            createNoteRequest={createNoteRequest}
+            onCreateNoteRequestConsumed={() => setCreateNoteRequest(false)}
+          />
+        </View>
+        <View
+          style={[styles.segmentPage, activeSegment !== 'arbeitstext' && styles.segmentPageHidden]}
+          pointerEvents={activeSegment === 'arbeitstext' ? 'auto' : 'none'}
+        >
+          <ArbeitstextTab
+            userId={user?.id ?? ''}
+            note={linkedNote}
+            activeTalkId={activeTalkId}
+            onCreated={handleLinkedNoteChange}
+            onDeleted={() => handleLinkedNoteChange(null)}
+          />
+        </View>
+        <View
+          style={[styles.segmentPage, activeSegment !== 'gespraeche' && styles.segmentPageHidden]}
+          pointerEvents={activeSegment === 'gespraeche' ? 'auto' : 'none'}
+        >
+          <GespraecheTab
+            onSelectTalk={handleSelectTalk}
+            contextParagraphId={activeContextParagraphId}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -320,6 +339,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     gap: spacing.m,
+  },
+  loginGateOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
   },
   loginGateTitle: {
     textAlign: 'center',

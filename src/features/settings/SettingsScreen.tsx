@@ -1,45 +1,53 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import AppBar from '@/shared/components/AppBar';
 import { router } from 'expo-router';
 import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { useSettings, type ColorSchemePreference, type FontSizeLevel } from '@/shared/contexts/SettingsContext';
 
-const COLOR_SCHEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Hell' },
-  { value: 'dark', label: 'Dunkel' },
-];
-
-const FONT_SIZE_OPTIONS: { value: FontSizeLevel; label: string }[] = [
-  { value: 'small', label: 'A−' },
-  { value: 'medium', label: 'A' },
-  { value: 'large', label: 'A+' },
-  { value: 'xlarge', label: 'A++' },
-  { value: 'xxlarge', label: 'A+++' },
-];
-
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { colorScheme: schemePref, fontSizeLevel, setColorScheme, setFontSizeLevel } = useSettings();
 
+  const colorSchemeOptions = useMemo(
+    (): { value: ColorSchemePreference; label: string }[] => [
+      { value: 'system', label: t('settings.schemeSystem') },
+      { value: 'light', label: t('settings.schemeLight') },
+      { value: 'dark', label: t('settings.schemeDark') },
+    ],
+    [t],
+  );
+
+  const fontSizeOptions = useMemo(
+    (): { value: FontSizeLevel; label: string }[] => [
+      { value: 'small', label: t('settings.fontSmall') },
+      { value: 'medium', label: t('settings.fontMedium') },
+      { value: 'large', label: t('settings.fontLarge') },
+      { value: 'xlarge', label: t('settings.fontXLarge') },
+      { value: 'xxlarge', label: t('settings.fontXXLarge') },
+    ],
+    [t],
+  );
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <AppBar title="Einstellungen" onBackPress={() => router.back()} showUserMenu={false} />
+      <AppBar title={t('settings.title')} onBackPress={() => router.back()} showUserMenu={false} />
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-            DARSTELLUNG
+            {t('settings.appearanceSection')}
           </Text>
 
           {/* Dunkelmodus */}
           <Text style={[typography.labelMedium, styles.rowLabel, { color: colors.onSurface }]}>
-            Dunkelmodus
+            {t('settings.darkMode')}
           </Text>
           <View style={[styles.segmented, { backgroundColor: colors.surfaceContainerHigh, borderRadius: 10 }]}>
-            {COLOR_SCHEME_OPTIONS.map((opt) => {
+            {colorSchemeOptions.map((opt) => {
               const active = opt.value === schemePref;
               return (
                 <TouchableOpacity
@@ -64,10 +72,10 @@ export default function SettingsScreen() {
 
           {/* Schriftgröße */}
           <Text style={[typography.labelMedium, styles.rowLabel, { color: colors.onSurface }]}>
-            Schriftgröße
+            {t('settings.fontSize')}
           </Text>
           <View style={[styles.segmented, { backgroundColor: colors.surfaceContainerHigh, borderRadius: 10 }]}>
-            {FONT_SIZE_OPTIONS.map((opt) => {
+            {fontSizeOptions.map((opt) => {
               const active = opt.value === fontSizeLevel;
               return (
                 <TouchableOpacity
@@ -91,12 +99,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-          <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-            ÜBER
-          </Text>
-          <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>ragapp · Version 1.0.0</Text>
-        </View>
 
       </ScrollView>
     </View>

@@ -2,17 +2,19 @@ import React, { useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, Pressable, StyleSheet, useColorScheme, Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { ICONS, ICON_SIZES } from '../theme';
 import AppIcon from './AppIcon';
 import { useAccountMenu } from '../hooks/useAccountMenu';
 
 export default function UserMenuButton() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const [open, setOpen] = useState(false);
   const pendingAction = useRef<(() => void) | null>(null);
-  const { openKonto, openSettings, openArbeitstexte } = useAccountMenu();
+  const { openKonto, openSettings, openArbeitstexte, openAbout } = useAccountMenu();
 
   const flushPending = () => {
     const action = pendingAction.current;
@@ -35,7 +37,7 @@ export default function UserMenuButton() {
         onPress={() => setOpen(true)}
         style={[styles.avatar, { backgroundColor: colors.primary }]}
         accessibilityRole="button"
-        accessibilityLabel="Benutzermenü"
+        accessibilityLabel={t('userMenu.a11y')}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <AppIcon name={ICONS.account.avatar} size={ICON_SIZES.tabHeader} color={colors.onPrimary} />
@@ -50,20 +52,23 @@ export default function UserMenuButton() {
       >
         {/* Backdrop zuerst rendern (liegt im Z-Order unter dem Menü). Kein GestureHandlerRootView —
             der hinterlässt auf iOS nach Modal-Dismiss einen Ghost-Touch-Layer der Scroll blockiert. */}
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel="Menü schließen" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel={t('common.closeMenu')} />
         <View
           style={[styles.menu, { backgroundColor: colors.surfaceContainerHigh, shadowColor: colors.shadow }]}
         >
           <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openArbeitstexte)} activeOpacity={0.7}>
-            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Arbeitstexte</Text>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>{t('userMenu.arbeitstexte')}</Text>
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
           <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openKonto)} activeOpacity={0.7}>
-            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Konto</Text>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>{t('userMenu.konto')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openSettings)} activeOpacity={0.7}>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>{t('userMenu.settings')}</Text>
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
-          <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openSettings)} activeOpacity={0.7}>
-            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>Einstellungen</Text>
+          <TouchableOpacity style={styles.menuRow} onPress={() => closeThen(openAbout)} activeOpacity={0.7}>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>{t('userMenu.about')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>

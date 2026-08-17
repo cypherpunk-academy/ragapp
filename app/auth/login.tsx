@@ -13,21 +13,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authErrorSuggestsNewAccount, authService } from '@/data/services/authService';
+import { authService, authErrorSuggestsNewAccount } from '@/data/services/authService';
+import { lookupEmail } from '@/data/services/invitationService';
 import { useAuth } from '@/shared/hooks/useAuth';
+import i18n from '@/shared/i18n';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
-
-const appleSignInAvailable = authService.isAppleSignInAvailable();
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
     return (err as { message: string }).message;
   }
-  return 'Ein Fehler ist aufgetreten.';
+  return i18n.t('auth.genericError');
 }
 
+type InviteGate = 'none' | 'inviteOnly' | 'inviteExpired';
+
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -37,34 +41,19 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [inviteGate, setInviteGate] = useState<InviteGate>('none');
 
   const trimmed = email.trim();
 
-  const handleApple = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      await authService.signInWithApple();
-      router.replace('/(tabs)');
-    } catch (e: unknown) {
-      // User cancelled — Apple throws ERR_REQUEST_CANCELED
-      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
-      if (code !== 'ERR_REQUEST_CANCELED') {
-        setError(errorMessage(e));
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleSend = async () => {
     setError(null);
+    setInviteGate('none');
     if (!trimmed || !trimmed.includes('@')) {
-      setError('Bitte eine gültige E-Mail-Adresse eingeben.');
+      setError(t('auth.invalidEmail'));
       return;
     }
     if (!authService.isAvailable()) {
-      setError('Anmeldung ist hier noch nicht eingerichtet (Supabase fehlt).');
+      setError(t('auth.supabaseNotConfiguredShort'));
       return;
     }
     setBusy(true);
@@ -74,10 +63,15 @@ export default function LoginScreen() {
       setOtp('');
     } catch (e) {
       if (authErrorSuggestsNewAccount(e)) {
-        router.push({ pathname: '/auth/register', params: { email: trimmed } });
-        return;
+        try {
+          const { invitation_status } = await lookupEmail(trimmed);
+          setInviteGate(invitation_status === 'expired' ? 'inviteExpired' : 'inviteOnly');
+        } catch {
+          setInviteGate('inviteOnly');
+        }
+      } else {
+        setError(errorMessage(e));
       }
-      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -87,7 +81,7 @@ export default function LoginScreen() {
     setError(null);
     const code = otp.trim();
     if (code.length < 6) {
-      setError('Bitte den Code aus der E-Mail eingeben.');
+      setError(t('auth.enterEmailCode'));
       return;
     }
     setBusy(true);
@@ -111,7 +105,7 @@ export default function LoginScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Anmelden
+          {t('auth.loginTitle')}
         </Text>
       </View>
 
@@ -121,26 +115,45 @@ export default function LoginScreen() {
       >
         {!isConfigured ? (
           <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, marginBottom: spacing.m }]}>
-            Supabase ist nicht konfiguriert. Tragen Sie EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_ANON_KEY in der
-            Umgebung ein und starten Sie die App neu.
+            {t('auth.supabaseNotConfiguredLong')}
           </Text>
         ) : null}
 
-        {sent ? (
+        {inviteGate !== 'none' ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Wir haben eine E-Mail an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmed}</Text>
-              {' '}gesendet. Auf Android ist der Anmeldelink oft unzuverlässig — bitte den Code aus der Mail hier eingeben
-              (oder den Link auf diesem Gerät öffnen).
+              {t(inviteGate === 'inviteExpired' ? 'auth.inviteExpiredTitle' : 'auth.inviteOnlyTitle')}
+            </Text>
+            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
+              {t(inviteGate === 'inviteExpired' ? 'auth.inviteExpiredBody' : 'auth.inviteOnlyBody')}
+            </Text>
+            {inviteGate === 'inviteOnly' ? (
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                onPress={() => router.push({ pathname: '/auth/redeem-invitation', params: { email: trimmed } })}
+              >
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.enterInviteCode')}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
+              onPress={() => { setInviteGate('none'); setError(null); }}
+            >
+              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>{t('auth.otherEmail')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : sent ? (
+          <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
+              {t('auth.codeSent', { email: trimmed })}
             </Text>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-              Code aus der E-Mail
+              {t('auth.otpLabel')}
             </Text>
             <TextInput
               value={otp}
               onChangeText={setOtp}
-              placeholder="123456"
+              placeholder={t('auth.otpPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="number-pad"
               autoComplete="one-time-code"
@@ -163,7 +176,7 @@ export default function LoginScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.loginTitle')}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -171,18 +184,18 @@ export default function LoginScreen() {
               onPress={() => { setSent(false); setError(null); setOtp(''); }}
               disabled={busy}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>Andere E-Mail</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>{t('auth.otherEmail')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-              E-Mail
+              {t('auth.emailLabel')}
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="name@beispiel.de"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -205,30 +218,9 @@ export default function LoginScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Link senden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.sendCode')}</Text>
               )}
             </TouchableOpacity>
-
-            {appleSignInAvailable && (
-              <>
-                <View style={[styles.dividerRow, { marginTop: spacing.m }]}>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
-                  <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, marginHorizontal: spacing.s }]}>
-                    oder
-                  </Text>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
-                </View>
-                <TouchableOpacity
-                  style={[styles.appleBtn, { backgroundColor: colors.onBackground }]}
-                  onPress={() => void handleApple()}
-                  disabled={busy}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="logo-apple" size={20} color={colors.background} />
-                  <Text style={[textStyles.continueCta, { color: colors.background }]}>Mit Apple anmelden</Text>
-                </TouchableOpacity>
-              </>
-            )}
           </View>
         )}
       </ScrollView>
@@ -262,23 +254,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  appleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s,
-    borderRadius: 999,
-    paddingVertical: spacing.s,
-    minHeight: 44,
-    marginTop: spacing.m,
   },
 });

@@ -1,6 +1,28 @@
+const { execSync } = require('child_process');
+
+const IS_STAGING = process.env.APP_VARIANT === 'staging';
+
+/** Last 8 chars of the commit baked into this build (EAS or local git). */
+function resolveGitCommitShort() {
+  const fromEas = process.env.EAS_BUILD_GIT_COMMIT_HASH;
+  if (fromEas) return fromEas.slice(0, 8);
+  const fromEnv = process.env.EXPO_PUBLIC_GIT_COMMIT;
+  if (fromEnv) return fromEnv.slice(0, 8);
+  try {
+    return execSync('git rev-parse --short=8 HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+const gitCommitShort = resolveGitCommitShort();
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
-  name: 'Philo von Freisinn',
+  name: IS_STAGING ? 'Philo (Staging)' : 'Philo von Freisinn',
   slug: 'ragapp',
   owner: 'lafisrap',
   scheme: 'ragapp',
@@ -17,14 +39,18 @@ const config = {
   ios: {
     supportsTablet: true,
     requireFullScreen: true,
-    bundleIdentifier: 'berlin.cypherpunkacademy.ragapp',
+    bundleIdentifier: IS_STAGING
+      ? 'berlin.cypherpunkacademy.ragapp.staging'
+      : 'berlin.cypherpunkacademy.ragapp',
     usesAppleSignIn: true,
     infoPlist: {
       'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'],
     },
   },
   android: {
-    package: 'berlin.cypherpunkacademy.ragapp',
+    package: IS_STAGING
+      ? 'berlin.cypherpunkacademy.ragapp.staging'
+      : 'berlin.cypherpunkacademy.ragapp',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
@@ -41,6 +67,7 @@ const config = {
     'expo-router',
     'expo-font',
     'expo-apple-authentication',
+    'expo-localization',
     'expo-updates',
     [
       'expo-splash-screen',
@@ -56,6 +83,13 @@ const config = {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     ragrunBaseUrl: process.env.EXPO_PUBLIC_RAGRUN_BASE_URL ?? '',
+    // Optional override; About prefers Application.nativeBuildVersion at runtime.
+    buildNumber:
+      process.env.EAS_BUILD_ANDROID_VERSION_CODE
+      || process.env.EAS_BUILD_IOS_BUILD_NUMBER
+      || process.env.EAS_BUILD_APP_VERSION_CODE
+      || '',
+    gitCommitShort,
     eas: {
       projectId: '28c4e815-4398-499c-95e6-67c2d1b87e2d',
     },

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, useColorScheme, ActivityIndicator,
@@ -15,6 +16,7 @@ import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import AppIcon from '@/shared/components/AppIcon';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
 import type Note from '@/data/db/models/Note';
+import i18n, { getDateLocale } from '@/shared/i18n';
 
 function hasDocumentBody(content: string): boolean {
   // Strip the # title line and check if any non-empty content remains
@@ -29,9 +31,9 @@ function formatRelativeDate(date: Date): string {
   const diffMin = Math.floor(diffSec / 60);
   const diffHours = Math.floor(diffMin / 60);
 
-  if (diffSec < 60) return 'vor wenigen Sekunden';
-  if (diffMin < 60) return `vor ${diffMin} ${diffMin === 1 ? 'Minute' : 'Minuten'}`;
-  if (diffHours < 24) return `vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
+  if (diffSec < 60) return i18n.t('arbeitstexte.relativeJustSeconds');
+  if (diffMin < 60) return i18n.t('arbeitstexte.relativeMinutes', { count: diffMin });
+  if (diffHours < 24) return i18n.t('arbeitstexte.relativeHours', { count: diffHours });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -39,13 +41,14 @@ function formatRelativeDate(date: Date): string {
   const dayBefore = new Date(today); dayBefore.setDate(today.getDate() - 2);
   const dateDay = new Date(date); dateDay.setHours(0, 0, 0, 0);
 
-  if (dateDay.getTime() === yesterday.getTime()) return 'gestern';
-  if (dateDay.getTime() === dayBefore.getTime()) return 'vorgestern';
-  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  if (dateDay.getTime() === yesterday.getTime()) return i18n.t('arbeitstexte.yesterday');
+  if (dateDay.getTime() === dayBefore.getTime()) return i18n.t('arbeitstexte.dayBeforeYesterday');
+  return date.toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 /** Bibliothek allgemeiner Arbeitstexte (ohne Buch-/Kapitel-/Absatz-Verknüpfung). */
 export default function ArbeitstexteScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -84,13 +87,13 @@ export default function ArbeitstexteScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={[typography.titleMedium, { color: colors.onSurface, flex: 1, marginLeft: spacing.s }]}>
-          Arbeitstexte
+          {t('arbeitstexte.title')}
         </Text>
         <TouchableOpacity
           onPress={() => setCreating(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.createBtn}
-          accessibilityLabel="Neuen Arbeitstext anlegen"
+          accessibilityLabel={t('arbeitstexte.newA11y')}
         >
           <AppIcon
             name={ICONS.arbeitstext.attach}
@@ -98,7 +101,7 @@ export default function ArbeitstexteScreen() {
             color={colors.onSurface}
           />
           <Text style={[typography.labelMedium, { color: colors.onSurface }]}>
-            Neuer Arbeitstext
+            {t('arbeitstexte.newButton')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -110,7 +113,7 @@ export default function ArbeitstexteScreen() {
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Arbeitstext suchen…"
+            placeholder={t('arbeitstexte.searchPlaceholder')}
             placeholderTextColor={colors.onSurfaceVariant}
             style={[typography.bodyMedium, styles.searchInput, { color: colors.onSurface }]}
           />
@@ -124,7 +127,7 @@ export default function ArbeitstexteScreen() {
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
           <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-            {searchQuery ? 'Kein Arbeitstext gefunden.' : 'Noch keine allgemeinen Arbeitstexte vorhanden.'}
+            {searchQuery ? t('arbeitstexte.emptySearch') : t('arbeitstexte.empty')}
           </Text>
         </View>
       ) : (
@@ -146,7 +149,7 @@ export default function ArbeitstexteScreen() {
               </Text>
               <View style={styles.dates}>
                 <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant }]}>
-                  Geändert {formatRelativeDate(item.updatedAt)}
+                  {t('arbeitstexte.changed', { when: formatRelativeDate(item.updatedAt) })}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -158,8 +161,8 @@ export default function ArbeitstexteScreen() {
         <NoteEditorModal
           visible
           onClose={() => setCreating(false)}
-          initialContent="# Arbeitstext\n\n"
-          contextLabel="Neuer Arbeitstext"
+          initialContent={t('arbeitstexte.initialContent')}
+          contextLabel={t('common.newArbeitstext')}
           onCreated={(note) => {
             setCreating(false);
             setPreviewNote(note);
