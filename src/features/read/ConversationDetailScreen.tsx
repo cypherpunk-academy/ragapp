@@ -175,6 +175,7 @@ export default function ConversationDetailScreen({
             <View
               key={`${turn.talkId}-${turn.turnIndex}`}
               onLayout={(e) => {
+                if (turn.turnIndex == null) return;
                 turnLayoutsRef.current.set(turn.turnIndex, e.nativeEvent.layout.y);
                 if (turn.turnIndex === anchorTurnIndex && !didScrollToAnchorRef.current) {
                   requestAnimationFrame(scrollToAnchor);

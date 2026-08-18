@@ -17,7 +17,7 @@ import type Note from '@/data/db/models/Note';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  userId: string;
+  userId?: string;
   /** Label shown above the input, e.g. “Absatz 3 · Kapitel I” */
   contextLabel?: string | null;
   paragraphId?: string | null;
@@ -58,7 +58,7 @@ export default function NoteEditorModal({
       await NoteRepository.update(note, trimmed);
     } else {
       const result = await NoteRepository.create({
-        userId,
+        userId: userId ?? 'local',
         paragraphId: paragraphId ?? undefined,
         segmentSlug: segmentSlug ?? undefined,
         sourceId: sourceId ?? undefined,
