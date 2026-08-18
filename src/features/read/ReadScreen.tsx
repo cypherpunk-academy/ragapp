@@ -5,7 +5,7 @@ import {
   StyleSheet, useColorScheme, useWindowDimensions, ActivityIndicator,
   type ViewToken, AppState,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import AppBar from '@/shared/components/AppBar';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -115,7 +115,7 @@ export default function ReadScreen() {
   const [sourceMeta, setSourceMeta] = useState<{ author: string; title: string } | null>(null);
   const allParagraphsRef = useRef<Paragraph[]>([]);
   allParagraphsRef.current = allParagraphs;
-  const listRef = useRef<FlashList<Paragraph>>(null);
+  const listRef = useRef<FlashListRef<Paragraph>>(null);
   const lastReadWriteParagraphId = useRef<string | null>(null);
   const pendingLastReadParagraphId = useRef<string | null>(null);
   const lastReadDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -690,16 +690,6 @@ export default function ReadScreen() {
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={[styles.listContent, { paddingHorizontal: readPadH }]}
-        estimatedItemSize={Math.max(180, bodyLineHeight * 8)}
-        overrideItemLayout={(layout, item) => {
-          layout.size = estimateParagraphHeight(item.textRaw, bodyLineHeight);
-        }}
-        onScrollToIndexFailed={(info) => {
-          const { index } = info;
-          setTimeout(() => {
-            listRef.current?.scrollToIndex({ index, animated: false, viewOffset: 8 });
-          }, 150);
-        }}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
         onMomentumScrollEnd={flushScrollIdle}

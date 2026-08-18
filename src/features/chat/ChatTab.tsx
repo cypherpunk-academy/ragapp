@@ -169,7 +169,6 @@ export default function ChatTab({
   } | null>(null);
   const [pinned, setPinnedState] = useState(false);
   const [mode, setModeState] = useState<ChatMode>('chat');
-  const [menuTurn, setMenuTurn] = useState<{ turn: Turn; part: 'user' | 'assistant' } | null>(null);
   const [compressedUpToTurnIndex, setCompressedUpToTurnIndex] = useState<number | null>(null);
   const [contextMeta, setContextMeta] = useState<ChatContextMeta | null>(null);
   const [contextSheetVisible, setContextSheetVisible] = useState(false);
@@ -690,31 +689,8 @@ export default function ChatTab({
   }, [inputText, activeTalkId, sending, turns.length, onActiveTalkChange, pendingAttachNote, contextParagraph, contextSourceTitle, linkedNote, mode, clearConnectingTimer, t]);
 
   const handleCopyTurnText = useCallback(async (text: string) => {
-    setMenuTurn(null);
     await Clipboard.setStringAsync(text);
   }, []);
-
-  const handleEditTurn = useCallback(async (turn: Turn) => {
-    setMenuTurn(null);
-    if (turn.turnIndex == null) return;
-    try {
-      await TurnRepository.deleteFromIndex(turn.talkId, turn.turnIndex);
-      setInputText(turn.userMessage ?? '');
-    } catch {
-      Alert.alert(t('common.error'), t('chat.errorEdit'));
-    }
-  }, [t]);
-
-  const handleRetryTurn = useCallback(async (turn: Turn) => {
-    setMenuTurn(null);
-    if (turn.turnIndex == null || !turn.userMessage) return;
-    try {
-      await TurnRepository.deleteFromIndex(turn.talkId, turn.turnIndex);
-      await handleSend(turn.userMessage, turn.turnIndex);
-    } catch {
-      Alert.alert(t('common.error'), t('chat.errorRetry'));
-    }
-  }, [handleSend, t]);
 
   const handleKopieren = useCallback(async () => {
     if (!activeTalkId) return;
@@ -910,36 +886,28 @@ export default function ChatTab({
 
           return (
           <View style={styles.turnBlock}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onLongPress={() => setMenuTurn({ turn, part: 'user' })}
-              style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}
-            >
+            <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
               <InlineMdText
                 text={turn.userMessage}
                 style={[scaledNoteBody, { color: colors.onSurface }]}
               />
-            </TouchableOpacity>
+            </View>
             <TurnMetaLine turn={turn} kind="user" />
 
             {turn.assistantMessage ? (
               <>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onLongPress={() => setMenuTurn({ turn, part: 'assistant' })}
-                  style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}
-                >
+                <View style={[styles.bubble, { backgroundColor: colors.secondaryContainer }]}>
                   <AssistantMessageText
                     text={turn.assistantMessage}
-                    onCitationPress={(idx) => openInsights(turn, idx)}
                   />
-                </TouchableOpacity>
+                </View>
                 <TurnMetaLine
                   turn={turn}
                   kind="assistant"
                   personalityLabel={personalityLabel(turn.personality)}
                   ragHitCount={showRagMeta ? ragHitCount : 0}
                   onRagHitsPress={showRagMeta ? () => openInsights(turn) : undefined}
+                  onCopyPress={() => void handleCopyTurnText(turn.assistantMessage ?? '')}
                 />
               </>
             ) : (
@@ -1109,44 +1077,6 @@ export default function ChatTab({
           }}
         />
       )}
-      {menuTurn != null && (
-        <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
-          <Pressable style={overlayStyles.sheetBackdrop} onPress={() => setMenuTurn(null)} />
-          <View style={[styles.modeMenu, { backgroundColor: colors.surfaceContainerHigh }]}>
-            {menuTurn.part === 'user' && (
-              <>
-                <TouchableOpacity
-                  onPress={() => void handleEditTurn(menuTurn.turn)}
-                  style={styles.modeMenuItem}
-                >
-                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>{t('chat.edit')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => void handleRetryTurn(menuTurn.turn)}
-                  style={styles.modeMenuItem}
-                >
-                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>{t('chat.retry')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => void handleCopyTurnText(menuTurn.turn.userMessage ?? '')}
-                  style={styles.modeMenuItem}
-                >
-                  <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>{t('chat.copy')}</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {menuTurn.part === 'assistant' && (
-              <TouchableOpacity
-                onPress={() => void handleCopyTurnText(menuTurn.turn.assistantMessage ?? '')}
-                style={styles.modeMenuItem}
-              >
-                <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>{t('chat.copy')}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
       {contextSheetVisible && (
         <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
           <Pressable style={overlayStyles.sheetBackdrop} onPress={() => setContextSheetVisible(false)} />
@@ -1296,16 +1226,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     paddingHorizontal: spacing.m,
-  },
-  modeMenu: {
-    marginHorizontal: spacing.m,
-    marginBottom: spacing.xl,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  modeMenuItem: {
-    paddingHorizontal: spacing.m,
-    paddingVertical: spacing.m,
   },
   contextBarTrack: {
     width: 44,

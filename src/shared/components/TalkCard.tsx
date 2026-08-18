@@ -50,7 +50,7 @@ export default function TalkCard({ talk, snippetTurn, onPress, relevancePercent 
           {'·'}
         </Text>
         <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-          {formatDate(talk.updatedAt)} · {personalityLabel(snippetTurn?.assistantPersonality)}
+          {formatDate(talk.updatedAt)} · {personalityLabel(snippetTurn?.personality)}
         </Text>
       </View>
 

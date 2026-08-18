@@ -48,7 +48,8 @@
       "ios": {
         "appleId": "m@michaelschmidt.berlin",
         "ascAppId": "6798671805",
-        "appleTeamId": "J424WHTQX5"
+        "appleTeamId": "J424WHTQX5",
+        "groups": ["Philo"]
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
