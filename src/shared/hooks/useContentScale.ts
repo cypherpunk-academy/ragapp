@@ -1,4 +1,5 @@
 import { useSettings, type FontSizeLevel } from '@/shared/contexts/SettingsContext';
+import { isTablet } from '@/shared/theme/tabletScale';
 
 const SCALE: Record<FontSizeLevel, number> = {
   small: 0.88,
@@ -8,9 +9,11 @@ const SCALE: Record<FontSizeLevel, number> = {
   xxlarge: 1.50,
 };
 
+const DEVICE_CONTENT_SCALE = isTablet() ? 1.1 : 0.9;
+
 /** Gibt den Schriftgrößen-Multiplikator für Lesetext und Chat-Bubbles zurück. */
 export function useContentScale(): number {
-  return SCALE[useSettings().fontSizeLevel];
+  return SCALE[useSettings().fontSizeLevel] * DEVICE_CONTENT_SCALE;
 }
 
 /** Skaliert fontSize und lineHeight eines Text-Styles mit dem gegebenen Faktor. */
