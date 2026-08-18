@@ -4,6 +4,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles, typography } from '../theme';
 import { ICONS, ICON_SIZES } from '../theme';
 import AppIcon from './AppIcon';
@@ -29,6 +30,7 @@ export default function AppBar({
   showUserMenu = true,
   trailing,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { warnings } = useWarnings();
@@ -46,7 +48,7 @@ export default function AppBar({
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel="Zurück"
+          accessibilityLabel={t('appBar.backA11y')}
         >
           <AppIcon name={ICONS.nav.back} size={28} color={colors.primary} />
         </TouchableOpacity>
@@ -62,7 +64,7 @@ export default function AppBar({
           onPress={() => setOverlayOpen(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel="Warnungen anzeigen"
+          accessibilityLabel={t('appBar.warningsA11y')}
         >
           <AppIcon name="warning" size={ICON_SIZES.appBar} color={colors.error} />
         </TouchableOpacity>
@@ -74,11 +76,11 @@ export default function AppBar({
       {showUserMenu ? <UserMenuButton /> : null}
 
       <Modal visible={overlayOpen} transparent animationType="fade" onRequestClose={() => setOverlayOpen(false)}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOverlayOpen(false)} accessibilityRole="button" accessibilityLabel="Hinweise schließen" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOverlayOpen(false)} accessibilityRole="button" accessibilityLabel={t('appBar.closeHintsA11y')} />
         <View style={[styles.warningsPanel, { backgroundColor: colors.errorContainer, shadowColor: colors.shadow }]}>
           <View style={styles.warningsPanelHeader}>
             <AppIcon name="warning" size={18} color={colors.error} />
-            <Text style={[textStyles.labelSection, { color: colors.onErrorContainer }]}>Hinweise</Text>
+            <Text style={[textStyles.labelSection, { color: colors.onErrorContainer }]}>{t('common.hints')}</Text>
           </View>
           <View style={[styles.warningsDivider, { backgroundColor: colors.error }]} />
           {warnings.map(({ id, message }) => (

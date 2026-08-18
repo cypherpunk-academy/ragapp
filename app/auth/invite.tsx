@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sendInvitation } from '@/data/services/invitationService';
+import i18n from '@/shared/i18n';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
 function errorMessage(err: unknown): string {
@@ -25,10 +27,11 @@ function errorMessage(err: unknown): string {
       return (err as { message: string }).message;
     }
   }
-  return 'Ein Fehler ist aufgetreten.';
+  return i18n.t('auth.genericError');
 }
 
 export default function InviteScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -43,7 +46,7 @@ export default function InviteScreen() {
     setError(null);
     const trimmed = email.trim();
     if (!trimmed || !trimmed.includes('@')) {
-      setError('Bitte eine gültige E-Mail-Adresse eingeben.');
+      setError(t('auth.invalidEmail'));
       return;
     }
     setBusy(true);
@@ -69,7 +72,7 @@ export default function InviteScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Teilnehmer einladen
+          {t('auth.inviteTitle')}
         </Text>
       </View>
 
@@ -81,35 +84,33 @@ export default function InviteScreen() {
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Ionicons name="checkmark-circle" size={48} color={colors.primary} style={{ alignSelf: 'center' }} />
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
-              Einladung an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{sentEmail}</Text>
-              {' '}gesendet.
+              {t('auth.inviteSent', { email: sentEmail })}
             </Text>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
               onPress={() => { setSuccess(false); setError(null); }}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Weitere Einladung</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.anotherInvite')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
               onPress={() => router.back()}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>Zurück</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>{t('common.back')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-              Laden Sie einen neuen Teilnehmer ein. Die Person erhält eine E-Mail mit einem Einladungscode.
+              {t('auth.inviteIntro')}
             </Text>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-              E-Mail des Eingeladenen
+              {t('auth.inviteeEmailLabel')}
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="name@beispiel.de"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -132,7 +133,7 @@ export default function InviteScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Einladung senden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.sendInvite')}</Text>
               )}
             </TouchableOpacity>
           </View>

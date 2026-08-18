@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
 } from 'react-native';
@@ -27,6 +28,7 @@ type Props = {
 export default function ConversationDetailScreen({
   visible, talkId, anchorParagraphId, anchorTurnIndex, sourceId, onClose,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const isDark = colorScheme === 'dark';
@@ -95,9 +97,11 @@ export default function ConversationDetailScreen({
 
   const contextLabel = useMemo(() => {
     if (!anchorParagraph) return null;
-    const typeLabel = 'Kapitel';
-    return `${typeLabel} · ${anchorParagraph.segmentTitle} · ${anchorParagraph.paragraphNumber}|`;
-  }, [anchorParagraph]);
+    return t('contributions.contextBreadcrumb', {
+      segmentTitle: anchorParagraph.segmentTitle,
+      paragraphNumber: anchorParagraph.paragraphNumber,
+    });
+  }, [anchorParagraph, t]);
 
   const scrollToAnchor = useCallback(() => {
     const y = turnLayoutsRef.current.get(anchorTurnIndex);
@@ -136,7 +140,7 @@ export default function ConversationDetailScreen({
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Gespräch
+          {t('conversationDetail.title')}
         </Text>
       </View>
 
@@ -171,6 +175,7 @@ export default function ConversationDetailScreen({
             <View
               key={`${turn.talkId}-${turn.turnIndex}`}
               onLayout={(e) => {
+                if (turn.turnIndex == null) return;
                 turnLayoutsRef.current.set(turn.turnIndex, e.nativeEvent.layout.y);
                 if (turn.turnIndex === anchorTurnIndex && !didScrollToAnchorRef.current) {
                   requestAnimationFrame(scrollToAnchor);
@@ -185,13 +190,13 @@ export default function ConversationDetailScreen({
               {isAnchor ? (
                 <View style={styles.turnHeader}>
                   <View style={[styles.fundstelleBadge, { borderColor: fundstelleAccent.border }]}>
-                    <Text style={[textStyles.noteMeta, { color: fundstelleAccent.label }]}>Fundstelle</Text>
+                    <Text style={[textStyles.noteMeta, { color: fundstelleAccent.label }]}>{t('conversationDetail.fundstelle')}</Text>
                   </View>
                 </View>
               ) : null}
               <View style={styles.bubble}>
                 <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, marginBottom: spacing.xs }]}>
-                  Du
+                  {t('common.you')}
                 </Text>
                 <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>{turn.userMessage}</Text>
               </View>
@@ -217,7 +222,7 @@ export default function ConversationDetailScreen({
         >
           <Ionicons name="chatbubble-outline" size={16} color={colors.onSecondaryContainer} />
           <Text style={[textStyles.noteMeta, { color: colors.onSecondaryContainer }]}>
-            Gespräch fortführen
+            {t('conversationDetail.continue')}
           </Text>
         </TouchableOpacity>
       </View>

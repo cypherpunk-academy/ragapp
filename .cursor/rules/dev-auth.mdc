@@ -1,0 +1,21 @@
+---
+description: Dev login in iOS/Android simulator — use yarn auth:login, not manual UI
+alwaysApply: true
+---
+
+# Dev auth (Simulator / Emulator)
+
+When the user asks to sign in, log in, or authenticate in the Philo/ragapp **simulator or emulator**, do **not** try to click through the UI. Use the dev-login script:
+
+```bash
+cd ragapp
+yarn auth:login <email> --ios       # booted iOS/iPad Simulator
+yarn auth:login <email> --android # adb device/emulator
+yarn auth:login <email> --print     # deep link only
+```
+
+Implementation: `scripts/dev-login.mjs` — Supabase service role → session → `ragapp://auth-callback?access_token=…` via `xcrun simctl openurl` (iOS) or `adb am start` (Android).
+
+**Prerequisites:** booted simulator/emulator; Metro on `:8081` (`yarn start`); `ragapp/.env.local` with `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+See also `ragrun/LESSONS_LEARNT.md` (Philo-App: Anmeldung im iOS-Simulator).

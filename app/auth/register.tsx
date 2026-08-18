@@ -13,19 +13,22 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
+import i18n from '@/shared/i18n';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
     return (err as { message: string }).message;
   }
-  return 'Ein Fehler ist aufgetreten.';
+  return i18n.t('auth.genericError');
 }
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -48,15 +51,15 @@ export default function RegisterScreen() {
   const handleCreate = async () => {
     setError(null);
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      setError('Bitte eine gültige E-Mail-Adresse eingeben.');
+      setError(t('auth.invalidEmail'));
       return;
     }
     if (!trimmedName) {
-      setError('Bitte einen Namen eingeben.');
+      setError(t('auth.nameRequired'));
       return;
     }
     if (!authService.isAvailable()) {
-      setError('Anmeldung ist hier noch nicht eingerichtet (Supabase fehlt).');
+      setError(t('auth.supabaseNotConfiguredShort'));
       return;
     }
     setBusy(true);
@@ -80,7 +83,7 @@ export default function RegisterScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Konto anlegen
+          {t('auth.registerTitle')}
         </Text>
       </View>
 
@@ -90,39 +93,35 @@ export default function RegisterScreen() {
       >
         {!isConfigured ? (
           <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, marginBottom: spacing.m }]}>
-            Supabase ist nicht konfiguriert. Tragen Sie EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_ANON_KEY in der
-            Umgebung ein und starten Sie die App neu.
+            {t('auth.supabaseNotConfiguredLong')}
           </Text>
         ) : null}
 
         <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-          Für diese E-Mail-Adresse existiert noch kein Konto. Legen Sie ein Konto an; wir senden Ihnen einen Link zur
-          Bestätigung.
+          {t('auth.registerIntro')}
         </Text>
 
         {sent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Wir haben einen Bestätigungslink an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmedEmail}</Text>
-              {' '}gesendet. Öffnen Sie die E-Mail auf diesem Gerät, um die Registrierung abzuschließen.
+              {t('auth.registerSent', { email: trimmedEmail })}
             </Text>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.replace('/(tabs)')}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Zur App</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.goToApp')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-              E-Mail
+              {t('auth.emailLabel')}
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="name@beispiel.de"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -140,12 +139,12 @@ export default function RegisterScreen() {
                 { color: colors.onSurfaceVariant, marginBottom: spacing.s, marginTop: spacing.m },
               ]}
             >
-              Name
+              {t('auth.nameLabel')}
             </Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Ihr Anzeigename"
+              placeholder={t('auth.namePlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant}
               autoCapitalize="words"
               editable={!busy}
@@ -166,7 +165,7 @@ export default function RegisterScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Link senden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.sendLink')}</Text>
               )}
             </TouchableOpacity>
           </View>

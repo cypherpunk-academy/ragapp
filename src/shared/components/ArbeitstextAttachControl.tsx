@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { getNoteBadgeStyle, ICONS, ICON_SIZES, spacing, textStyles, lightColors, darkColors } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
 import type Note from '@/data/db/models/Note';
@@ -11,6 +12,7 @@ type Props = {
 
 /** Büroklammer; bei verknüpftem Arbeitstext mit grünem „Arbeitstext“-Label. */
 export default function ArbeitstextAttachControl({ note, onPress }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -23,7 +25,7 @@ export default function ArbeitstextAttachControl({ note, onPress }: Props) {
       activeOpacity={0.8}
       style={styles.row}
       accessibilityRole="button"
-      accessibilityLabel={note ? 'Arbeitstext öffnen' : 'Arbeitstext verknüpfen'}
+      accessibilityLabel={note ? t('arbeitstextAttach.openA11y') : t('arbeitstextAttach.linkA11y')}
     >
       <AppIcon
         name={ICONS.arbeitstext.attach}
@@ -33,7 +35,7 @@ export default function ArbeitstextAttachControl({ note, onPress }: Props) {
       {note ? (
         <View style={[styles.badge, { backgroundColor: badge.backgroundColor }]}>
           <Text style={[textStyles.noteMeta, { color: badge.textColor }]} numberOfLines={1}>
-            Arbeitstext
+            {t('common.arbeitstext')}
           </Text>
         </View>
       ) : null}

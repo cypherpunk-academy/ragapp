@@ -42,6 +42,12 @@ if [[ ! -d android ]]; then
 fi
 
 SERIAL=$(adb devices | awk '/^emulator-/{print $1; exit}')
+PKG=berlin.cypherpunkacademy.ragapp
+# Production/staging APKs have higher versionCode — uninstall first to avoid INSTALL_FAILED_VERSION_DOWNGRADE.
+if adb -s "${SERIAL}" shell pm path "${PKG}" 2>/dev/null | grep -q .; then
+  echo "  Uninstalling existing ${PKG} (allows debug install over production build)…"
+  adb -s "${SERIAL}" uninstall "${PKG}" >/dev/null 2>&1 || true
+fi
 echo "→ Building & installing Android debug APK on ${SERIAL}…"
 (
   cd android
@@ -49,7 +55,6 @@ echo "→ Building & installing Android debug APK on ${SERIAL}…"
     -PreactNativeDevServerPort="${METRO_PORT}" --quiet
 )
 
-PKG=berlin.cypherpunkacademy.ragapp
 adb -s "${SERIAL}" shell monkey -p "${PKG}" -c android.intent.category.LAUNCHER 1 2>/dev/null
 
 # ── 3. Build iOS (if needed) ─────────────────────────────────────────────────
@@ -60,7 +65,7 @@ if [[ ! -d ios ]]; then
 fi
 
 echo "→ Building & installing iOS on iPad simulator…"
-npx expo run:ios --device "${IPAD_UDID}" --no-bundler &
+bash scripts/run-ios-simulator.sh --no-metro &
 IOS_BUILD_PID=$!
 
 # ── 4. Start Metro ──────────────────────────────────────────────────────────

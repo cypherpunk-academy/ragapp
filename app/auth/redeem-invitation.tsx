@@ -13,19 +13,24 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService } from '@/data/services/authService';
 import { redeemInvitation } from '@/data/services/invitationService';
+import i18n from '@/shared/i18n';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
 
-/** Map common Supabase/backend English messages to German. */
+/** Map common Supabase/backend messages to localized copy. */
 function translateError(msg: string): string {
   const lower = msg.toLowerCase();
   if (lower.includes('security purposes') && lower.includes('request this after')) {
     const secs = msg.match(/after\s+(\d+)\s+seconds/i);
     return secs
-      ? `Bitte ${secs[1]} Sekunden warten, bevor du es erneut versuchst.`
-      : 'Bitte einen Moment warten, bevor du es erneut versuchst.';
+      ? i18n.t('auth.rateLimitSeconds', { seconds: secs[1] })
+      : i18n.t('auth.rateLimitGeneric');
+  }
+  if (lower.includes('abgelaufen') || lower.includes('expired')) {
+    return i18n.t('auth.inviteCodeExpired');
   }
   return msg;
 }
@@ -39,10 +44,11 @@ function errorMessage(err: unknown): string {
       return translateError((err as { message: string }).message);
     }
   }
-  return 'Ein Fehler ist aufgetreten.';
+  return i18n.t('auth.genericError');
 }
 
 export default function RedeemInvitationScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -61,11 +67,11 @@ export default function RedeemInvitationScreen() {
   const handleRedeem = async () => {
     setError(null);
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      setError('Bitte eine gültige E-Mail-Adresse eingeben.');
+      setError(t('auth.invalidEmail'));
       return;
     }
     if (code.trim().length !== 4) {
-      setError('Bitte den 4-stelligen Einladungscode eingeben.');
+      setError(t('auth.inviteCodeRequired'));
       return;
     }
     setBusy(true);
@@ -94,7 +100,7 @@ export default function RedeemInvitationScreen() {
     setError(null);
     const otpCode = otp.trim();
     if (otpCode.length < 6) {
-      setError('Bitte den Code aus der E-Mail eingeben.');
+      setError(t('auth.enterEmailCode'));
       return;
     }
     setBusy(true);
@@ -118,7 +124,7 @@ export default function RedeemInvitationScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Einladung einlösen
+          {t('auth.redeemTitle')}
         </Text>
       </View>
 
@@ -129,17 +135,15 @@ export default function RedeemInvitationScreen() {
         {otpSent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              Willkommen! Wir haben eine E-Mail an{' '}
-              <Text style={{ fontFamily: textStyles.noteBody.fontFamily }}>{trimmedEmail}</Text>
-              {' '}gesendet. Bitte den Code aus der Mail hier eingeben.
+              {t('auth.welcomeOtpSent', { email: trimmedEmail })}
             </Text>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-              Code aus der E-Mail
+              {t('auth.otpLabel')}
             </Text>
             <TextInput
               value={otp}
               onChangeText={setOtp}
-              placeholder="123456"
+              placeholder={t('auth.otpPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="number-pad"
               autoComplete="one-time-code"
@@ -162,19 +166,19 @@ export default function RedeemInvitationScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.loginTitle')}</Text>
               )}
             </TouchableOpacity>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-              E-Mail
+              {t('auth.emailLabel')}
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="name@beispiel.de"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -187,12 +191,12 @@ export default function RedeemInvitationScreen() {
               ]}
             />
             <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.s }]}>
-              Einladungscode (4 Ziffern)
+              {t('auth.inviteCodeLabel')}
             </Text>
             <TextInput
               value={code}
               onChangeText={setCode}
-              placeholder="1234"
+              placeholder={t('auth.inviteCodePlaceholder')}
               placeholderTextColor={colors.onSurfaceVariant + '80'}
               keyboardType="number-pad"
               maxLength={4}
@@ -214,7 +218,7 @@ export default function RedeemInvitationScreen() {
               {busy ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Einlösen</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.redeem')}</Text>
               )}
             </TouchableOpacity>
           </View>

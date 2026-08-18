@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 23,
+  version: 24,
   tables: [
     tableSchema({
       name: 'sources',
@@ -109,6 +109,15 @@ export const schema = appSchema({
         { name: 'segment_title',  type: 'string', isOptional: true },
         { name: 'created_at',     type: 'number' },
         { name: 'updated_at',     type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'starter_prompts',
+      columns: [
+        { name: 'prompt',     type: 'string' },
+        { name: 'sort_order', type: 'number' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
   ],

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { parseMdInline } from '@/shared/lib/parseMdInline';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ type Props = {
 export default function ChunkPreviewScreen({
   visible, onClose, onNavigateToRead, chunkId, sourceId, title, initialText, readTarget,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const italicColor = readingItalicColor(colorScheme === 'dark');
@@ -31,7 +33,7 @@ export default function ChunkPreviewScreen({
   const body = useChunkPreviewBody(chunkId, sourceId, initialText);
   if (!visible) return null;
 
-  const displayTitle = title?.trim() || 'Text';
+  const displayTitle = title?.trim() || t('chunkPreview.fallbackTitle');
 
   return (
     <View

@@ -4,6 +4,7 @@ import {
   useColorScheme, ActivityIndicator, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import AppBar from '@/shared/components/AppBar';
 import AppIcon from '@/shared/components/AppIcon';
 import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
@@ -11,10 +12,11 @@ import { ICONS, ICON_SIZES } from '@/shared/theme';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useSync } from '@/shared/hooks/useSync';
 import { authService } from '@/data/services/authService';
+import { getDateLocale } from '@/shared/i18n';
 
 function formatSyncTime(ms: number): string {
   const d = new Date(ms);
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 type Props = {
@@ -22,6 +24,7 @@ type Props = {
 };
 
 export default function KontoScreen({ variant }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { user, loading, isAuthenticated, isConfigured } = useAuth();
@@ -29,10 +32,10 @@ export default function KontoScreen({ variant }: Props) {
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = () => {
-    Alert.alert('Abmelden', 'Möchten Sie sich wirklich abmelden?', [
-      { text: 'Abbrechen', style: 'cancel' },
+    Alert.alert(t('konto.signOutConfirmTitle'), t('konto.signOutConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Abmelden',
+        text: t('konto.signOut'),
         style: 'destructive',
         onPress: async () => {
           setSigningOut(true);
@@ -48,16 +51,16 @@ export default function KontoScreen({ variant }: Props) {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Konto löschen',
-      'Alle Notizen und Lesezeichen werden unwiderruflich gelöscht. Fortfahren?',
+      t('konto.deleteAccountTitle'),
+      t('konto.deleteAccountBody'),
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Konto löschen',
+          text: t('konto.deleteAccountConfirm'),
           style: 'destructive',
           onPress: () => {
             // TODO: call delete-account Edge Function when implemented
-            Alert.alert('Nicht verfügbar', 'Bitte kontaktieren Sie den Support zum Löschen Ihres Kontos.');
+            Alert.alert(t('konto.deleteUnavailableTitle'), t('konto.deleteUnavailableBody'));
           },
         },
       ],
@@ -69,7 +72,7 @@ export default function KontoScreen({ variant }: Props) {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <AppBar
-        title="Konto"
+        title={t('konto.title')}
         showUserMenu={false}
         onBackPress={isStack ? () => router.back() : undefined}
       />
@@ -85,11 +88,11 @@ export default function KontoScreen({ variant }: Props) {
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <AppIcon name={ICONS.account.avatar} size={ICON_SIZES.hero} color={colors.onSurfaceVariant} style={styles.avatarIcon} />
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
-              Melden Sie sich an, um Notizen und Gespräche geräteübergreifend zu synchronisieren.
+              {t('konto.signInPrompt')}
             </Text>
             {!isConfigured && (
               <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-                Supabase ist nicht konfiguriert (EXPO_PUBLIC_SUPABASE_URL fehlt).
+                {t('konto.supabaseMissing')}
               </Text>
             )}
             {isConfigured && (
@@ -98,7 +101,7 @@ export default function KontoScreen({ variant }: Props) {
                 onPress={() => router.push('/auth/login')}
                 activeOpacity={0.85}
               >
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('common.signIn')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -114,7 +117,7 @@ export default function KontoScreen({ variant }: Props) {
                 </View>
                 <View style={styles.profileText}>
                   <Text style={[textStyles.contributionsTitle, { color: colors.onSurface }]} numberOfLines={1}>
-                    {user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? 'Angemeldet'}
+                    {user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? t('konto.signedInFallback')}
                   </Text>
                   <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]} numberOfLines={1}>
                     {user.email ?? ''}
@@ -126,17 +129,17 @@ export default function KontoScreen({ variant }: Props) {
             {/* Sync */}
             <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
               <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-                SYNCHRONISATION
+                {t('konto.syncSection')}
               </Text>
               <View style={styles.syncRow}>
                 <Text style={[typography.bodyMedium, { color: colors.onSurface, flex: 1 }]}>
                   {syncing
-                    ? 'Synchronisiere…'
+                    ? t('konto.syncing')
                     : lastError
-                      ? `Fehler: ${lastError}`
+                      ? t('konto.syncError', { error: lastError })
                       : lastSyncedAt
-                        ? `Zuletzt: ${formatSyncTime(lastSyncedAt)}`
-                        : 'Noch nicht synchronisiert'}
+                        ? t('konto.lastSynced', { time: formatSyncTime(lastSyncedAt) })
+                        : t('konto.neverSynced')}
                 </Text>
                 <TouchableOpacity
                   style={[styles.syncBtn, { backgroundColor: colors.primary, opacity: syncing ? 0.6 : 1 }]}
@@ -148,7 +151,7 @@ export default function KontoScreen({ variant }: Props) {
                     ? <ActivityIndicator size="small" color={colors.onPrimary} />
                     : (
                       <Text style={[textStyles.continueCta, { color: colors.onPrimary }]} numberOfLines={1}>
-                        Synchronisieren
+                        {t('konto.syncNow')}
                       </Text>
                     )}
                 </TouchableOpacity>
@@ -158,14 +161,14 @@ export default function KontoScreen({ variant }: Props) {
             {/* Einladung */}
             <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
               <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-                EINLADUNG
+                {t('konto.inviteSection')}
               </Text>
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                 onPress={() => router.push('/auth/invite')}
                 activeOpacity={0.85}
               >
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Neuen Teilnehmer einladen</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('konto.inviteParticipant')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -179,7 +182,7 @@ export default function KontoScreen({ variant }: Props) {
               >
                 {signingOut
                   ? <ActivityIndicator size="small" color={colors.error} />
-                  : <Text style={[typography.bodyMedium, { color: colors.error }]}>Abmelden</Text>}
+                  : <Text style={[typography.bodyMedium, { color: colors.error }]}>{t('konto.signOut')}</Text>}
               </TouchableOpacity>
               <View style={[styles.separator, { backgroundColor: colors.outlineVariant }]} />
               <TouchableOpacity
@@ -187,7 +190,7 @@ export default function KontoScreen({ variant }: Props) {
                 onPress={handleDeleteAccount}
                 activeOpacity={0.7}
               >
-                <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant }]}>Konto löschen…</Text>
+                <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant }]}>{t('konto.deleteAccount')}</Text>
               </TouchableOpacity>
             </View>
           </>

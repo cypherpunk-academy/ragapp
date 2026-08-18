@@ -1,3 +1,4 @@
+import '@/shared/i18n';
 import { useEffect, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -34,10 +35,24 @@ import BootLoadingView from '@/shared/components/BootLoadingView';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  useEffect(() => {
+    console.warn('[RootLayout] MOUNTED');
+    return () => console.warn('[RootLayout] UNMOUNTED');
+  }, []);
+
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const [fontsLoaded] = useAppFonts();
+  const [fontsLoaded, fontError] = useAppFonts();
   const { loading: authLoading, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    console.warn('[RootLayout] boot:', {
+      fontsLoaded,
+      fontError: fontError?.message ?? null,
+      authLoading,
+      isAuthenticated,
+    });
+  }, [fontsLoaded, fontError, authLoading, isAuthenticated]);
   const hasSynced = useRef(false);
 
   useEffect(() => {

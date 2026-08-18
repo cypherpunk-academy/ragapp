@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { authService, type AuthState } from '@/data/services/authService';
 
 const initialState: AuthState = { session: null, user: null };
+const SESSION_TIMEOUT_MS = 8_000;
 
 export function useAuth() {
   const [state, setState] = useState<AuthState>(initialState);
@@ -15,6 +16,12 @@ export function useAuth() {
 
     let active = true;
 
+    const timeout = setTimeout(() => {
+      if (!active) return;
+      console.warn('[useAuth] getSession timeout — proceeding without session');
+      setLoading(false);
+    }, SESSION_TIMEOUT_MS);
+
     authService
       .getSession()
       .then((session) => {
@@ -25,6 +32,7 @@ export function useAuth() {
         console.warn('[useAuth] getSession error:', err instanceof Error ? err.message : err);
       })
       .finally(() => {
+        clearTimeout(timeout);
         if (active) setLoading(false);
       });
 
@@ -34,6 +42,7 @@ export function useAuth() {
 
     return () => {
       active = false;
+      clearTimeout(timeout);
       unsubscribe();
     };
   }, []);

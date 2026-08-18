@@ -34,13 +34,17 @@ export function authErrorSuggestsNewAccount(error: unknown): boolean {
     error && typeof error === 'object' && 'code' in error && typeof (error as { code: unknown }).code === 'string'
       ? (error as { code: string }).code
       : undefined;
-  if (code === 'user_not_found' || code === 'identity_not_found') return true;
+  if (code === 'user_not_found' || code === 'identity_not_found' || code === 'otp_disabled') return true;
   const message =
     error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
       ? (error as { message: string }).message
       : '';
   const lower = message.toLowerCase();
-  return lower.includes('user not found') || lower.includes('no user');
+  return (
+    lower.includes('user not found') ||
+    lower.includes('no user') ||
+    lower.includes('signups not allowed')
+  );
 }
 
 export const authService = {

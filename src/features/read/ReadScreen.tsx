@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, TouchableOpacity, Pressable,
   StyleSheet, useColorScheme, useWindowDimensions, ActivityIndicator,
   type ViewToken, AppState,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import AppBar from '@/shared/components/AppBar';
 import { overlayStyles } from '@/shared/styles/overlays';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -47,6 +48,7 @@ function estimateParagraphHeight(textRaw: string | undefined, lineHeight: number
 type Segment = { segmentIndex: number; segmentTitle: string; segmentSlug: string | null };
 
 export default function ReadScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { width: windowWidth } = useWindowDimensions();
@@ -113,7 +115,7 @@ export default function ReadScreen() {
   const [sourceMeta, setSourceMeta] = useState<{ author: string; title: string } | null>(null);
   const allParagraphsRef = useRef<Paragraph[]>([]);
   allParagraphsRef.current = allParagraphs;
-  const listRef = useRef<FlashList<Paragraph>>(null);
+  const listRef = useRef<FlashListRef<Paragraph>>(null);
   const lastReadWriteParagraphId = useRef<string | null>(null);
   const pendingLastReadParagraphId = useRef<string | null>(null);
   const lastReadDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,14 +175,14 @@ export default function ReadScreen() {
       if (duplicateParagraphs > 0) {
         setWarning(
           `duplicate-notes-${sourceId}`,
-          `${duplicateParagraphs} Absatz${duplicateParagraphs === 1 ? '' : 'e'} mit mehreren Arbeitstexten — bitte manuell bereinigen.`,
+          t('read.duplicateNotesWarning', { count: duplicateParagraphs }),
         );
       } else {
         setWarning(`duplicate-notes-${sourceId}`, null);
       }
     });
     return () => sub.unsubscribe();
-  }, [sourceId, setWarning]);
+  }, [sourceId, setWarning, t]);
 
   useEffect(() => {
     const userId = user?.id ?? 'local';
@@ -212,9 +214,9 @@ export default function ReadScreen() {
     const hit = allParagraphs.find((p) => p.id === target.paragraphId);
     setWarning(
       'read-nav-error',
-      hit ? null : 'Der angeforderte Absatz ist nicht mehr verfügbar — möglicherweise nach einer Textüberarbeitung.',
+      hit ? null : t('read.paragraphMissing'),
     );
-  }, [target.paragraphId, allParagraphs, loading, setWarning]);
+  }, [target.paragraphId, allParagraphs, loading, setWarning, t]);
 
   useEffect(() => {
     return () => { setWarning('read-nav-error', null); };
@@ -514,14 +516,15 @@ export default function ReadScreen() {
     }
 
     const chapterTitle = currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : '';
+    const paraLabel = t('common.paragraphNumber', { number: menuParagraph.paragraphNumber });
     setCreatingNoteFor({
       paragraphId,
       segmentSlug: menuParagraph.segmentSlug ?? undefined,
       sourceId,
-      initialContent: `# ${chapterTitle ? `${chapterTitle}, ` : ''}Absatz ${menuParagraph.paragraphNumber}\n\n`,
+      initialContent: `# ${chapterTitle ? `${chapterTitle}, ` : ''}${paraLabel}\n\n`,
     });
     setMenuParagraph(null);
-  }, [menuParagraph, menuParagraphNote, noteCounts, sourceId, currentSegment]);
+  }, [menuParagraph, menuParagraphNote, noteCounts, sourceId, currentSegment, t]);
 
   const handleStartChatFromMenu = useCallback(() => {
     if (!menuParagraph) return;
@@ -551,10 +554,10 @@ export default function ReadScreen() {
       setCreatingNoteFor({
         segmentSlug: currentSegment.segmentSlug,
         sourceId,
-        initialContent: `# Arbeitstext über das Kapitel ${stripSegmentTitleHtml(currentSegment.segmentTitle)}\n\n`,
+        initialContent: t('read.initialContentChapter', { title: stripSegmentTitleHtml(currentSegment.segmentTitle) }),
       });
     }
-  }, [currentSegment, chapterNote, sourceId]);
+  }, [currentSegment, chapterNote, sourceId, t]);
 
   const showContributions = useCallback((p: Paragraph) => {
     openContributions(p, sourceId);
@@ -644,7 +647,7 @@ export default function ReadScreen() {
     };
   }, [menuParagraph, noteCounts, menuNoteReady, menuParagraphNote]);
 
-  const typeLabel = 'Kapitel';
+  const typeLabel = t('common.chapter');
 
   const listHeader = useMemo(() => {
     if (!currentSegment) return null;
@@ -675,7 +678,7 @@ export default function ReadScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
-        title={hasHistory ? 'Zurück' : searchReturnActive ? (searchReturnOrigin === 'chat' ? 'Quellenverweise' : 'Suche') : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : 'Lesen')}
+        title={hasHistory ? t('common.back') : searchReturnActive ? (searchReturnOrigin === 'chat' ? t('read.sourcesReturn') : t('read.searchReturn')) : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : t('read.title'))}
         titleStyle={(hasHistory || searchReturnActive) ? appBarBackTitleStyle : appBarTitleStyle}
         onBackPress={hasHistory ? navigateBack : searchReturnActive ? (searchReturnOrigin === 'chat' ? navigateToChat : navigateToSearch) : undefined}
       />
@@ -687,16 +690,6 @@ export default function ReadScreen() {
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={[styles.listContent, { paddingHorizontal: readPadH }]}
-        estimatedItemSize={Math.max(180, bodyLineHeight * 8)}
-        overrideItemLayout={(layout, item) => {
-          layout.size = estimateParagraphHeight(item.textRaw, bodyLineHeight);
-        }}
-        onScrollToIndexFailed={(info) => {
-          const { index } = info;
-          setTimeout(() => {
-            listRef.current?.scrollToIndex({ index, animated: false, viewOffset: 8 });
-          }, 150);
-        }}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
         onMomentumScrollEnd={flushScrollIdle}
@@ -737,7 +730,7 @@ export default function ReadScreen() {
             onPress={() => prevSegment && navigateToRead({ segmentIndex: prevSegment.segmentIndex, paragraphId: null })}
             disabled={!prevSegment}
             hitSlop={8}
-            accessibilityLabel="Voriges Kapitel"
+            accessibilityLabel={t('read.prevChapterA11y')}
           >
             <Ionicons name="chevron-back" size={18} color={prevSegment ? colors.primary : colors.onSurfaceVariant} />
             <SegmentTitleText
@@ -753,7 +746,7 @@ export default function ReadScreen() {
             onPress={() => nextSegment && navigateToRead({ segmentIndex: nextSegment.segmentIndex, paragraphId: null })}
             disabled={!nextSegment}
             hitSlop={8}
-            accessibilityLabel="Nächstes Kapitel"
+            accessibilityLabel={t('read.nextChapterA11y')}
           >
             <SegmentTitleText
               title={nextSegment?.segmentTitle ?? ''}
@@ -772,7 +765,7 @@ export default function ReadScreen() {
             style={overlayStyles.sheetBackdrop}
             onPress={handleCloseMenu}
             accessibilityRole="button"
-            accessibilityLabel="Menü schließen"
+            accessibilityLabel={t('common.closeMenu')}
           />
           <View style={[styles.menu, { backgroundColor: colors.surfaceContainer }]}>
               <Text
@@ -789,15 +782,15 @@ export default function ReadScreen() {
                 />
                 <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
                   {menuParagraph && bookmarkIds.has(menuParagraph.id)
-                    ? 'Lesezeichen entfernen'
-                    : 'Lesezeichen setzen'}
+                    ? t('read.removeBookmark')
+                    : t('read.setBookmark')}
                 </Text>
               </TouchableOpacity>
               {!menuNoteState.ready ? null : menuNoteState.hasNote ? (
                 <TouchableOpacity style={styles.menuRow} onPress={handleParagraphNotePress}>
                   <Ionicons name="document-text-outline" size={20} color={colors.primary} />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    Arbeitstext ansehen
+                    {t('read.viewArbeitstext')}
                   </Text>
                 </TouchableOpacity>
               ) : (
@@ -807,7 +800,7 @@ export default function ReadScreen() {
                 >
                   <Ionicons name="pencil-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
                   <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
-                    {user ? 'Arbeitstext anlegen' : 'Arbeitstext anlegen (bitte einloggen)'}
+                    {user ? t('read.createArbeitstext') : t('read.createArbeitstextLogin')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -817,14 +810,14 @@ export default function ReadScreen() {
               >
                 <Ionicons name="chatbubble-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
                 <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
-                  {user ? 'Philo zu diesem Absatz fragen' : 'Philo zu diesem Absatz fragen (bitte einloggen)'}
+                  {user ? t('read.askPhilo') : t('read.askPhiloLogin')}
                 </Text>
               </TouchableOpacity>
               {menuParagraph && (talkCounts.get(menuParagraph.id) ?? 0) > 0 && (
                 <TouchableOpacity style={styles.menuRow} onPress={handleShowContributionsFromMenu}>
                   <Ionicons name="albums-outline" size={20} color={colors.primary} />
                   <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    Vergangene Gespräche
+                    {t('read.pastConversations')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -855,7 +848,7 @@ export default function ReadScreen() {
             if (!creatingNoteFor.paragraphId) setChapterNote(n);
           }}
           onOpenExisting={(existing) => setPreviewNote(existing)}
-          contextLabel="Neuer Arbeitstext"
+          contextLabel={t('common.newArbeitstext')}
         />
       )}
     </View>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles, typography, ICONS, ICON_SIZES, getNoteBadgeStyle } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
 import DocumentMarkdownView from '@/shared/components/DocumentMarkdownView';
@@ -16,15 +17,18 @@ type Props = {
   userId: string;
   note: Note | null;
   activeTalkId: string | null;
+  onCreated?: (note: Note) => void;
   onDeleted?: () => void;
 };
 
-export default function ArbeitstextTab({ userId, note, activeTalkId, onDeleted }: Props) {
+export default function ArbeitstextTab({ userId, note, activeTalkId, onCreated, onDeleted }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
   const badgeStyle = getNoteBadgeStyle(isDark);
   const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
 
   useEffect(() => {
@@ -52,11 +56,28 @@ export default function ArbeitstextTab({ userId, note, activeTalkId, onDeleted }
       <View style={styles.empty}>
         <AppIcon name={ICONS.arbeitstext.attach} size={40} color={colors.onSurfaceVariant} />
         <Text style={[typography.titleMedium, styles.emptyTitle, { color: colors.onSurface }]}>
-          Kein Arbeitstext verknüpft
+          {t('arbeitstextTab.emptyTitle')}
         </Text>
         <Text style={[typography.bodyMedium, styles.emptyBody, { color: colors.onSurfaceVariant }]}>
-          Verknüpfe im Chat einen Arbeitstext, um ihn hier zu bearbeiten.
+          {t('arbeitstextTab.emptyBody')}
         </Text>
+        <TouchableOpacity
+          style={[styles.createBtn, { backgroundColor: colors.primary }]}
+          onPress={() => setCreating(true)}
+          accessibilityRole="button"
+        >
+          <AppIcon name={ICONS.arbeitstext.attach} size={ICON_SIZES.menu} color={colors.onPrimary} />
+          <Text style={[typography.labelLarge, { color: colors.onPrimary }]}>
+            {t('arbeitstextTab.createButton')}
+          </Text>
+        </TouchableOpacity>
+        <NoteEditorModal
+          visible={creating}
+          onClose={() => setCreating(false)}
+          userId={userId}
+          talkId={activeTalkId}
+          onCreated={(created) => { setCreating(false); onCreated?.(created); }}
+        />
       </View>
     );
   }
@@ -94,7 +115,7 @@ export default function ArbeitstextTab({ userId, note, activeTalkId, onDeleted }
         userId={userId}
         note={note}
         talkId={activeTalkId}
-        contextLabel="Arbeitstext bearbeiten"
+        contextLabel={t('common.editArbeitstext')}
       />
     </View>
   );
@@ -134,4 +155,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { textAlign: 'center', marginTop: spacing.s },
   emptyBody: { textAlign: 'center', maxWidth: 300 },
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.m,
+    paddingVertical: spacing.s,
+    borderRadius: 8,
+    marginTop: spacing.s,
+  },
 });

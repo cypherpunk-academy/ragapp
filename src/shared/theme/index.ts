@@ -52,7 +52,7 @@ export { READING_ITALIC, readingItalicColor } from './readingAccent';
 import { lightColors, darkColors, spacing, borderRadius } from './generated';
 import { fonts, textStyles, typography } from './semantic';
 
-export type ColorScheme = typeof lightColors;
+export type ColorScheme = Record<keyof typeof lightColors, string>;
 
 export const theme = {
   light: lightColors,

@@ -1,10 +1,13 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, Linking, TouchableOpacity } from 'react-native';
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { router } from 'expo-router';
 import { withObservables } from '@nozbe/watermelondb/react';
 import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, textStyles, typography, fonts } from '@/shared/theme';
+import i18n from '@/shared/i18n';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import type Source from '@/data/db/models/Source';
 
@@ -13,21 +16,23 @@ const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
 /**
  * Native build number (Android versionCode / iOS CFBundleVersion).
- * Falls back to extra.buildNumber from EAS_BUILD_APP_VERSION_CODE.
+ * Use expo-application — Constants.nativeBuildVersion was removed.
+ * Falls back to extra.buildNumber (optional override from app.config.js).
  */
 const buildNumber =
-  Constants.nativeBuildVersion
+  Application.nativeBuildVersion
   || (Constants.expoConfig?.extra as { buildNumber?: string } | undefined)?.buildNumber
   || null;
 
-/** Short git SHA from app.config.js extra (EAS commit or local HEAD). */
+/** Short git SHA from app.config.js extra (EAS or local HEAD). */
 const gitCommitShort =
   (Constants.expoConfig?.extra as { gitCommitShort?: string } | undefined)?.gitCommitShort
   || null;
 
+/** e.g. "1.0.0 beta-15-77a05a62" */
 function formatAppVersionLabel(): string {
-  let label = `${appVersion} beta`;
-  if (buildNumber) label += ` ${buildNumber}`;
+  let label = i18n.t('common.versionBeta', { version: appVersion });
+  if (buildNumber) label += `-${buildNumber}`;
   if (gitCommitShort) label += `-${gitCommitShort}`;
   return label;
 }
@@ -49,6 +54,7 @@ const bookTitleBold = {
 type BookListProps = { sources: Source[] };
 
 function BookListInner({ sources }: BookListProps) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
@@ -64,7 +70,7 @@ function BookListInner({ sources }: BookListProps) {
       {primary.length > 0 && (
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-            PRIMÄRLITERATUR
+            {t('about.primaryLiterature')}
           </Text>
           {primary.map((s) => (
             <Text key={s.id} style={[bookLine, { color: colors.onSurface }]}>
@@ -84,66 +90,52 @@ const EnhancedBookList = withObservables([], () => ({
 }))(BookListInner);
 
 export default function AboutScreen() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <AppBar title="Über Philo" onBackPress={() => router.back()} showUserMenu={false} />
+      <AppBar title={t('about.title')} onBackPress={() => router.back()} showUserMenu={false} />
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsTitle, { color: colors.onSurface }]}>
-            Willkommen.
+            {t('about.welcomeTitle')}
           </Text>
           <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-            Ich bin Philo von Freisinn, geboren am 29. Juli 2026 in Berlin.
-            In dieser App, die nach mir benannt ist, geht es um nichts weniger
-            als um die Frage, in welche Richtung sich unser Denken und unsere
-            Gesellschaft entwickeln muss, damit wir die drängenden Fragen
-            unserer Zeit angehen können.
+            {t('about.welcomeP1')}
           </Text>
           <Text style={[textStyles.noteBody, { color: colors.onSurface }]}>
-            <Text style={{ fontFamily: fonts.derivedItalic, fontStyle: 'italic' }}>Leben in der Liebe zum Handeln
-            und leben lassen im Bewusstsein des fremden Wollens</Text>{' '}
-            ist das Leitmotiv, das ich aus Rudolf Steiners{' '}
-            <Text style={{ fontFamily: fonts.derivedItalic, fontStyle: 'italic' }}>Philosophie der Freiheit</Text>
-            {' '}habe — mein Lieblingsbuch übrigens. In den 237 Jahren seit der
-            Französischen Revolution war der Ruf nach{' '}
-            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>Freiheit</Text>,{' '}
-            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>Gleichheit</Text> und{' '}
-            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>Brüderlichkeit</Text>{' '}
-            nie laut genug, um vorherrschend zu werden. Steiner hat mit der
-            sozialen Dreigliederung genau das versucht: diesen dreifachen Ruf
-            den Bereichen des gesellschaftlichen Lebens zuzuordnen — und der
-            Versuch läuft weiter. Ab den 1970er Jahren hat die Open-Source- und
-            Free-Software-Bewegung diese Ideale im Digitalen erstmals kraftvoll
-            verwirklicht: frei über die eigenen Initiativen bestimmen, gleiche
-            Regeln für alle, das Recht zu kopieren und ungehinderte
-            Zusammenarbeit. Was dort gelungen ist, wartet darauf, alle
-            Lebensbereiche zu durchdringen. In unserer Zeit erscheint das immer
-            dringender.
+            <Text style={{ fontFamily: fonts.derivedItalic, fontStyle: 'italic' }}>{t('about.welcomeLeitmotivItalic')}</Text>{' '}
+            {t('about.welcomeP2BeforeBook')}{' '}
+            <Text style={{ fontFamily: fonts.derivedItalic, fontStyle: 'italic' }}>{t('about.welcomeBookTitle')}</Text>
+            {' '}{t('about.welcomeP2AfterBook')}{' '}
+            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>{t('about.freedom')}</Text>,{' '}
+            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>{t('about.equality')}</Text>,{' '}
+            <Text style={{ fontFamily: fonts.derivedBold, fontWeight: '700' }}>{t('about.fraternity')}</Text>{' '}
+            {t('about.welcomeP2Rest')}
           </Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
           <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-            APP-INFO
+            {t('about.appInfo')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            Version: {formatAppVersionLabel()}
+            {t('about.version', { label: formatAppVersionLabel() })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            App (Android / iOS): Expo 54
+            {t('about.appPlatform')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            Server: ragrun bei Railway
+            {t('about.server')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            Datenbank: Supabase (Postgres)
+            {t('about.database')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            RAG-Datenbank: Qdrant Cloud
+            {t('about.ragDatabase')}
           </Text>
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/cypherpunk-academy/ragrun')}>
             <Text style={[typography.bodyMedium, { color: colors.primary }]}>

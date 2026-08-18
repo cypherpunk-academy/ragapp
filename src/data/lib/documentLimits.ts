@@ -1,3 +1,5 @@
+import i18n, { getDateLocale } from '@/shared/i18n';
+
 /**
  * Arbeitstext-Größenlimits (Filo §5.3, Contract §2.3).
  */
@@ -21,5 +23,9 @@ export function remainingDocumentChars(content: string): number {
 
 /** z. B. "1 234 / 50 000" für die Bibliothek-Listenzeile. */
 export function formatDocumentCharCount(content: string): string {
-  return `${content.length.toLocaleString('de-DE')} / ${MAX_DOCUMENT_CHARS.toLocaleString('de-DE')}`;
+  const locale = getDateLocale();
+  return i18n.t('common.charCount', {
+    used: content.length.toLocaleString(locale),
+    limit: MAX_DOCUMENT_CHARS.toLocaleString(locale),
+  });
 }

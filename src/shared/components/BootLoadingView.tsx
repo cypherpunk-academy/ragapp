@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, View, useColorScheme } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors } from '../theme';
 
 /** Boot-Overlay: Philo-Bild mit sanfter Puls-Animation statt leerem Weiß. */
 export default function BootLoadingView() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const opacity = useRef(new Animated.Value(0.5)).current;
@@ -30,7 +32,7 @@ export default function BootLoadingView() {
     <View
       style={[styles.root, { backgroundColor: colors.background }]}
       accessibilityRole="progressbar"
-      accessibilityLabel="App wird geladen"
+      accessibilityLabel={t('boot.loadingA11y')}
     >
       <Animated.View style={{ opacity, transform: [{ scale }] }}>
         <Image

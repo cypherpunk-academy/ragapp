@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import type Note from '@/data/db/models/Note';
+import i18n from '@/shared/i18n';
 
 type ParagraphOccupiedOptions = {
   onOpen?: (note: Note) => void;
@@ -10,20 +11,20 @@ type ParagraphOccupiedOptions = {
 /** Dialog when a paragraph already has an Arbeitstext — no silent overwrite. */
 export function alertParagraphOccupied(existingNote: Note, opts: ParagraphOccupiedOptions = {}): void {
   const buttons: Array<{ text: string; style?: 'cancel' | 'default' | 'destructive'; onPress?: () => void }> = [
-    { text: 'Abbrechen', style: 'cancel' },
+    { text: i18n.t('common.cancel'), style: 'cancel' },
   ];
   if (opts.onOpen) {
-    buttons.push({ text: 'Öffnen', onPress: () => opts.onOpen!(existingNote) });
+    buttons.push({ text: i18n.t('common.open'), onPress: () => opts.onOpen!(existingNote) });
   }
   if (opts.onLink) {
     buttons.push({
-      text: opts.linkLabel ?? 'Im Chat verknüpfen',
+      text: opts.linkLabel ?? i18n.t('alerts.linkInChat'),
       onPress: () => opts.onLink!(existingNote),
     });
   }
   Alert.alert(
-    'Arbeitstext vorhanden',
-    'Zu diesem Absatz gibt es bereits einen Arbeitstext.',
+    i18n.t('alerts.occupiedTitle'),
+    i18n.t('alerts.occupiedBody'),
     buttons,
   );
 }
@@ -31,14 +32,14 @@ export function alertParagraphOccupied(existingNote: Note, opts: ParagraphOccupi
 /** Dateninkonsistenz: mehr als ein Arbeitstext mit derselben paragraph_id. */
 export function alertMultipleParagraphNotes(notes: Note[], onPick: (note: Note) => void): void {
   Alert.alert(
-    'Mehrere Arbeitstexte',
-    'An diesem Absatz sind mehrere Arbeitstexte verknüpft. Bitte wähle einen zum Öffnen.',
+    i18n.t('alerts.multipleTitle'),
+    i18n.t('alerts.multipleBody'),
     [
       ...notes.map((n, i) => ({
-        text: `Arbeitstext ${i + 1}`,
+        text: i18n.t('common.arbeitstextN', { n: i + 1 }),
         onPress: () => onPick(n),
       })),
-      { text: 'Abbrechen', style: 'cancel' as const },
+      { text: i18n.t('common.cancel'), style: 'cancel' as const },
     ],
   );
 }

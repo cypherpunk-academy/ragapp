@@ -1,4 +1,5 @@
 import type Note from '@/data/db/models/Note';
+import i18n from '@/shared/i18n';
 
 /**
  * Vier Kontext-Stufen für Arbeitstexte (Filo §5.1, §5.4).
@@ -10,12 +11,32 @@ export type ArbeitstextContextTier =
   | 'source'    // Stufe 3 — Buch
   | 'general';  // Stufe 4 — Allgemein
 
-export const ARBEITSTEXT_CONTEXT_TIER_LABELS: Record<ArbeitstextContextTier, string> = {
-  paragraph: 'Aktueller Absatz',
-  segment: 'Kapitel/Vortrag',
-  source: 'Buch',
-  general: 'Allgemein',
-};
+/** Labels resolved at call time (do not cache at module init). */
+export function getArbeitstextContextTierLabels(): Record<ArbeitstextContextTier, string> {
+  return {
+    paragraph: i18n.t('arbeitstextContext.paragraph'),
+    segment: i18n.t('arbeitstextContext.segment'),
+    source: i18n.t('arbeitstextContext.source'),
+    general: i18n.t('arbeitstextContext.general'),
+  };
+}
+
+export function arbeitstextContextTierLabel(tier: ArbeitstextContextTier): string {
+  return i18n.t(`arbeitstextContext.${tier}`);
+}
+
+/** @deprecated Prefer `getArbeitstextContextTierLabels()` / `arbeitstextContextTierLabel()`. */
+export const ARBEITSTEXT_CONTEXT_TIER_LABELS = new Proxy(
+  {} as Record<ArbeitstextContextTier, string>,
+  {
+    get(_target, prop: string | symbol) {
+      if (typeof prop === 'string' && (prop === 'paragraph' || prop === 'segment' || prop === 'source' || prop === 'general')) {
+        return i18n.t(`arbeitstextContext.${prop}`);
+      }
+      return undefined;
+    },
+  },
+);
 
 const TIER_ORDER: Record<ArbeitstextContextTier, number> = {
   paragraph: 1,

@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { getEntityCardStyle } from '@/shared/theme/entityCards';
 import { personalityLabel } from '@/shared/lib/assistant';
+import { getDateLocale } from '@/shared/i18n';
 import type Talk from '@/data/db/models/Talk';
 import type Turn from '@/data/db/models/Turn';
 
 function formatDate(d: Date): string {
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(getDateLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 type Props = {
@@ -19,6 +21,7 @@ type Props = {
 };
 
 export default function TalkCard({ talk, snippetTurn, onPress, relevancePercent }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
@@ -47,7 +50,7 @@ export default function TalkCard({ talk, snippetTurn, onPress, relevancePercent 
           {'·'}
         </Text>
         <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant }]}>
-          {formatDate(talk.updatedAt)} · {personalityLabel(snippetTurn?.assistantPersonality)}
+          {formatDate(talk.updatedAt)} · {personalityLabel(snippetTurn?.personality)}
         </Text>
       </View>
 
@@ -71,7 +74,7 @@ export default function TalkCard({ talk, snippetTurn, onPress, relevancePercent 
 
       {relevancePercent != null ? (
         <Text style={[textStyles.noteMeta, { color: cardStyle.accentColor }]}>
-          {`Relevanz: ${relevancePercent}%`}
+          {t('common.relevance', { percent: relevancePercent })}
         </Text>
       ) : null}
     </TouchableOpacity>

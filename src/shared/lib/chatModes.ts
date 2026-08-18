@@ -1,11 +1,15 @@
 import type { ChatMode } from '@/shared/types/ragrun';
+import i18n from '@/shared/i18n';
 
 /** Welle 5c — Chat/Nachdenken-Modus-Auswahl (Filo §10 Phase C, Contract §3). */
-export const CHAT_MODES: { value: ChatMode; label: string }[] = [
-  { value: 'chat', label: 'Chat' },
-  { value: 'nachdenken', label: 'Nachdenken' },
-];
+export function getChatModes(): { value: ChatMode; label: string }[] {
+  return [
+    { value: 'chat', label: i18n.t('chatModes.chat') },
+    { value: 'nachdenken', label: i18n.t('chatModes.nachdenken') },
+  ];
+}
 
 export function chatModeLabel(mode: ChatMode | string | null | undefined): string {
-  return CHAT_MODES.find((m) => m.value === mode)?.label ?? CHAT_MODES[0].label;
+  if (mode === 'nachdenken') return i18n.t('chatModes.nachdenken');
+  return i18n.t('chatModes.chat');
 }

@@ -1,6 +1,7 @@
 import type Reference from '@/data/db/models/Reference';
 import type Turn from '@/data/db/models/Turn';
 import type { SearchResult } from '@/shared/types/ragrun';
+import i18n, { getDateLocale } from '@/shared/i18n';
 
 export type RagHit = SearchResult & { citationIndex?: number };
 
@@ -144,15 +145,23 @@ export function parseTurnUsage(raw: string | null | undefined): TurnUsageMeta | 
 
 export function formatTurnUsageLine(usage: TurnUsageMeta | null): string | null {
   if (!usage) return null;
+  const locale = getDateLocale();
   const parts: string[] = [];
   if (typeof usage.total_tokens === 'number') {
-    parts.push(`GESAMT ${usage.total_tokens.toLocaleString('de-DE')} TOKENS`);
+    parts.push(i18n.t('ragInsights.usageTotalTokens', {
+      count: usage.total_tokens.toLocaleString(locale),
+    }));
   }
   if (usage.model?.trim()) {
     parts.push(usage.model.trim().toUpperCase());
   }
   if (typeof usage.cost_eur === 'number' && usage.cost_eur > 0) {
-    parts.push(`EUR ${usage.cost_eur.toFixed(5).replace('.', ',')}`);
+    parts.push(i18n.t('ragInsights.usageEur', {
+      amount: usage.cost_eur.toLocaleString(locale, {
+        minimumFractionDigits: 5,
+        maximumFractionDigits: 5,
+      }),
+    }));
   }
   return parts.length > 0 ? parts.join(' · ') : null;
 }

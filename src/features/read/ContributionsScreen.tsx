@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useColorScheme,
   ActivityIndicator,
@@ -31,6 +32,7 @@ type Props = {
 export default function ContributionsScreen({
   visible, onClose, paragraph, sourceId,
 }: Props) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -73,9 +75,11 @@ export default function ContributionsScreen({
 
   const contextLabel = useMemo(() => {
     if (!paragraph) return null;
-    const typeLabel = 'Kapitel';
-    return `${typeLabel} · ${paragraph.segmentTitle} · ${paragraph.paragraphNumber}|`;
-  }, [paragraph]);
+    return t('contributions.contextBreadcrumb', {
+      segmentTitle: paragraph.segmentTitle,
+      paragraphNumber: paragraph.paragraphNumber,
+    });
+  }, [paragraph, t]);
 
   const handleAskPhilo = useCallback(() => {
     if (!paragraph) return;
@@ -92,7 +96,7 @@ export default function ContributionsScreen({
           <Ionicons name="chevron-back" size={24} color={colors.onBackground} />
         </TouchableOpacity>
         <Text style={[textStyles.contributionsTitle, { color: colors.onBackground, flex: 1 }]} numberOfLines={1}>
-          Gespräche
+          {t('contributions.title')}
         </Text>
       </View>
 
@@ -123,11 +127,11 @@ export default function ContributionsScreen({
         <View style={[styles.scroll, styles.content]}>
           <View style={[styles.authGateCard, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface, textAlign: 'center' }]}>
-              Gespräche zu diesem Absatz sind nur mit einem Konto sichtbar.
+              {t('contributions.authGate')}
             </Text>
             {!isConfigured ? (
               <Text style={[textStyles.noteMeta, { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.s }]}>
-                In dieser Installation ist noch kein Anmeldeserver hinterlegt (Supabase-URL und -Schlüssel).
+                {t('contributions.noSupabase')}
               </Text>
             ) : null}
             <TouchableOpacity
@@ -135,7 +139,7 @@ export default function ContributionsScreen({
               onPress={() => router.push('/auth/login')}
               activeOpacity={0.85}
             >
-              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Anmelden</Text>
+              <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('common.signIn')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -146,7 +150,7 @@ export default function ContributionsScreen({
           {talks.length === 0 ? (
             <View style={styles.emptyNotes}>
               <Text style={[textStyles.contributionsTab, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
-                Noch keine Gespräche zu diesem Absatz.
+                {t('contributions.empty')}
               </Text>
               <TouchableOpacity
                 style={[styles.createNoteBtn, { backgroundColor: colors.primary }]}
@@ -154,7 +158,7 @@ export default function ContributionsScreen({
                 activeOpacity={0.85}
               >
                 <Ionicons name="chatbubble-outline" size={20} color={colors.onPrimary} />
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>Frag Philo zu diesem Absatz</Text>
+                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('contributions.askPhiloCta')}</Text>
               </TouchableOpacity>
             </View>
           ) : (

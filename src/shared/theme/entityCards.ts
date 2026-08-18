@@ -1,4 +1,5 @@
 import { colorWithAlpha } from '@/shared/lib/color';
+import i18n from '@/shared/i18n';
 import type { MaterialIconName } from './icons';
 
 type ColorScheme = Record<string, string>;
@@ -15,7 +16,6 @@ export type EntityKind =
   | 'typology';
 
 type EntityCardConfig = {
-  label: string;
   icon: MaterialIconName;
   accentHex: (colors: ColorScheme) => string;
 };
@@ -27,54 +27,45 @@ type EntityCardConfig = {
 const ENTITY_CARD_CONFIG: Record<EntityKind, EntityCardConfig> = {
   // KI-Gespräche (eigene Talks + indexierte Assistant-Talks): Tertiary (Malve/Lila)
   talk: {
-    label: 'Gespräch',
     icon: 'chat',
     accentHex: (c) => c.tertiary,
   },
   chunk_gespraech: {
-    label: 'Gespräch',
     icon: 'chat',
     accentHex: (c) => c.tertiary,
   },
   // Bücher: Primary (Indigo-Blau)
   chunk_buch: {
-    label: 'Buch',
     icon: 'auto-stories',
     accentHex: (c) => c.primary,
   },
   // Vortrag: tiefes Lila (onTertiaryContainer)
   chunk_vortrag: {
-    label: 'Vortrag',
     icon: 'mic',
     accentHex: (c) => c.onTertiaryContainer,
   },
   // Begriff: Waldgrün (klar unterscheidbar von Blau)
   begriff: {
-    label: 'Begriff',
     icon: 'local-offer',
     accentHex: () => '#2E7D32',
   },
   // Zitat: Rot/Warm (error)
   zitat: {
-    label: 'Zitat',
     icon: 'format-quote',
     accentHex: (c) => c.error,
   },
   // Zusammenfassung: Tiefes Orange (klar unterscheidbar von Blau und Rot)
   kapitel_zusammenfassung: {
-    label: 'Zusammenfassung',
     icon: 'summarize',
     accentHex: () => '#E65100',
   },
   // Notiz: eigenständige Farbe (nicht Gespräch-Tertiary)
   notiz: {
-    label: 'Notiz',
     icon: 'edit',
     accentHex: () => '#A67C52',
   },
   // Typologie: Teal (unterscheidet sich von Blau, Grün, Orange)
   typology: {
-    label: 'Typologie',
     icon: 'category',
     accentHex: () => '#00695C',
   },
@@ -89,6 +80,10 @@ export type EntityCardStyle = {
   label: string;
   icon: MaterialIconName;
 };
+
+export function entityCardLabel(kind: EntityKind): string {
+  return i18n.t(`entityCards.${kind}`);
+}
 
 /**
  * Hintergrund viel transparenter als Rahmen:
@@ -108,13 +103,9 @@ export function getEntityCardStyle(
     borderWidth: 1,
     borderRadius: 12,
     accentColor: accent,
-    label: config.label,
+    label: entityCardLabel(kind),
     icon: config.icon,
   };
-}
-
-export function entityCardLabel(kind: EntityKind): string {
-  return ENTITY_CARD_CONFIG[kind].label;
 }
 
 /**
