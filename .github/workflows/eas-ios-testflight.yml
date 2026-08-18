@@ -1,0 +1,34 @@
+name: EAS iOS TestFlight
+
+# Manual: submit the latest finished production IPA, or start a new EAS iOS build
+# that auto-submits when it finishes. Not on push — each new iOS build uses a
+# quota slot.
+on:
+  workflow_dispatch:
+    inputs:
+      build_new:
+        description: New production iOS EAS build (uses a quota slot). Off = submit latest finished production IPA.
+        type: boolean
+        default: false
+
+jobs:
+  testflight:
+    name: testflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: yarn install --frozen-lockfile
+      - name: Build and auto-submit
+        if: ${{ inputs.build_new }}
+        run: eas build --profile production --platform ios --auto-submit --non-interactive --no-wait
+      - name: Submit latest production iOS build
+        if: ${{ !inputs.build_new }}
+        run: eas submit --platform ios --profile production --latest --non-interactive

@@ -12,6 +12,8 @@
     "staging": "yarn staging:android && yarn staging:ios",
     "production:android": "eas build --profile production-apk --platform android",
     "production:ios": "eas build --profile production --platform ios",
+    "production:ios:submit": "eas build --profile production --platform ios --auto-submit --non-interactive",
+    "testflight": "eas submit --platform ios --profile production --latest --non-interactive",
     "production": "yarn production:android && yarn production:ios",
     "ios": "bash scripts/run-ios-simulator.sh",
     "ios:device": "expo run:ios",
