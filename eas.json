@@ -20,7 +20,7 @@
       }
     },
     "production": {
-      "distribution": "internal",
+      "distribution": "store",
       "autoIncrement": true,
       "channel": "production",
       "env": {
@@ -38,6 +38,7 @@
     },
     "production-apk": {
       "extends": "production",
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
