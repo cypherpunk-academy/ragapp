@@ -1,4 +1,4 @@
-name: EAS Android Production $
+name: EAS Android Production ($)
 
 # Manual: build a production APK for internal distribution (sideload URL)
 # or a Play Store AAB. The build URL is printed at the end.

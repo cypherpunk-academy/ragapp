@@ -1,4 +1,4 @@
-name: EAS Android Staging $
+name: EAS Android Staging ($)
 
 # After a PR is merged into staging, build an internal APK (Philo Staging)
 # that can sit next to the production app on a phone.
