@@ -1,4 +1,4 @@
-name: EAS iOS TestFlight
+name: EAS iOS TestFlight $
 
 # Manual: submit the latest finished production IPA, or start a new EAS iOS build
 # that auto-submits when it finishes. Not on push — each new iOS build uses a

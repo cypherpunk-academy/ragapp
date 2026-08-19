@@ -1,0 +1,32 @@
+name: EAS Android Production $
+
+# Manual: build a production APK for internal distribution (sideload URL)
+# or a Play Store AAB. The build URL is printed at the end.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Build profile
+        type: choice
+        options:
+          - production-apk
+          - production
+        default: production-apk
+
+jobs:
+  android:
+    name: android-production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: yarn
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: yarn install --frozen-lockfile
+      - name: Build
+        run: eas build --profile ${{ inputs.profile }} --platform android --non-interactive
