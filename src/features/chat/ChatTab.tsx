@@ -180,6 +180,8 @@ export default function ChatTab({
   const flatListRef = useRef<FlatList>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True once the user manually scrolls during/after streaming — suppresses auto-scroll. */
+  const userHasScrolledRef = useRef(false);
 
   const clearConnectingTimer = useCallback(() => {
     if (connectingTimerRef.current) {
@@ -412,13 +414,13 @@ export default function ChatTab({
   }, [activeTalkId]);
 
   useEffect(() => {
-    if (turns.length > 0) {
+    if (turns.length > 0 && !userHasScrolledRef.current) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [turns.length]);
 
   useEffect(() => {
-    if (pendingUserMessage) {
+    if (pendingUserMessage && !userHasScrolledRef.current) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [pendingUserMessage, streamingText]);
@@ -525,6 +527,7 @@ export default function ChatTab({
     setSending(true);
     setPendingUserMessage(text);
     setStreamingText('');
+    userHasScrolledRef.current = false;
     setStreamingStatus(null);
     setConnectingVisible(false);
     clearConnectingTimer();
@@ -875,6 +878,7 @@ export default function ChatTab({
         data={turns}
         keyExtractor={(t) => t.id}
         contentContainerStyle={styles.turnListContent}
+        onScrollBeginDrag={() => { if (sending) userHasScrolledRef.current = true; }}
         renderItem={({ item: turn }) => {
           const refs = referencesByTurnId[turn.id] ?? [];
           const ragHits = resolveRagHitsForTurn(turn, refs);
