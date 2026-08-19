@@ -63,7 +63,7 @@ export default function ArbeitstexteScreen() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    const sub = NoteRepository.observeGeneral().subscribe((ns) => {
+    const sub = NoteRepository.observeAll().subscribe((ns) => {
       setNotes(ns);
       setLoading(false);
     });
@@ -75,7 +75,7 @@ export default function ArbeitstexteScreen() {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return withBody;
     return withBody.filter((n) =>
-      extractDocumentTitle(n.content).toLowerCase().includes(q),
+      n.content.toLowerCase().includes(q),
     );
   }, [notes, searchQuery]);
 
