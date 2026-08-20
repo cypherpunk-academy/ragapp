@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, StyleSheet, useColorScheme, ActivityIndicator, Alert, Pressable,
-  UIManager, findNodeHandle, Keyboard,
+  UIManager, findNodeHandle, Keyboard, AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -182,6 +182,8 @@ export default function ChatTab({
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** True once the user manually scrolls during/after streaming — suppresses auto-scroll. */
   const userHasScrolledRef = useRef(false);
+  /** True while the app is in background/inactive — used to suppress error alerts for network failures. */
+  const appInBackgroundRef = useRef(false);
 
   const clearConnectingTimer = useCallback(() => {
     if (connectingTimerRef.current) {
@@ -191,6 +193,13 @@ export default function ChatTab({
   }, []);
 
   useEffect(() => () => clearConnectingTimer(), [clearConnectingTimer]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      appInBackgroundRef.current = state !== 'active';
+    });
+    return () => sub.remove();
+  }, []);
 
   const openInsights = useCallback((turn: Turn, citationIndex?: number) => {
     const refs = referencesByTurnId[turn.id] ?? [];
@@ -644,38 +653,59 @@ export default function ChatTab({
         }
       }
     } catch (err) {
-      console.error('[ChatTab handleSend] caught error:', err);
-      if (controller.signal.aborted) {
-        // Abbruch: kein Server-Turn wurde erzeugt — Teilantwort lokal-only persistieren.
-        try {
-          const isNewTalk = !activeTalkId;
-          let talkId = activeTalkId;
-          if (isNewTalk) {
-            const newTalk = await TalkRepository.create({
-              userId,
-              title: text.slice(0, 60),
-              kontextParagraphId: contextParagraph?.id,
-              kontextParagraph: contextParagraph?.label,
-            });
-            talkId = newTalk.id;
-            if (pendingAttachNote) {
-              await NoteRepository.attachToTalk(pendingAttachNote, talkId);
-              await TalkRepository.setKontextMeta(talkId, { note_id: pendingAttachNote.id });
-              setPendingAttachNote(null);
+      const isCancelError = err instanceof Error && err.message.includes('CanceledException');
+      const treatAsAbort = controller.signal.aborted || isCancelError || appInBackgroundRef.current;
+      if (treatAsAbort) {
+        console.log('[ChatTab handleSend] stream aborted');
+      } else {
+        console.error('[ChatTab handleSend] caught error:', err);
+      }
+      if (treatAsAbort) {
+        // Sofort UI aufräumen, damit der Spinner verschwindet und die Eingabe wieder aktiv ist.
+        clearConnectingTimer();
+        abortControllerRef.current = null;
+        setSending(false);
+        setPendingUserMessage(null);
+        setStreamingText('');
+        setStreamingStatus(null);
+        setConnectingVisible(false);
+        setInputText(text); // Eingabetext wiederherstellen
+        // Teilantwort lokal-only persistieren (fire-and-forget, blockiert UI nicht).
+        // Nur wenn es tatsächlich Text gibt — sonst entsteht ein Turn ohne Antwort → Spinner.
+        if (accumulated) {
+          void (async () => {
+            try {
+              const isNewTalk = !activeTalkId;
+              let talkId = activeTalkId;
+              if (isNewTalk) {
+                const newTalk = await TalkRepository.create({
+                  userId,
+                  title: text.slice(0, 60),
+                  kontextParagraphId: contextParagraph?.id,
+                  kontextParagraph: contextParagraph?.label,
+                });
+                talkId = newTalk.id;
+                if (pendingAttachNote) {
+                  await NoteRepository.attachToTalk(pendingAttachNote, talkId);
+                  await TalkRepository.setKontextMeta(talkId, { note_id: pendingAttachNote.id });
+                  setPendingAttachNote(null);
+                }
+                onActiveTalkChange(talkId);
+              }
+              await TurnRepository.create({
+                talkId: talkId!,
+                turnIndex: isNewTalk ? 0 : (overrideTurnIndex ?? turns.length),
+                userMessage: text,
+                personality: 'assistant-host',
+                assistantMessage: accumulated,
+              });
+              if (!isNewTalk) await TalkRepository.touch(talkId!);
+            } catch {
+              Alert.alert(t('common.error'), t('chat.errorSaveReply'));
             }
-            onActiveTalkChange(talkId);
-          }
-          await TurnRepository.create({
-            talkId: talkId!,
-            turnIndex: isNewTalk ? 0 : (overrideTurnIndex ?? turns.length),
-            userMessage: text,
-            personality: 'assistant-host',
-            assistantMessage: accumulated || undefined,
-          });
-          if (!isNewTalk) await TalkRepository.touch(talkId!);
-        } catch {
-          Alert.alert(t('common.error'), t('chat.errorSaveReply'));
+          })();
         }
+        return; // finally-Block läuft trotzdem, setzt idempotent dieselben States
       } else {
         Alert.alert(t('common.error'), t('chat.errorSend'));
         setInputText(text);
