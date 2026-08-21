@@ -58,6 +58,18 @@
   "chat": {
     "connecting": "Estableciendo conexión…",
     "statusSaving": "Revisando resultados y guardando.",
+    "steps": {
+      "classify_intent": "Clasificando la consulta",
+      "lemma_found": "Concepto encontrado",
+      "lemma_not_found": "Concepto no encontrado, redeterminando…",
+      "steiner_prior": "Generando contexto de Steiner…",
+      "steiner_verify_retrieval": "Recuperando referencias textuales…",
+      "steiner_verify_reasoning": "Verificando referencias…",
+      "steiner_lexicon": "Redactando entrada de léxico…",
+      "typology_retrieval": "Recuperando fuentes de tipología…",
+      "typology_extract": "Extrayendo tipología…",
+      "typology_verify": "Verificando miembros contra fuentes…"
+    },
     "placeholder": "Tu pregunta…",
     "newConversationA11y": "Iniciar nueva conversación",
     "edit": "Editar",

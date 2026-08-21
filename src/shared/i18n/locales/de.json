@@ -58,6 +58,18 @@
   "chat": {
     "connecting": "Verbindung wird aufgebaut…",
     "statusSaving": "Schaue Ergebnisse an und speichere.",
+    "steps": {
+      "classify_intent": "Klassifiziere den Prompt",
+      "lemma_found": "Begriff gefunden",
+      "lemma_not_found": "Begriff nicht gefunden, bestimme ihn neu…",
+      "steiner_prior": "Steiner-Vorwissen generieren…",
+      "steiner_verify_retrieval": "Textbelege abrufen…",
+      "steiner_verify_reasoning": "Belege prüfen…",
+      "steiner_lexicon": "Lexikoneintrag verfassen…",
+      "typology_retrieval": "Quellen für Typologie abrufen…",
+      "typology_extract": "Typologie extrahieren…",
+      "typology_verify": "Mitglieder gegen Quellen prüfen…"
+    },
     "placeholder": "Deine Frage…",
     "newConversationA11y": "Neues Gespräch beginnen",
     "edit": "Bearbeiten",

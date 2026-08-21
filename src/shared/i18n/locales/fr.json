@@ -58,6 +58,18 @@
   "chat": {
     "connecting": "Connexion en cours…",
     "statusSaving": "Examen des résultats et enregistrement.",
+    "steps": {
+      "classify_intent": "Classification de la demande",
+      "lemma_found": "Concept trouvé",
+      "lemma_not_found": "Concept introuvable, nouvelle détermination…",
+      "steiner_prior": "Génération du contexte Steiner…",
+      "steiner_verify_retrieval": "Récupération des références…",
+      "steiner_verify_reasoning": "Vérification des références…",
+      "steiner_lexicon": "Rédaction de l'entrée lexicale…",
+      "typology_retrieval": "Récupération des sources de typologie…",
+      "typology_extract": "Extraction de la typologie…",
+      "typology_verify": "Vérification des membres contre les sources…"
+    },
     "placeholder": "Ta question…",
     "newConversationA11y": "Commencer une nouvelle conversation",
     "edit": "Modifier",

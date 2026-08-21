@@ -58,6 +58,18 @@
   "chat": {
     "connecting": "Устанавливается соединение…",
     "statusSaving": "Просматриваю результаты и сохраняю.",
+    "steps": {
+      "classify_intent": "Классифицирую запрос",
+      "lemma_found": "Понятие найдено",
+      "lemma_not_found": "Понятие не найдено, определяю заново…",
+      "steiner_prior": "Генерация контекста Штайнера…",
+      "steiner_verify_retrieval": "Получение текстовых ссылок…",
+      "steiner_verify_reasoning": "Проверка ссылок…",
+      "steiner_lexicon": "Составление словарной статьи…",
+      "typology_retrieval": "Получение источников типологии…",
+      "typology_extract": "Извлечение типологии…",
+      "typology_verify": "Проверка членов против источников…"
+    },
     "placeholder": "Твой вопрос…",
     "newConversationA11y": "Начать новый разговор",
     "edit": "Редактировать",

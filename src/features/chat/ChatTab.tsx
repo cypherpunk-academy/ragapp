@@ -586,7 +586,8 @@ export default function ChatTab({
         if (event.type === 'status') {
           clearConnectingTimer();
           setConnectingVisible(false);
-          setStreamingStatus(event.label);
+          const stepKey = `chat.steps.${event.step}`;
+          setStreamingStatus(i18n.exists(stepKey) ? t(stepKey) : event.label);
         } else if (event.type === 'token') {
           clearConnectingTimer();
           setConnectingVisible(false);
