@@ -58,6 +58,18 @@
   "chat": {
     "connecting": "Connecting…",
     "statusSaving": "Reviewing results and saving.",
+    "steps": {
+      "classify_intent": "Classifying the prompt",
+      "lemma_found": "Concept found",
+      "lemma_not_found": "Concept not found, determining it anew…",
+      "steiner_prior": "Generating Steiner background…",
+      "steiner_verify_retrieval": "Retrieving text references…",
+      "steiner_verify_reasoning": "Verifying references…",
+      "steiner_lexicon": "Writing lexicon entry…",
+      "typology_retrieval": "Retrieving sources for typology…",
+      "typology_extract": "Extracting typology…",
+      "typology_verify": "Verifying members against sources…"
+    },
     "placeholder": "Your question…",
     "newConversationA11y": "Start new conversation",
     "edit": "Edit",
