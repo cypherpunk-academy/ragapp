@@ -99,6 +99,20 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {__DEV__ && (
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.surfaceContainer }]}
+            onPress={() => router.push('/deep-link-test')}
+            activeOpacity={0.7}
+          >
+            <Text style={[typography.labelMedium, { color: colors.onSurface }]}>
+              Deep-Link-Test
+            </Text>
+            <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant }]}>
+              Claude-Absprung testen (nur Dev-Build)
+            </Text>
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
     </View>
