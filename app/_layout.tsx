@@ -107,6 +107,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth-callback" options={{ animation: 'none' }} />
           <Stack.Screen name="konto" />
           <Stack.Screen name="einstellungen" />
+          <Stack.Screen name="deep-link-test" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
