@@ -99,7 +99,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {(__DEV__ || process.env.APP_VARIANT === 'staging') && (
+        {(__DEV__ || process.env.EXPO_PUBLIC_SUPABASE_URL?.includes('duhtxxbynkilpxdpcpsk')) && (
           <TouchableOpacity
             style={[styles.card, { backgroundColor: colors.surfaceContainer }]}
             onPress={() => router.push('/deep-link-test')}
