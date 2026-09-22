@@ -116,7 +116,7 @@ export default function DeepLinkTestScreen() {
           textAlignVertical="top"
         />
 
-        <Text style={[typography.labelMedium, { color: colors.onSurfaceVariant, marginTop: spacing.md, marginBottom: spacing.sm }]}>
+        <Text style={[typography.labelMedium, { color: colors.onSurfaceVariant, marginTop: spacing.m, marginBottom: spacing.s }]}>
           Link-Varianten
         </Text>
 
@@ -142,7 +142,7 @@ export default function DeepLinkTestScreen() {
           </View>
         )}
 
-        <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, marginTop: spacing.lg }]}>
+        <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant, marginTop: spacing.l }]}>
           Kodierungsprüfung: Umlaute (äöüÄÖÜ), ß, Anführungszeichen (\u201e\u201c), Länge ~300 Zeichen.
           {'\n\n'}
           Prüfen nach jedem Test:{'\n'}
@@ -159,22 +159,22 @@ export default function DeepLinkTestScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: spacing.md, paddingBottom: spacing.xxl },
+  content: { padding: spacing.m, paddingBottom: spacing.xl },
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    padding: spacing.sm,
+    padding: spacing.s,
     fontSize: 14,
     minHeight: 100,
   },
   button: {
-    padding: spacing.md,
+    padding: spacing.m,
     borderRadius: 10,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.s,
   },
   resultBox: {
-    padding: spacing.sm,
+    padding: spacing.s,
     borderRadius: 8,
-    marginTop: spacing.sm,
+    marginTop: spacing.s,
   },
 });
