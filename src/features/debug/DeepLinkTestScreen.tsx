@@ -11,7 +11,6 @@ import {
   Alert,
 } from 'react-native';
 import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, typography } from '@/shared/theme';
@@ -66,11 +65,11 @@ function buildVariants(): Variant[] {
     },
     {
       id: 4,
-      label: 'In-App-Browser',
-      description: 'WebBrowser.openBrowserAsync(https://claude.ai/new?q=...)',
+      label: 'In-App-Browser (Safari)',
+      description: 'Linking.openURL (gleich wie 1, aber Safari erzwungen)',
       run: async (prompt) => {
         const url = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
-        await WebBrowser.openBrowserAsync(url);
+        await Linking.openURL(url);
       },
     },
   ];
