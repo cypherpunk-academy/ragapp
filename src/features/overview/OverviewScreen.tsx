@@ -45,7 +45,7 @@ export default function OverviewScreen() {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { width: windowWidth } = useWindowDimensions();
-  const { navigateToRead, navigateToChatWithPendingLink, overviewResetKey } = useReading();
+  const { navigateToRead, overviewResetKey } = useReading();
   const scale = useContentScale();
   const scaledTitlePage = scaleContentStyle(textStyles.titlePage, scale);
   const scaledTitleCard = scaleContentStyle(textStyles.titleCard, scale);
@@ -402,7 +402,6 @@ export default function OverviewScreen() {
         <DocumentPreviewOverlay
           note={previewNote}
           onClose={() => setPreviewNote(null)}
-          onEditInChat={() => navigateToChatWithPendingLink(previewNote.id)}
           onDeleted={() => setBookNote(null)}
         />
       )}

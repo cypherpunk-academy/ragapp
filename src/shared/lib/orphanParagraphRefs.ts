@@ -2,11 +2,10 @@ import { database } from '@/data/db/database';
 import Paragraph from '@/data/db/models/Paragraph';
 import Bookmark from '@/data/db/models/Bookmark';
 import Note from '@/data/db/models/Note';
-import Talk from '@/data/db/models/Talk';
 import { Q } from '@nozbe/watermelondb';
 
 export type OrphanParagraphRef = {
-  kind: 'bookmark' | 'note' | 'talk';
+  kind: 'bookmark' | 'note';
   id: string;
   paragraphId: string;
 };
@@ -36,14 +35,6 @@ export async function findOrphanParagraphRefs(): Promise<OrphanParagraphRefsResu
   for (const n of notes) {
     if (n.paragraphId && !activeIds.has(n.paragraphId)) {
       orphans.push({ kind: 'note', id: n.id, paragraphId: n.paragraphId });
-    }
-  }
-
-  const talks = await database.get<Talk>('talks').query().fetch();
-  for (const t of talks) {
-    const pid = t.kontextParagraphId;
-    if (pid && !activeIds.has(pid)) {
-      orphans.push({ kind: 'talk', id: t.id, paragraphId: pid });
     }
   }
 

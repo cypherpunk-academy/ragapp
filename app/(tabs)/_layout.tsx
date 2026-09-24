@@ -6,16 +6,15 @@ import TabBar from '@/shared/components/TabBar';
 import BootLoadingView from '@/shared/components/BootLoadingView';
 import { lightColors, darkColors } from '@/shared/theme';
 import {
-  ReadingProvider, useReading, TAB_INDEX_CHAT, TAB_INDEX_OVERVIEW,
+  ReadingProvider, useReading, TAB_INDEX_OVERVIEW,
 } from '@/shared/contexts/ReadingContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
 import ReadScreen from '../../src/features/read/ReadScreen';
-import FiloScreen from '../../src/features/chat/FiloScreen';
+import PlaceholderScreen from '../../src/features/chat/PlaceholderScreen';
 import ContributionsScreen from '../../src/features/read/ContributionsScreen';
-import ConversationDetailScreen from '../../src/features/read/ConversationDetailScreen';
 import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
 
 function TabsInner() {
@@ -23,7 +22,7 @@ function TabsInner() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const pagerRef = useRef<PagerView>(null);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [activeIndex, setActiveIndex] = useState(TAB_INDEX_CHAT);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [authResolved, setAuthResolved] = useState(false);
 
   React.useEffect(() => {
@@ -42,8 +41,6 @@ function TabsInner() {
     resetOverview,
     contributions,
     closeContributions,
-    conversationDetail,
-    closeConversationDetail,
     chunkPreview,
     closeChunkPreview,
     navigateToRead,
@@ -63,16 +60,13 @@ function TabsInner() {
       <PagerView
         ref={pagerRef}
         style={[styles.pager, !authResolved && { opacity: 0 }]}
-        initialPage={TAB_INDEX_CHAT}
+        initialPage={0}
         onPageSelected={(e) => {
           setActiveIndex(e.nativeEvent.position);
         }}
       >
         <View key="0" style={styles.page}>
-          <FiloScreen
-            isFiloTabActive={activeIndex === TAB_INDEX_CHAT}
-            offerWeiterlesenOnLaunch
-          />
+          <PlaceholderScreen />
         </View>
         <View key="1" style={styles.page}><OverviewScreen /></View>
         <View key="2" style={styles.page}><ReadScreen /></View>
@@ -91,16 +85,6 @@ function TabsInner() {
           paragraph={contributions.paragraph}
           sourceId={contributions.sourceId}
           onClose={closeContributions}
-        />
-      )}
-      {conversationDetail && (
-        <ConversationDetailScreen
-          visible
-          talkId={conversationDetail.talkId}
-          anchorParagraphId={conversationDetail.anchorParagraphId}
-          anchorTurnIndex={conversationDetail.anchorTurnIndex}
-          sourceId={conversationDetail.sourceId}
-          onClose={closeConversationDetail}
         />
       )}
       {chunkPreview && (

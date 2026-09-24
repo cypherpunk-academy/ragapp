@@ -11,7 +11,6 @@ import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
-import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { documentUndoStack } from '@/data/tools/documentUndoStack';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
 import { classifyOwnContextTier, firstWords } from '@/shared/lib/arbeitstextContext';
@@ -23,8 +22,6 @@ import type Note from '@/data/db/models/Note';
 type Props = {
   note: Note | null;
   onClose: () => void;
-  /** Nicht im Chat selbst — navigiert zum Chat-Tab und verknüpft die Note dort. */
-  onEditInChat?: () => void;
   /** Aufgerufen nachdem die Note über das Löschen-Icon entfernt wurde. */
   onDeleted?: () => void;
 };
@@ -34,7 +31,7 @@ type NoteBreadcrumb = { label: string; onPress: () => void };
 /** Löst die Verknüpfungs-Herkunft einer Note auf (Gespräch/Absatz/Kapitel/Buch) — für den Header. */
 function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
   const { t } = useTranslation();
-  const { navigateToRead, navigateToChatWithTalk } = useReading();
+  const { navigateToRead } = useReading();
   const [breadcrumb, setBreadcrumb] = useState<NoteBreadcrumb | null>(null);
 
   useEffect(() => {
@@ -67,15 +64,6 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
           label: t('documentPreview.breadcrumbBook', { title: source.title }),
           onPress: () => navigateToRead({ sourceId: source.id, segmentIndex: null, paragraphId: null }),
         });
-      } else if (note.talkId) {
-        const talk = await TalkRepository.findById(note.talkId);
-        if (cancelled) return;
-        setBreadcrumb({
-          label: t('documentPreview.breadcrumbTalk', {
-            preview: firstWords(talk?.title ?? t('common.conversation')),
-          }),
-          onPress: () => navigateToChatWithTalk(note.talkId!),
-        });
       } else {
         setBreadcrumb(null);
       }
@@ -83,7 +71,7 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id, note?.paragraphId, note?.segmentSlug, note?.sourceId, note?.talkId, t]);
+  }, [note?.id, note?.paragraphId, note?.segmentSlug, note?.sourceId, t]);
 
   return breadcrumb;
 }
@@ -92,7 +80,7 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
  * Preview-Overlay (Bottom Sheet, ~55–65 % Höhe): Verknüpfungs-Breadcrumb, gerendertes Markdown,
  * Undo/Bearbeiten. Wird von Chat, Absatz, Kapitel und Buch gemeinsam genutzt.
  */
-export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, onDeleted }: Props) {
+export default function DocumentPreviewOverlay({ note, onClose, onDeleted }: Props) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
@@ -124,11 +112,6 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
     });
   };
 
-  const handleEditInChat = () => {
-    onEditInChat?.();
-    onClose();
-  };
-
   return (
     <>
       <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
@@ -157,16 +140,6 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
             <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} style={styles.iconBtn}>
               <AppIcon name={ICONS.arbeitstext.edit} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-            {onEditInChat && (
-              <TouchableOpacity
-                onPress={handleEditInChat}
-                hitSlop={8}
-                style={styles.iconBtn}
-                accessibilityLabel={t('documentPreview.editInChatA11y')}
-              >
-                <AppIcon name={ICONS.arbeitstext.editInChat} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity onPress={handleDelete} hitSlop={8} style={styles.iconBtn}>
               <AppIcon name={ICONS.arbeitstext.delete} size={ICON_SIZES.menu} color={colors.error} />
             </TouchableOpacity>

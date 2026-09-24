@@ -10,21 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, typography, textStyles, fonts, fontSize as tokenFontSize, scaleSize } from '@/shared/theme';
 import { colorWithAlpha } from '@/shared/lib/color';
-import { TalkRepository } from '@/data/repositories/TalkRepository';
-import { TurnRepository } from '@/data/repositories/TurnRepository';
 import { ragrunApi } from '@/data/services/ragrunApi';
-import { useReading } from '@/shared/contexts/ReadingContext';
 import { entityKindFromSearchResult, getEntityCardStyle, type EntityKind } from '@/shared/theme/entityCards';
 import SearchHitRow from '@/shared/components/SearchHitRow';
 import { useSearchHitNavigation } from '@/shared/hooks/useSearchHitNavigation';
-import TalkCard from '@/shared/components/TalkCard';
-import type Talk from '@/data/db/models/Talk';
-import type Turn from '@/data/db/models/Turn';
 import type { SearchResult } from '@/shared/types/ragrun';
 
-type ScoredTalk = { type: 'talk'; talk: Talk; snippetTurn: Turn | null; score: number };
 type ScoredChunk = { type: 'chunk'; result: SearchResult; score: number };
-type ScoredItem = ScoredTalk | ScoredChunk;
+type ScoredItem = ScoredChunk;
 
 /** Demo-Daten für alle Karten-Typen im __DEV__-Modus (ohne ragrun-Backend). */
 const DEV_DEMO_RESULTS: SearchResult[] = __DEV__ ? [
@@ -270,25 +263,11 @@ function ScopeSearchHint({
   );
 }
 
-/** Relevanz-Score für einen Talk bei gegebener Query (0–1). */
-function talkScore(talk: Talk, q: string): number {
-  if (!q) return 0.5;
-  const title = talk.title?.toLowerCase() ?? '';
-  const summary = talk.summary?.toLowerCase() ?? '';
-  if (title === q) return 0.95;
-  if (title.startsWith(q)) return 0.85;
-  if (title.includes(q)) return 0.75;
-  if (summary.includes(q)) return 0.55;
-  return 0;
-}
-
 export default function SearchScreen() {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
-  const { openConversationDetail } = useReading();
-
   const [query, setQuery] = useState('');
   const [inputHeight, setInputHeight] = useState(SEARCH_INPUT_MIN_HEIGHT);
   const [inputWidth, setInputWidth] = useState(0);
@@ -300,10 +279,6 @@ export default function SearchScreen() {
   );
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [allTalks, setAllTalks] = useState<Talk[]>([]);
-  const [snippets, setSnippets] = useState<Map<string, Turn | null>>(new Map());
-  const [talksLoading, setTalksLoading] = useState(true);
 
   const [chunkResults, setChunkResults] = useState<SearchResult[]>([]);
   const [chunksLoading, setChunksLoading] = useState(false);
@@ -351,21 +326,6 @@ export default function SearchScreen() {
     debounceRef.current = setTimeout(() => setDebouncedQuery(query), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
-
-  // Lokale Talks beobachten
-  useEffect(() => {
-    const sub = TalkRepository.observeAll().subscribe(async (talks) => {
-      setAllTalks(talks);
-      setTalksLoading(false);
-      const map = new Map<string, Turn | null>();
-      await Promise.all(talks.map(async (t) => {
-        const first = await TurnRepository.findFirstByTalk(t.id);
-        map.set(t.id, first);
-      }));
-      setSnippets(new Map(map));
-    });
-    return () => sub.unsubscribe();
-  }, []);
 
   // Ragrun-Suche
   useEffect(() => {
@@ -425,28 +385,19 @@ export default function SearchScreen() {
     return () => { ctrl.cancelled = true; };
   }, [debouncedQuery, selectedGroups]);
 
-  // Gemischte, relevanzbasierte Liste — leer wenn kein Suchbegriff
+  // Relevanzbasierte Liste — leer wenn kein Suchbegriff
   const sortedItems = useMemo((): ScoredItem[] => {
     const q = debouncedQuery.toLowerCase().trim();
     if (!q) return [];
 
-    const talkItems: ScoredTalk[] = allTalks
-      .map((talk) => ({
-        type: 'talk' as const,
-        talk,
-        snippetTurn: snippets.get(talk.id) ?? null,
-        score: talkScore(talk, q),
+    return chunkResults
+      .map((result) => ({
+        type: 'chunk' as const,
+        result,
+        score: result.score,
       }))
-      .filter((item) => item.score > 0);
-
-    const chunkItems: ScoredChunk[] = chunkResults.map((result) => ({
-      type: 'chunk' as const,
-      result,
-      score: result.score,
-    }));
-
-    return [...talkItems, ...chunkItems].sort((a, b) => b.score - a.score);
-  }, [allTalks, snippets, chunkResults, debouncedQuery]);
+      .sort((a, b) => b.score - a.score);
+  }, [chunkResults, debouncedQuery]);
 
   const toggleGroup = useCallback((group: FilterGroup) => {
     setSelectedGroups((prev) => {
@@ -469,7 +420,6 @@ export default function SearchScreen() {
     if (selectedGroups.size >= FILTER_GROUPS.length) return sortedItems;
     const effectiveKinds = kindsForGroups(selectedGroups);
     return sortedItems.filter((item) => {
-      if (item.type === 'talk') return effectiveKinds.has('talk');
       const kind = entityKindFromSearchResult(item.result);
       return effectiveKinds.has(kind);
     });
@@ -478,19 +428,10 @@ export default function SearchScreen() {
   const handleSearchNavigation = useSearchHitNavigation();
 
   const renderItem = useCallback(({ item }: { item: ScoredItem }) => {
-    if (item.type === 'talk') {
-      return (
-        <TalkCard
-          talk={item.talk}
-          snippetTurn={item.snippetTurn}
-          onPress={() => openConversationDetail(item.talk.id, null)}
-        />
-      );
-    }
     return <SearchHitRow result={item.result} onNavigate={handleSearchNavigation} />;
-  }, [openConversationDetail, handleSearchNavigation]);
+  }, [handleSearchNavigation]);
 
-  const isLoading = talksLoading || chunksLoading;
+  const isLoading = chunksLoading;
   const isEmpty = !isLoading && filteredItems.length === 0;
   const isFiltered = selectedGroups.size < FILTER_GROUPS.length;
   const scopeParts = useMemo(
@@ -672,11 +613,7 @@ export default function SearchScreen() {
         </>
       )}
 
-      {talksLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : isEmpty ? (
+      {isEmpty ? (
         <View style={styles.center}>
           {debouncedQuery ? (
             <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant, textAlign: 'center' }]}>
@@ -694,9 +631,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           data={filteredItems}
-          keyExtractor={(item, i) =>
-            item.type === 'talk' ? item.talk.id : `chunk-${item.result.chunk_id}-${i}`
-          }
+          keyExtractor={(item, i) => `chunk-${item.result.chunk_id}-${i}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"

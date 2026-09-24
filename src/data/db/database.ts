@@ -5,11 +5,7 @@ import { migrations } from './migrations';
 import Paragraph from './models/Paragraph';
 import Note from './models/Note';
 import Bookmark from './models/Bookmark';
-import Talk from './models/Talk';
-import Turn from './models/Turn';
-import Reference from './models/Reference';
 import Source from './models/Source';
-import StarterPrompt from './models/StarterPrompt';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -20,7 +16,7 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Paragraph, Note, Bookmark, Talk, Turn, Reference, Source, StarterPrompt],
+  modelClasses: [Paragraph, Note, Bookmark, Source],
 });
 
-export { Paragraph, Note, Bookmark, Talk, Turn, Reference, Source, StarterPrompt };
+export { Paragraph, Note, Bookmark, Source };

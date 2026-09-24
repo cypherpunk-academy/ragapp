@@ -6,7 +6,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { navigateToChatWithPendingLink } from '@/shared/lib/chatNavigation';
 import { Ionicons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, NOTE_BADGE_ACCENT } from '@/shared/theme';
 import { colorWithAlpha } from '@/shared/lib/color';
@@ -174,10 +173,6 @@ export default function ArbeitstexteScreen() {
         note={previewNote}
         onClose={() => setPreviewNote(null)}
         onDeleted={() => setPreviewNote(null)}
-        onEditInChat={previewNote ? () => {
-          navigateToChatWithPendingLink(previewNote.id);
-          router.back();
-        } : undefined}
       />
     </View>
   );

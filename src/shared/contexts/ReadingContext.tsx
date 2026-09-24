@@ -2,20 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type Paragraph from '@/data/db/models/Paragraph';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
-import { registerChatNavigation } from '@/shared/lib/chatNavigation';
 
 type ContributionsOverlay = {
   paragraph: Paragraph;
   sourceId: string;
-};
-
-type ConversationDetailOverlay = {
-  talkId: string;
-  sourceId: string;
-  /** Absatz, von dem aus das Gespräch geöffnet wurde (Fundstelle). Null = kein Anchor (z. B. aus Suche). */
-  anchorParagraphId: string | null;
-  /** MVP: erste Runde (0) als Einstieg an der Fundstelle. */
-  anchorTurnIndex: number;
 };
 
 type SummaryReadTarget = {
@@ -57,33 +47,18 @@ type ReadingTarget = {
 type ReadingContextValue = {
   target: ReadingTarget;
   contributions: ContributionsOverlay | null;
-  conversationDetail: ConversationDetailOverlay | null;
   chunkPreview: ChunkPreviewOverlay | null;
-  chatTalkId: string | null;
-  /** Note-ID, die im Chat verknüpft werden soll, sobald ein Gespräch existiert (z. B. „Mit Philo bearbeiten" ohne aktives Gespräch). */
-  chatPendingLinkNoteId: string | null;
-  /**
-   * Sticky Arbeitstext für die Filo-Session: überlebt Remounts des Philo-Tabs
-   * (z. B. PagerView), bis „Neuer Chat“ oder explizites Lösen.
-   */
-  filoSessionNoteId: string | null;
-  setFiloSessionNoteId: (id: string | null) => void;
-  clearFiloSessionNote: () => void;
-  /** Absatz-ID, mit der ein neues Gespräch verankert werden soll (z. B. „Philo zu diesem Absatz fragen"). */
-  chatPendingParagraphId: string | null;
   /** Setzt Scroll-Ziel und wechselt zum Lesen-Tab (Pager-Index siehe TAB_INDEX_READ). */
   navigateToRead: (t: Omit<ReadingTarget, 'sourceId' | 'markerOffset' | 'navSeq'> & { sourceId?: string; markerOffset?: number | null; pushHistory?: boolean; fromParagraphId?: string; fromSearch?: 'search' | 'chat'; switchTab?: boolean; sourceHint?: ReadingSourceHint }) => void;
   /** Navigiert zum vorherigen Eintrag im Seitenverweis-Verlauf. */
   navigateBack: () => void;
   /** Seitenverweis-Verlauf (nicht leer = Zurück-Button anzeigen). */
   navigationHistory: ReadingTarget[];
-  /** Wechselt zum KI-Chat-Tab ohne vorgeladenes Gespräch. */
-  navigateToChat: () => void;
   /** Wechselt zurück zum KI-Suche-Tab (nach Navigation aus der Suche). */
   navigateToSearch: () => void;
   /** true wenn die aktuelle Leseposition aus der KI-Suche oder den Chat-Quellenverweisen geöffnet wurde. */
   searchReturnActive: boolean;
-  /** Woher die aktuelle Leseposition kam — bestimmt das Ziel des „Zurück"-Buttons. */
+  /** Woher die aktuelle Leseposition kam — bestimmt das Ziel des „Zurück”-Buttons. */
   searchReturnOrigin: 'search' | 'chat' | null;
   /**
    * Zähler: wird hochgezählt wenn der User explizit auf den Übersicht-Tab tippt.
@@ -92,22 +67,8 @@ type ReadingContextValue = {
   overviewResetKey: number;
   /** Vom Layout aufgerufen wenn der Übersicht-Tab-Button gedrückt wird. */
   resetOverview: () => void;
-  /** Wechselt zum KI-Chat-Tab und lädt das angegebene Gespräch vor. */
-  navigateToChatWithTalk: (talkId: string) => void;
-  /** Vom Chat-Tab aufgerufen, sobald `chatTalkId` übernommen wurde. */
-  consumeChatTalkId: () => void;
-  /** Wechselt zum KI-Chat-Tab und merkt eine Note zum Verknüpfen vor („Mit Philo bearbeiten"). */
-  navigateToChatWithPendingLink: (noteId: string) => void;
-  /** Vom Chat-Tab aufgerufen, sobald `chatPendingLinkNoteId` übernommen wurde. */
-  consumeChatPendingLink: () => void;
-  /** Wechselt zum KI-Chat-Tab und merkt einen Absatz zur Verankerung eines neuen Gesprächs vor. */
-  navigateToChatWithParagraph: (paragraphId: string) => void;
-  /** Vom Chat-Tab aufgerufen, sobald `chatPendingParagraphId` übernommen wurde. */
-  consumeChatPendingParagraph: () => void;
   openContributions: (paragraph: Paragraph, sourceId?: string) => void;
   closeContributions: () => void;
-  openConversationDetail: (talkId: string, anchorParagraphId?: string | null, anchorTurnIndex?: number, sourceId?: string) => void;
-  closeConversationDetail: () => void;
   openChunkPreview: (payload: ChunkPreviewOverlay) => void;
   closeChunkPreview: () => void;
   /** Wird vom Layout injiziert. */
@@ -117,7 +78,6 @@ type ReadingContextValue = {
 const LAST_SOURCE_KEY = 'lastActiveSourceId';
 
 /** Synchron zu PagerView-Reihenfolge in app/(tabs)/_layout.tsx */
-export const TAB_INDEX_CHAT = 0;
 export const TAB_INDEX_OVERVIEW = 1;
 export const TAB_INDEX_READ = 2;
 export const TAB_INDEX_SEARCH = 3;
@@ -125,31 +85,15 @@ export const TAB_INDEX_SEARCH = 3;
 const ReadingContext = createContext<ReadingContextValue>({
   target: { sourceId: '', segmentIndex: null, paragraphId: null, markerOffset: null, navSeq: 0 },
   contributions: null,
-  conversationDetail: null,
   chunkPreview: null,
-  chatTalkId: null,
-  chatPendingLinkNoteId: null,
-  filoSessionNoteId: null,
-  setFiloSessionNoteId: () => {},
-  clearFiloSessionNote: () => {},
-  chatPendingParagraphId: null,
   navigateToRead: () => {},
   navigateBack: () => {},
   navigationHistory: [],
-  navigateToChat: () => {},
   navigateToSearch: () => {},
   searchReturnActive: false,
   searchReturnOrigin: null,
-  navigateToChatWithTalk: () => {},
-  consumeChatTalkId: () => {},
-  navigateToChatWithPendingLink: () => {},
-  consumeChatPendingLink: () => {},
-  navigateToChatWithParagraph: () => {},
-  consumeChatPendingParagraph: () => {},
   openContributions: () => {},
   closeContributions: () => {},
-  openConversationDetail: () => {},
-  closeConversationDetail: () => {},
   openChunkPreview: () => {},
   closeChunkPreview: () => {},
   _registerTabNav: () => {},
@@ -199,12 +143,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const resetOverview = useCallback(() => setOverviewResetKey((k) => k + 1), []);
 
   const [contributions, setContributions] = useState<ContributionsOverlay | null>(null);
-  const [conversationDetail, setConversationDetail] = useState<ConversationDetailOverlay | null>(null);
   const [chunkPreview, setChunkPreview] = useState<ChunkPreviewOverlay | null>(null);
-  const [chatTalkId, setChatTalkId] = useState<string | null>(null);
-  const [chatPendingLinkNoteId, setChatPendingLinkNoteId] = useState<string | null>(null);
-  const [filoSessionNoteId, setFiloSessionNoteId] = useState<string | null>(null);
-  const [chatPendingParagraphId, setChatPendingParagraphId] = useState<string | null>(null);
   const [searchReturnActive, setSearchReturnActive] = useState(false);
   const [searchReturnOrigin, setSearchReturnOrigin] = useState<'search' | 'chat' | null>(null);
 
@@ -249,52 +188,11 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     tabNavRef.current?.(TAB_INDEX_READ);
   }, []);
 
-  const navigateToChat = useCallback(() => {
-    setSearchReturnActive(false);
-    setSearchReturnOrigin(null);
-    setConversationDetail(null);
-    setContributions(null);
-    tabNavRef.current?.(TAB_INDEX_CHAT);
-  }, []);
-
   const navigateToSearch = useCallback(() => {
     setSearchReturnActive(false);
     setSearchReturnOrigin(null);
     tabNavRef.current?.(TAB_INDEX_SEARCH);
   }, []);
-
-  const navigateToChatWithTalk = useCallback((talkId: string) => {
-    setConversationDetail(null);
-    setContributions(null);
-    setChatTalkId(talkId);
-    tabNavRef.current?.(TAB_INDEX_CHAT);
-  }, []);
-
-  const consumeChatTalkId = useCallback(() => setChatTalkId(null), []);
-
-  const navigateToChatWithPendingLink = useCallback((noteId: string) => {
-    setConversationDetail(null);
-    setContributions(null);
-    setChatPendingLinkNoteId(noteId);
-    setFiloSessionNoteId(noteId);
-    tabNavRef.current?.(TAB_INDEX_CHAT);
-  }, []);
-
-  useEffect(() => {
-    registerChatNavigation(navigateToChatWithPendingLink);
-  }, [navigateToChatWithPendingLink]);
-
-  const consumeChatPendingLink = useCallback(() => setChatPendingLinkNoteId(null), []);
-  const clearFiloSessionNote = useCallback(() => setFiloSessionNoteId(null), []);
-
-  const navigateToChatWithParagraph = useCallback((paragraphId: string) => {
-    setConversationDetail(null);
-    setContributions(null);
-    setChatPendingParagraphId(paragraphId);
-    tabNavRef.current?.(TAB_INDEX_CHAT);
-  }, []);
-
-  const consumeChatPendingParagraph = useCallback(() => setChatPendingParagraphId(null), []);
 
   const openContributions = useCallback(
     (paragraph: Paragraph, sourceId?: string) => {
@@ -304,15 +202,6 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   );
 
   const closeContributions = useCallback(() => setContributions(null), []);
-
-  const openConversationDetail = useCallback(
-    (talkId: string, anchorParagraphId: string | null = null, anchorTurnIndex = 0, sourceId = '') => {
-      setConversationDetail({ talkId, sourceId, anchorParagraphId, anchorTurnIndex });
-    },
-    [],
-  );
-
-  const closeConversationDetail = useCallback(() => setConversationDetail(null), []);
 
   const openChunkPreview = useCallback((payload: ChunkPreviewOverlay) => {
     setChunkPreview(payload);
@@ -325,31 +214,15 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
       value={{
         target,
         contributions,
-        conversationDetail,
         chunkPreview,
-        chatTalkId,
-        chatPendingLinkNoteId,
-        filoSessionNoteId,
-        setFiloSessionNoteId,
-        clearFiloSessionNote,
-        chatPendingParagraphId,
         navigateToRead,
         navigateBack,
         navigationHistory,
-        navigateToChat,
         navigateToSearch,
         searchReturnActive,
         searchReturnOrigin,
-        navigateToChatWithTalk,
-        consumeChatTalkId,
-        navigateToChatWithPendingLink,
-        consumeChatPendingLink,
-        navigateToChatWithParagraph,
-        consumeChatPendingParagraph,
         openContributions,
         closeContributions,
-        openConversationDetail,
-        closeConversationDetail,
         openChunkPreview,
         closeChunkPreview,
         _registerTabNav,

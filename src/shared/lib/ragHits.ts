@@ -1,5 +1,3 @@
-import type Reference from '@/data/db/models/Reference';
-import type Turn from '@/data/db/models/Turn';
 import type { SearchResult } from '@/shared/types/ragrun';
 import i18n, { getDateLocale } from '@/shared/i18n';
 
@@ -63,39 +61,6 @@ export function chunkIndexEntryToSearchResult(entry: ChunkIndexEntry): RagHit {
     vortragstitel: entry.vortragstitel,
     citationIndex: typeof entry.index === 'number' ? entry.index : undefined,
   };
-}
-
-export function referenceToSearchResult(ref: Reference): RagHit {
-  const title = ref.sourceTitle?.trim() || undefined;
-  const segment = ref.segmentTitle?.trim() || undefined;
-  return {
-    chunk_id: ref.chunkId?.trim() ?? '',
-    source_id: '',
-    title,
-    segment_title: segment,
-    // Segment allein (z. B. „Turn 1“) ist als Snippet nutzlos — Titel bevorzugen
-    snippet: title && segment && /^turn\s*\d+$/i.test(segment)
-      ? title
-      : (segment ?? title ?? ''),
-    score: typeof ref.relevance === 'number' ? ref.relevance : 0,
-    citationIndex: typeof ref.refIndex === 'number' ? ref.refIndex : undefined,
-  };
-}
-
-/**
- * Alle RAG-Treffer eines Turns: bevorzugt `chunk_index_map` (volle Qdrant-Liste),
- * sonst normalisierte `references` aus dem Sync.
- * Anzeige-/Zitat-Indizes sind 1-basiert (falls die Map noch mit 0 startet, wird verschoben).
- */
-export function resolveRagHitsForTurn(turn: Turn, references: Reference[]): RagHit[] {
-  const fromMap = parseChunkIndexMap(turn.chunkIndexMap).map(chunkIndexEntryToSearchResult);
-  if (fromMap.length > 0) return ensureOneBasedCitationIndices(fromMap);
-
-  return ensureOneBasedCitationIndices(
-    references
-      .filter((r) => Boolean(r.chunkId?.trim()))
-      .map(referenceToSearchResult),
-  );
 }
 
 /** Verschiebt 0-basierte `citationIndex`-Werte auf 1…n (Zitate im Antworttext sind 1-basiert). */

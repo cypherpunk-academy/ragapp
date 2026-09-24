@@ -16,7 +16,6 @@ import {
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
-import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
@@ -87,9 +86,8 @@ export default function ReadScreen() {
     [],
   );
   const {
-    target, openContributions, navigateToRead, navigateToChatWithParagraph, navigateBack,
-    navigationHistory, navigateToSearch, navigateToChat, searchReturnActive, searchReturnOrigin,
-    navigateToChatWithPendingLink,
+    target, navigateToRead, navigateBack,
+    navigationHistory, navigateToSearch, searchReturnActive,
   } = useReading();
   const sourceId = target.sourceId;
   const hasHistory = navigationHistory.length > 0;
@@ -100,7 +98,6 @@ export default function ReadScreen() {
   const [allParagraphs, setAllParagraphs] = useState<Paragraph[]>([]);
   const [loading, setLoading] = useState(true);
   const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
-  const [talkCounts, setTalkCounts] = useState<Map<string, number>>(new Map());
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(new Set());
   const { setWarning } = useWarnings();
   const { user } = useAuth();
@@ -183,19 +180,6 @@ export default function ReadScreen() {
     });
     return () => sub.unsubscribe();
   }, [sourceId, setWarning, t]);
-
-  useEffect(() => {
-    const userId = user?.id ?? 'local';
-    const sub = TalkRepository.observeByUser(userId).subscribe((talks) => {
-      const counts = new Map<string, number>();
-      for (const t of talks) {
-        const pid = t.kontextParagraphId;
-        if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
-      }
-      setTalkCounts(counts);
-    });
-    return () => sub.unsubscribe();
-  }, [user?.id]);
 
   useEffect(() => {
     const sub = BookmarkRepository.observeManualBookmarks(sourceId).subscribe((bms) => {
@@ -526,20 +510,6 @@ export default function ReadScreen() {
     setMenuParagraph(null);
   }, [menuParagraph, menuParagraphNote, noteCounts, sourceId, currentSegment, t]);
 
-  const handleStartChatFromMenu = useCallback(() => {
-    if (!menuParagraph) return;
-    const paragraphId = menuParagraph.id;
-    setMenuParagraph(null);
-    navigateToChatWithParagraph(paragraphId);
-  }, [menuParagraph, navigateToChatWithParagraph]);
-
-  const handleShowContributionsFromMenu = useCallback(() => {
-    if (!menuParagraph) return;
-    const p = menuParagraph;
-    setMenuParagraph(null);
-    openContributions(p, sourceId);
-  }, [menuParagraph, openContributions, sourceId]);
-
   const handleToggleBookmarkFromMenu = useCallback(() => {
     if (!menuParagraph) return;
     void BookmarkRepository.toggleManualBookmark(user?.id ?? 'local', sourceId, menuParagraph.id);
@@ -559,10 +529,6 @@ export default function ReadScreen() {
     }
   }, [currentSegment, chapterNote, sourceId, t]);
 
-  const showContributions = useCallback((p: Paragraph) => {
-    openContributions(p, sourceId);
-  }, [openContributions, sourceId]);
-
   const handleShowParagraphNote = useCallback((p: Paragraph) => {
     const count = noteCounts.get(p.id) ?? 0;
     if (count > 1) {
@@ -578,9 +544,8 @@ export default function ReadScreen() {
 
   const renderItem = useCallback(({ item }: { item: Paragraph }) => {
     const noteCount = noteCounts.get(item.id) ?? 0;
-    const conversationCount = talkCounts.get(item.id) ?? 0;
     const isBookmarked = bookmarkIds.has(item.id);
-    const hasStrip = noteCount > 0 || conversationCount > 0;
+    const hasStrip = noteCount > 0;
     const iconMeta = colors.onSurfaceVariant;
     const iconPx = ICON_SIZES.strip;
 
@@ -623,20 +588,13 @@ export default function ReadScreen() {
                     <Text style={[styles.inlineContributionCount, { lineHeight: bodyLineHeight }]}>{noteCount}</Text>
                   </Text>
                 ) : null}
-                {conversationCount > 0 ? (
-                  <Text onPress={() => showContributions(item)} style={styles.inlineContributionHit}>
-                    {noteCount > 0 ? '\u2002' : null}
-                    <MaterialIcons name={contributionIcon('conversations')} size={iconPx} color={iconMeta} />
-                    <Text style={[styles.inlineContributionCount, { lineHeight: bodyLineHeight }]}>{conversationCount}</Text>
-                  </Text>
-                ) : null}
               </Text>
             ) : undefined
           }
         />
       </Pressable>
     );
-  }, [noteCounts, talkCounts, bookmarkIds, colors, handleLongPress, showContributions, handleShowParagraphNote, marker, paragraphNumberStyle, bodyLineHeight]);
+  }, [noteCounts, bookmarkIds, colors, handleLongPress, handleShowParagraphNote, marker, paragraphNumberStyle, bodyLineHeight]);
 
   const menuNoteState = useMemo(() => {
     if (!menuParagraph) return { ready: false, hasNote: false };
@@ -678,9 +636,9 @@ export default function ReadScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <AppBar
-        title={hasHistory ? t('common.back') : searchReturnActive ? (searchReturnOrigin === 'chat' ? t('read.sourcesReturn') : t('read.searchReturn')) : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : t('read.title'))}
+        title={hasHistory ? t('common.back') : searchReturnActive ? t('read.searchReturn') : (currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : t('read.title'))}
         titleStyle={(hasHistory || searchReturnActive) ? appBarBackTitleStyle : appBarTitleStyle}
-        onBackPress={hasHistory ? navigateBack : searchReturnActive ? (searchReturnOrigin === 'chat' ? navigateToChat : navigateToSearch) : undefined}
+        onBackPress={hasHistory ? navigateBack : searchReturnActive ? navigateToSearch : undefined}
       />
       <FlashList
         style={styles.list}
@@ -804,23 +762,6 @@ export default function ReadScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={user ? handleStartChatFromMenu : () => { setMenuParagraph(null); router.push('/auth/login'); }}
-              >
-                <Ionicons name="chatbubble-outline" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
-                  {user ? t('read.askPhilo') : t('read.askPhiloLogin')}
-                </Text>
-              </TouchableOpacity>
-              {menuParagraph && (talkCounts.get(menuParagraph.id) ?? 0) > 0 && (
-                <TouchableOpacity style={styles.menuRow} onPress={handleShowContributionsFromMenu}>
-                  <Ionicons name="albums-outline" size={20} color={colors.primary} />
-                  <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-                    {t('read.pastConversations')}
-                  </Text>
-                </TouchableOpacity>
-              )}
           </View>
         </View>
       )}
@@ -829,7 +770,6 @@ export default function ReadScreen() {
         <DocumentPreviewOverlay
           note={previewNote}
           onClose={() => setPreviewNote(null)}
-          onEditInChat={() => navigateToChatWithPendingLink(previewNote.id)}
           onDeleted={() => {
             if (chapterNote?.id === previewNote.id) setChapterNote(null);
           }}
