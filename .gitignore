@@ -21,3 +21,6 @@ android/
 .eslintcache
 .tsbuildinfo
 envs/
+
+# Generated at build time via `npm run seed:fetch`
+assets/seed/books.db
