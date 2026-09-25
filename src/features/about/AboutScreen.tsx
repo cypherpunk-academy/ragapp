@@ -27,6 +27,11 @@ const gitCommitShort =
   (Constants.expoConfig?.extra as { gitCommitShort?: string } | undefined)?.gitCommitShort
   || null;
 
+/** Expo SDK major version baked into the build. */
+const expoSdkVersion =
+  (Constants.expoConfig?.extra as { expoSdkVersion?: string } | undefined)?.expoSdkVersion
+  || '';
+
 /** e.g. "1.0.0 beta-15-77a05a62" */
 function formatAppVersionLabel(): string {
   let label = i18n.t('common.versionBeta', { version: appVersion });
@@ -119,16 +124,16 @@ export default function AboutScreen() {
             {t('about.version', { label: formatAppVersionLabel() })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.appPlatform')}
+            {t('about.appPlatform', { version: expoSdkVersion })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
             {t('about.server')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.database')}
+            {t('about.database', { version: '17.6' })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.ragDatabase')}
+            {t('about.ragDatabase', { version: '1.18' })}
           </Text>
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/cypherpunk-academy/ragrun')}>
             <Text style={[typography.bodyMedium, { color: colors.primary }]}>

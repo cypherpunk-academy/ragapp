@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   placeholderOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-start',
   },
   listContent: { paddingHorizontal: spacing.m, paddingBottom: spacing.xl },

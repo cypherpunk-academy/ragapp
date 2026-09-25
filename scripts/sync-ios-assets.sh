@@ -9,8 +9,15 @@ if [[ ! -d ios ]]; then
   exit 1
 fi
 
+# Find the app target directory (name varies by SDK version / app name).
+APP_DIR=$(find ios -maxdepth 1 -type d ! -name ios ! -name Pods ! -name build ! -name '.*' -print -quit)
+if [[ -z "${APP_DIR}" || ! -d "${APP_DIR}/Images.xcassets" ]]; then
+  echo "ERROR: Cannot find Images.xcassets under ios/" >&2
+  exit 1
+fi
+
 ICON_SRC=assets/icon-ios.png
-ICON_DEST=ios/ragapp/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
+ICON_DEST="${APP_DIR}/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png"
 if [[ ! -f "${ICON_SRC}" ]]; then
   echo "ERROR: ${ICON_SRC} not found" >&2
   exit 1
@@ -19,7 +26,7 @@ sips -z 1024 1024 "${ICON_SRC}" --out "${ICON_DEST}" >/dev/null
 echo "→ Synced iOS app icon from ${ICON_SRC}"
 
 SPLASH_SRC=assets/splash-icon.png
-SPLASH_DIR=ios/ragapp/Images.xcassets/SplashScreenLogo.imageset
+SPLASH_DIR="${APP_DIR}/Images.xcassets/SplashScreenLogo.imageset"
 # Matches expo-splash-screen imageWidth: 200 in app.config.js
 if [[ ! -f "${SPLASH_SRC}" ]]; then
   echo "ERROR: ${SPLASH_SRC} not found" >&2

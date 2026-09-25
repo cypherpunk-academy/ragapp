@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bootOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 20,
   },
 });

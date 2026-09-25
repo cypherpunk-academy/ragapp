@@ -20,6 +20,18 @@ function resolveGitCommitShort() {
 
 const gitCommitShort = resolveGitCommitShort();
 
+/** Expo SDK major version read from package.json at build time. */
+const expoSdkVersion = (() => {
+  try {
+    const pkg = require('./package.json');
+    const raw = pkg.dependencies?.expo ?? '';
+    const match = raw.match(/\d+/);
+    return match ? match[0] : '';
+  } catch {
+    return '';
+  }
+})();
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
   name: IS_STAGING ? 'Philo (Staging)' : 'Philo von Freisinn',
@@ -70,6 +82,8 @@ const config = {
     'expo-apple-authentication',
     'expo-localization',
     'expo-updates',
+    'expo-secure-store',
+    'expo-sqlite',
     [
       'expo-splash-screen',
       {
@@ -91,6 +105,7 @@ const config = {
       || process.env.EAS_BUILD_APP_VERSION_CODE
       || '',
     gitCommitShort,
+    expoSdkVersion,
     eas: {
       projectId: '28c4e815-4398-499c-95e6-67c2d1b87e2d',
     },

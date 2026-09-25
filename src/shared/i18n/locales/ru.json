@@ -355,9 +355,9 @@
     "primaryLiterature": "ПЕРВИЧНАЯ ЛИТЕРАТУРА",
     "appInfo": "О ПРИЛОЖЕНИИ",
     "version": "Версия: {{label}}",
-    "appPlatform": "App (Android / iOS): Expo 54",
+    "appPlatform": "App (Android / iOS): Expo {{version}}",
     "server": "Сервер: ragrun на Railway",
-    "database": "База данных: Supabase (Postgres)",
-    "ragDatabase": "RAG-база: Qdrant Cloud"
+    "database": "База данных: Supabase (Postgres {{version}})",
+    "ragDatabase": "RAG-база: Qdrant Cloud {{version}}"
   }
 }
