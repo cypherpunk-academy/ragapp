@@ -10,14 +10,8 @@ import AppIcon from '@/shared/components/AppIcon';
 import { lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { ICONS, ICON_SIZES } from '@/shared/theme';
 import { useAuth } from '@/shared/hooks/useAuth';
-import { useSync } from '@/shared/hooks/useSync';
 import { authService } from '@/data/services/authService';
-import { getDateLocale } from '@/shared/i18n';
 
-function formatSyncTime(ms: number): string {
-  const d = new Date(ms);
-  return d.toLocaleTimeString(getDateLocale(), { hour: '2-digit', minute: '2-digit' });
-}
 
 type Props = {
   variant?: 'stack';
@@ -28,7 +22,6 @@ export default function KontoScreen({ variant }: Props) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const { user, loading, isAuthenticated, isConfigured } = useAuth();
-  const { syncing, lastSyncedAt, lastError, sync } = useSync();
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = () => {
@@ -126,38 +119,6 @@ export default function KontoScreen({ variant }: Props) {
               </View>
             </View>
 
-            {/* Sync */}
-            <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-              <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-                {t('konto.syncSection')}
-              </Text>
-              <View style={styles.syncRow}>
-                <Text style={[typography.bodyMedium, { color: colors.onSurface, flex: 1 }]}>
-                  {syncing
-                    ? t('konto.syncing')
-                    : lastError
-                      ? t('konto.syncError', { error: lastError })
-                      : lastSyncedAt
-                        ? t('konto.lastSynced', { time: formatSyncTime(lastSyncedAt) })
-                        : t('konto.neverSynced')}
-                </Text>
-                <TouchableOpacity
-                  style={[styles.syncBtn, { backgroundColor: colors.primary, opacity: syncing ? 0.6 : 1 }]}
-                  onPress={() => void sync()}
-                  disabled={syncing}
-                  activeOpacity={0.8}
-                >
-                  {syncing
-                    ? <ActivityIndicator size="small" color={colors.onPrimary} />
-                    : (
-                      <Text style={[textStyles.continueCta, { color: colors.onPrimary }]} numberOfLines={1}>
-                        {t('konto.syncNow')}
-                      </Text>
-                    )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Aktionen */}
             <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
               <TouchableOpacity
@@ -209,16 +170,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   profileText: { flex: 1, gap: 2 },
-  syncRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.m },
-  syncBtn: {
-    borderRadius: 999,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.m,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 36,
-  },
   actionRow: { paddingVertical: spacing.xs, minHeight: 40, justifyContent: 'center' },
   separator: { height: StyleSheet.hairlineWidth, marginVertical: spacing.xs },
 });

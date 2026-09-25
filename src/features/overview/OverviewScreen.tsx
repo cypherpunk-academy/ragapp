@@ -22,7 +22,7 @@ import SegmentTitleText from '@/shared/components/SegmentTitleText';
 
 type Segment = {
   segmentIndex: number;
-  segmentTitle: string;
+  segmentTitle: string | null;
   paragraphs: Paragraph[];
 };
 
@@ -148,7 +148,7 @@ export default function OverviewScreen() {
   }, [lastReadParagraphId, segments]);
 
   const paragraphMap = useMemo(() => {
-    const map = new Map<string, { paragraph: Paragraph; segmentTitle: string }>();
+    const map = new Map<string, { paragraph: Paragraph; segmentTitle: string | null }>();
     for (const seg of segments) {
       for (const p of seg.paragraphs) {
         map.set(p.id, { paragraph: p, segmentTitle: seg.segmentTitle });

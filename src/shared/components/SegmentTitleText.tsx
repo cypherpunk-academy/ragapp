@@ -4,7 +4,7 @@ import { buildSegmentTitleParts } from '@/shared/lib/segmentTitleDisplay';
 import { textStyles, readingItalicColor } from '@/shared/theme';
 
 type Props = TextProps & {
-  title: string;
+  title: string | null;
   style?: TextStyle | TextStyle[];
   italicStyle?: TextStyle;
 };
@@ -18,7 +18,7 @@ export default function SegmentTitleText({
 }: Props) {
   const colorScheme = useColorScheme();
   const italicColor = readingItalicColor(colorScheme === 'dark');
-  const parts = useMemo(() => buildSegmentTitleParts(title), [title]);
+  const parts = useMemo(() => buildSegmentTitleParts(title ?? ''), [title]);
 
   return (
     <Text style={style} {...textProps}>

@@ -43,7 +43,7 @@ function estimateParagraphHeight(textRaw: string | undefined, lineHeight: number
   return Math.min(2400, lines * lineHeight + 28);
 }
 
-type Segment = { segmentIndex: number; segmentTitle: string; segmentSlug: string | null };
+type Segment = { segmentIndex: number; segmentTitle: string | null; segmentSlug: string | null };
 
 export default function ReadScreen() {
   const { t } = useTranslation();
@@ -556,7 +556,7 @@ export default function ReadScreen() {
       >
         <ParagraphRenderer
           text={item.text_raw}
-          annotations={item.annotations}
+          annotations={item.annotations ? JSON.parse(item.annotations) : null}
           paragraphId={item.id}
           markerOffset={item.id === marker?.paragraphId ? marker.offset : null}
           style={{ color: colors.onBackground }}

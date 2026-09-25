@@ -20,7 +20,7 @@ export function useConnectorStatus(): ConnectorStatusResult {
       const token = await getAccessToken();
       if (!token) { setStatus('not_connected'); return; }
 
-      const res = await fetch(`${config.ragrunUrl}/app/claude-status`, {
+      const res = await fetch(`${config.ragrun.baseUrl}/app/claude-status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) { setStatus('not_connected'); return; }

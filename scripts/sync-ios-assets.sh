@@ -9,7 +9,7 @@ if [[ ! -d ios ]]; then
   exit 1
 fi
 
-ICON_SRC=assets/icon.png
+ICON_SRC=assets/icon-ios.png
 ICON_DEST=ios/ragapp/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
 if [[ ! -f "${ICON_SRC}" ]]; then
   echo "ERROR: ${ICON_SRC} not found" >&2

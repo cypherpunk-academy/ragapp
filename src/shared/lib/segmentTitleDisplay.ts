@@ -3,7 +3,8 @@ import { parseInlineHtml } from '@/shared/lib/parseInlineHtml';
 export type SegmentTitlePart = { text: string; italic: boolean };
 
 /** Plain text for single-line headers (AppBar) — strips `<i>`, `<q>`, etc. */
-export function stripSegmentTitleHtml(raw: string): string {
+export function stripSegmentTitleHtml(raw: string | null): string {
+  if (!raw) return '';
   if (!raw.includes('<')) return raw;
   return parseInlineHtml(raw).cleanText;
 }

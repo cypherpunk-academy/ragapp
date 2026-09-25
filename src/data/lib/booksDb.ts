@@ -8,9 +8,9 @@
  */
 import {
   openDatabaseAsync,
+  importDatabaseFromAssetAsync,
   type SQLiteDatabase,
 } from 'expo-sqlite';
-import { importDatabaseFromAssetAsync } from 'expo-sqlite/hooks';
 
 // metro resolves the .db asset at build time
 // eslint-disable-next-line @typescript-eslint/no-var-requires

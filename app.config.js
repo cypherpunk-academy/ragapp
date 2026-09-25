@@ -37,6 +37,7 @@ const config = {
     backgroundColor: '#ffffff',
   },
   ios: {
+    icon: './assets/icon-ios.png',
     supportsTablet: true,
     requireFullScreen: true,
     bundleIdentifier: IS_STAGING
