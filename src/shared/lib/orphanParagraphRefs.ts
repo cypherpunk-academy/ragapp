@@ -1,8 +1,8 @@
 import { database } from '@/data/db/database';
-import Paragraph from '@/data/db/models/Paragraph';
 import Bookmark from '@/data/db/models/Bookmark';
-import Note from '@/data/db/models/Note';
-import { Q } from '@nozbe/watermelondb';
+import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
+import * as booksDb from '@/data/lib/booksDb';
 
 export type OrphanParagraphRef = {
   kind: 'bookmark' | 'note';
@@ -16,25 +16,29 @@ export type OrphanParagraphRefsResult = {
 };
 
 /**
- * Finds bookmarks, notes, and talks pointing at missing or deprecated paragraphs.
+ * Finds bookmarks and notes pointing at missing or deprecated paragraphs.
  */
 export async function findOrphanParagraphRefs(): Promise<OrphanParagraphRefsResult> {
-  const paragraphs = await database.get<Paragraph>('paragraphs').query().fetch();
-  const activeIds = new Set(paragraphs.map((p) => p.id));
+  const sources = await booksDb.getSources();
+  const allParagraphIds = new Set<string>();
+  for (const s of sources) {
+    const paragraphs = await booksDb.getParagraphsBySource(s.id);
+    for (const p of paragraphs) allParagraphIds.add(p.id);
+  }
 
   const orphans: OrphanParagraphRef[] = [];
 
   const bookmarks = await database.get<Bookmark>('bookmarks').query().fetch();
   for (const b of bookmarks) {
-    if (b.paragraphId && !activeIds.has(b.paragraphId)) {
+    if (b.paragraphId && !allParagraphIds.has(b.paragraphId)) {
       orphans.push({ kind: 'bookmark', id: b.id, paragraphId: b.paragraphId });
     }
   }
 
-  const notes = await database.get<Note>('notes').query(Q.where('paragraph_id', Q.notEq(null))).fetch();
+  const notes = await NoteRepository.list();
   for (const n of notes) {
-    if (n.paragraphId && !activeIds.has(n.paragraphId)) {
-      orphans.push({ kind: 'note', id: n.id, paragraphId: n.paragraphId });
+    if (n.paragraph_id && !allParagraphIds.has(n.paragraph_id)) {
+      orphans.push({ kind: 'note', id: n.id, paragraphId: n.paragraph_id });
     }
   }
 

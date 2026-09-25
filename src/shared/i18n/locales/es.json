@@ -229,7 +229,9 @@
     "general": "General"
   },
   "noteEditor": {
-    "placeholder": "Escribir texto de trabajo..."
+    "placeholder": "Escribir texto de trabajo...",
+    "saving": "Guardando ...",
+    "error": "Error"
   },
   "documentPreview": {
     "breadcrumbParagraph": "Párrafo: {{preview}}",

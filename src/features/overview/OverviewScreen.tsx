@@ -8,17 +8,14 @@ import AppBar from '@/shared/components/AppBar';
 import { ICONS, ICON_SIZES, isTablet, lightColors, darkColors, spacing, textStyles, typography } from '@/shared/theme';
 import { useContentScale, scaleContentStyle } from '@/shared/hooks/useContentScale';
 import AppIcon from '@/shared/components/AppIcon';
-import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
-import { SourceRepository } from '@/data/repositories/SourceRepository';
+import { ParagraphRepository, type Paragraph } from '@/data/repositories/ParagraphRepository';
+import { SourceRepository, type Source } from '@/data/repositories/SourceRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import ArbeitstextAttachControl from '@/shared/components/ArbeitstextAttachControl';
 import { useReading } from '@/shared/contexts/ReadingContext';
-import type Paragraph from '@/data/db/models/Paragraph';
-import type Source from '@/data/db/models/Source';
-import type Note from '@/data/db/models/Note';
 import { continueReadingLabel } from './sourceDetail';
 import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
 import SegmentTitleText from '@/shared/components/SegmentTitleText';
@@ -32,10 +29,10 @@ type Segment = {
 function groupBySegment(paragraphs: Paragraph[]): Segment[] {
   const map = new Map<number, Segment>();
   for (const p of paragraphs) {
-    if (!map.has(p.segmentIndex)) {
-      map.set(p.segmentIndex, { segmentIndex: p.segmentIndex, segmentTitle: p.segmentTitle, paragraphs: [] });
+    if (!map.has(p.segment_index)) {
+      map.set(p.segment_index, { segmentIndex: p.segment_index, segmentTitle: p.segment_title, paragraphs: [] });
     }
-    map.get(p.segmentIndex)!.paragraphs.push(p);
+    map.get(p.segment_index)!.paragraphs.push(p);
   }
   return Array.from(map.values()).sort((a, b) => a.segmentIndex - b.segmentIndex);
 }
@@ -69,9 +66,9 @@ export default function OverviewScreen() {
   const [loadingSources, setLoadingSources] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [bookmarkDropdownOpen, setBookmarkDropdownOpen] = useState(false);
-  const [bookNote, setBookNote] = useState<Note | null>(null);
+  const [bookNote, setBookNote] = useState<NoteRow | null>(null);
   const [creatingNote, setCreatingNote] = useState(false);
-  const [previewNote, setPreviewNote] = useState<Note | null>(null);
+  const [previewNote, setPreviewNote] = useState<NoteRow | null>(null);
 
   // Expliziter Tab-Press → zurück zur Bücherübersicht
   useEffect(() => {
@@ -82,49 +79,55 @@ export default function OverviewScreen() {
 
   // Load all sources
   useEffect(() => {
-    const sub = SourceRepository.observePrimary().subscribe((s) => {
-      setSources(s);
-      setLoadingSources(false);
+    let cancelled = false;
+    void SourceRepository.findPrimary().then((s) => {
+      if (!cancelled) {
+        setSources(s);
+        setLoadingSources(false);
+      }
     });
-    return () => sub.unsubscribe();
+    return () => { cancelled = true; };
   }, []);
 
   // Load segments when a source is selected
   useEffect(() => {
     if (!selectedSource) { setSegments([]); return; }
     setLoadingDetail(true);
-    const sub = ParagraphRepository.observeBySource(selectedSource.id).subscribe((ps) => {
-      setSegments(groupBySegment(ps));
-      setLoadingDetail(false);
+    let cancelled = false;
+    void ParagraphRepository.findBySource(selectedSource.id).then((ps) => {
+      if (!cancelled) {
+        setSegments(groupBySegment(ps));
+        setLoadingDetail(false);
+      }
     });
-    return () => sub.unsubscribe();
+    return () => { cancelled = true; };
   }, [selectedSource?.id]);
 
   // Load bookmarks for selected source
   useEffect(() => {
     if (!selectedSource) { setBookmarkedIds([]); return; }
-    const sub = BookmarkRepository.observeManualBookmarks(selectedSource.id).subscribe((bms) => {
-      setBookmarkedIds([...new Set(bms.map((b) => b.paragraphId))]);
+    let cancelled = false;
+    void BookmarkRepository.listManual(selectedSource.id).then((bms) => {
+      if (!cancelled) setBookmarkedIds([...new Set(bms.map((b) => b.paragraph_id))]);
     });
-    return () => sub.unsubscribe();
+    return () => { cancelled = true; };
   }, [selectedSource?.id]);
 
   // Load last-read for selected source
   useEffect(() => {
     if (!selectedSource) { setLastReadParagraphId(null); return; }
-    const sub = BookmarkRepository.observeLastRead(selectedSource.id).subscribe((rows) => {
-      if (rows.length === 0) { setLastReadParagraphId(null); return; }
-      const sorted = [...rows].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-      setLastReadParagraphId(sorted[0]?.paragraphId ?? null);
+    let cancelled = false;
+    void BookmarkRepository.getLastRead(selectedSource.id).then((pId) => {
+      if (!cancelled) setLastReadParagraphId(pId);
     });
-    return () => sub.unsubscribe();
+    return () => { cancelled = true; };
   }, [selectedSource?.id]);
 
   // Arbeitstext-Verknüpfung auf Buch-Ebene für die aktuelle Auswahl
   useEffect(() => {
     if (!selectedSource) { setBookNote(null); return; }
     let cancelled = false;
-    void NoteRepository.findBySourceOnly(selectedSource.id).then((notes) => {
+    void NoteRepository.list({ sourceId: selectedSource.id }).then((notes) => {
       if (!cancelled) setBookNote(notes[0] ?? null);
     });
     return () => { cancelled = true; };
@@ -159,8 +162,8 @@ export default function OverviewScreen() {
       .map((id) => paragraphMap.get(id))
       .filter((x): x is { paragraph: Paragraph; segmentTitle: string } => x != null)
       .sort((a, b) =>
-        a.paragraph.segmentIndex - b.paragraph.segmentIndex ||
-        a.paragraph.paragraphNumber - b.paragraph.paragraphNumber,
+        a.paragraph.segment_index - b.paragraph.segment_index ||
+        a.paragraph.paragraph_number - b.paragraph.paragraph_number,
       ),
   [bookmarkedIds, paragraphMap]);
 
@@ -336,10 +339,10 @@ export default function OverviewScreen() {
                 <AppIcon name={ICONS.context.bookmark} size={14} color={colors.onPrimaryContainer} style={styles.continueBookmarkIcon} />
                 <View style={styles.continueBookmarkText}>
                     <Text style={[textStyles.noteMeta, { color: colors.onPrimaryContainer, opacity: 0.65 }]} numberOfLines={1}>
-                    {stripSegmentTitleHtml(segmentTitle)} · {paragraph.paragraphNumber}|
+                    {stripSegmentTitleHtml(segmentTitle)} · {paragraph.paragraph_number}|
                   </Text>
                   <Text style={[scaledChapterTitle, { color: colors.onPrimaryContainer }]} numberOfLines={1}>
-                    {paragraph.textRaw.replace(/\u00AD/g, '').trim()}
+                    {paragraph.text_raw.replace(/\u00AD/g, '').trim()}
                   </Text>
                 </View>
               </TouchableOpacity>

@@ -229,7 +229,9 @@
     "general": "Общее"
   },
   "noteEditor": {
-    "placeholder": "Введите рабочий текст..."
+    "placeholder": "Введите рабочий текст...",
+    "saving": "Сохранение ...",
+    "error": "Ошибка"
   },
   "documentPreview": {
     "breadcrumbParagraph": "Абзац: {{preview}}",

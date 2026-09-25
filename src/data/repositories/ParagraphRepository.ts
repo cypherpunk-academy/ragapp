@@ -1,56 +1,22 @@
-import { Q } from '@nozbe/watermelondb';
-import { database, Paragraph } from '../db/database';
-import { paragraphClausesForSource } from './paragraphQuery';
+import * as booksDb from '../lib/booksDb';
 
-const collection = database.get<Paragraph>('paragraphs');
+export type { Paragraph } from '../lib/booksDb';
 
 export const ParagraphRepository = {
-  async findById(id: string): Promise<Paragraph | null> {
-    try {
-      return await collection.find(id);
-    } catch {
-      return null;
-    }
+  async findById(id: string): Promise<booksDb.Paragraph | null> {
+    return booksDb.getParagraph(id);
   },
 
-  async findBySource(sourceId: string): Promise<Paragraph[]> {
-    return collection
-      .query(
-        ...paragraphClausesForSource(sourceId),
-        Q.sortBy('segment_index', Q.asc),
-        Q.sortBy('paragraph_number', Q.asc),
-      )
-      .fetch();
+  async findBySource(sourceId: string): Promise<booksDb.Paragraph[]> {
+    return booksDb.getParagraphsBySource(sourceId);
   },
 
-  async findBySegment(sourceId: string, segmentIndex: number): Promise<Paragraph[]> {
-    return collection
-      .query(
-        ...paragraphClausesForSource(sourceId),
-        Q.where('segment_index', segmentIndex),
-        Q.sortBy('paragraph_number', Q.asc),
-      )
-      .fetch();
+  async findBySegment(sourceId: string, segmentIndex: number): Promise<booksDb.Paragraph[]> {
+    return booksDb.getParagraphsBySegment(sourceId, segmentIndex);
   },
 
-  observeBySource(sourceId: string) {
-    return collection.query(
-      ...paragraphClausesForSource(sourceId),
-      Q.sortBy('segment_index', Q.asc),
-      Q.sortBy('paragraph_number', Q.asc),
-    ).observe();
-  },
-
-  /** Erster Absatz eines Kapitels/Vortrags anhand `segmentSlug` — für Kapitel-Titel/Navigation ohne bekannten `segmentIndex`. */
-  async findFirstBySegmentSlug(sourceId: string, segmentSlug: string): Promise<Paragraph | null> {
-    const rows = await collection
-      .query(
-        ...paragraphClausesForSource(sourceId),
-        Q.where('segment_slug', segmentSlug),
-        Q.sortBy('paragraph_number', Q.asc),
-        Q.take(1),
-      )
-      .fetch();
-    return rows[0] ?? null;
+  async findFirstBySegmentSlug(sourceId: string, segmentSlug: string): Promise<booksDb.Paragraph | null> {
+    const all = await booksDb.getParagraphsBySource(sourceId);
+    return all.find((p) => p.segment_slug === segmentSlug) ?? null;
   },
 };

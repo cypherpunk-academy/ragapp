@@ -230,7 +230,9 @@
     "general": "Allgemein"
   },
   "noteEditor": {
-    "placeholder": "Arbeitstext eingeben..."
+    "placeholder": "Arbeitstext eingeben...",
+    "saving": "Speichert ...",
+    "error": "Fehler"
   },
   "documentPreview": {
     "breadcrumbParagraph": "Absatz: {{preview}}",

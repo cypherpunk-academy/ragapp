@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { lightColors, darkColors, spacing, textStyles } from '@/shared/theme';
 import { overlayStyles } from '@/shared/styles/overlays';
 
-import type Paragraph from '@/data/db/models/Paragraph';
+import type { Paragraph } from '@/data/repositories/ParagraphRepository';
 
 type Props = {
   visible: boolean;
@@ -28,8 +28,8 @@ export default function ContributionsScreen({
   const contextLabel = useMemo(() => {
     if (!paragraph) return null;
     return t('contributions.contextBreadcrumb', {
-      segmentTitle: paragraph.segmentTitle,
-      paragraphNumber: paragraph.paragraphNumber,
+      segmentTitle: paragraph.segment_title,
+      paragraphNumber: paragraph.paragraph_number,
     });
   }, [paragraph, t]);
 

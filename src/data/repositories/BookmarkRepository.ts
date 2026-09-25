@@ -1,122 +1,129 @@
-import { Q } from '@nozbe/watermelondb';
-import { tap } from 'rxjs/operators';
-import { database, Bookmark } from '../db/database';
+/**
+ * Bookmarks repository — Supabase for manual bookmarks, AsyncStorage-first for last-read position.
+ *
+ * Last-read position is local-first: written to AsyncStorage immediately,
+ * synced to Supabase when online. On launch the most recent timestamp wins.
+ */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSupabase } from '../lib/supabase';
 
-const collection = database.get<Bookmark>('bookmarks');
+export type BookmarkRow = {
+  id: string;
+  user_id: string;
+  paragraph_id: string;
+  source_id: string;
+  is_last_read: boolean;
+  is_manual: boolean;
+  created_at: string;
+  updated_at: string;
+};
 
-function logBookmark(tag: string, payload: unknown) {
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    // eslint-disable-next-line no-console
-    console.log(`[BookmarkRepository] ${tag}`, payload);
-  }
+const LAST_READ_PREFIX = '@lastRead:';
+
+function lastReadKey(sourceId: string): string {
+  return `${LAST_READ_PREFIX}${sourceId}`;
 }
 
 export const BookmarkRepository = {
-  async findLastRead(sourceId: string): Promise<Bookmark | null> {
-    const results = await collection
-      .query(Q.where('source_id', sourceId), Q.where('is_last_read', true))
-      .fetch();
-    const row = results[0] ?? null;
-    logBookmark('findLastRead', {
-      sourceId,
-      row: row
-        ? { id: row.id, paragraphId: row.paragraphId, isLastRead: row.isLastRead, updatedAt: row.updatedAt }
-        : null,
-    });
-    return row;
+  // ---------------------------------------------------------------------------
+  // Last-read position (local-first)
+  // ---------------------------------------------------------------------------
+
+  async getLastRead(sourceId: string): Promise<string | null> {
+    // Local always wins for speed; sync reconciles later
+    const local = await AsyncStorage.getItem(lastReadKey(sourceId));
+    if (local) {
+      try {
+        return (JSON.parse(local) as { paragraphId: string }).paragraphId;
+      } catch { /* ignore */ }
+    }
+    return null;
   },
 
-  observeBySource(sourceId: string) {
-    return collection.query(Q.where('source_id', sourceId)).observe();
-  },
+  async setLastRead(sourceId: string, paragraphId: string): Promise<void> {
+    // Write local immediately
+    await AsyncStorage.setItem(
+      lastReadKey(sourceId),
+      JSON.stringify({ paragraphId, ts: Date.now() }),
+    );
 
-  /** Nur Zeilen mit letzter Lesestelle (schlanker als observeBySource). */
-  observeLastRead(sourceId: string) {
-    return collection
-      .query(Q.where('source_id', sourceId), Q.where('is_last_read', true))
-      .observe()
-      .pipe(
-        tap((rows) => {
-          logBookmark('observeLastRead', {
-            sourceId,
-            count: rows.length,
-            rows: rows.map((r) => ({
-              id: r.id,
-              paragraphId: r.paragraphId,
-              isLastRead: r.isLastRead,
-              updatedAt: r.updatedAt,
-            })),
-          });
-        }),
-      );
-  },
+    // Best-effort Supabase sync
+    try {
+      const sb = getSupabase();
+      const { data: existing } = await sb
+        .from('app_bookmarks')
+        .select('id')
+        .eq('source_id', sourceId)
+        .eq('is_last_read', true)
+        .maybeSingle();
 
-  /** Letzte Lesestelle über alle Quellen hinweg — für den WEITERLESEN-Hinweis im Filo-Tab. */
-  observeGlobalLastRead() {
-    return collection.query(Q.where('is_last_read', true)).observe();
-  },
-
-  observeManualBookmarks(sourceId: string) {
-    return collection
-      .query(Q.where('source_id', sourceId), Q.where('is_manual', true))
-      .observe();
-  },
-
-  async toggleManualBookmark(userId: string, sourceId: string, paragraphId: string): Promise<void> {
-    await database.write(async () => {
-      const existing = await collection
-        .query(Q.where('paragraph_id', paragraphId), Q.where('source_id', sourceId))
-        .fetch();
-      const hasManual = existing.some((b) => b.isManual);
-      if (hasManual) {
-        // Alle Manual-Flags löschen (räumt auch etwaige Duplikate auf)
-        for (const bm of existing) {
-          if (bm.isManual) await bm.update((b) => { b.isManual = false; });
-        }
-      } else if (existing[0]) {
-        await existing[0].update((bm) => { bm.isManual = true; });
+      if (existing) {
+        await sb
+          .from('app_bookmarks')
+          .update({ paragraph_id: paragraphId, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
       } else {
-        await collection.create((bm) => {
-          bm.userId = userId;
-          bm.sourceId = sourceId;
-          bm.paragraphId = paragraphId;
-          bm.isLastRead = false;
-          bm.isManual = true;
+        await sb.from('app_bookmarks').insert({
+          source_id: sourceId,
+          paragraph_id: paragraphId,
+          is_last_read: true,
+          is_manual: false,
         });
       }
-    });
+    } catch { /* offline — local is authoritative */ }
   },
 
-  async setLastRead(userId: string, sourceId: string, paragraphId: string): Promise<void> {
-    logBookmark('setLastRead (before write)', { userId, sourceId, paragraphId });
-    await database.write(async () => {
-      // Clear existing last-read for this source
-      const existing = await collection
-        .query(Q.where('source_id', sourceId), Q.where('is_last_read', true))
-        .fetch();
-      for (const b of existing) {
-        await b.update((bm) => { bm.isLastRead = false; });
-      }
+  // ---------------------------------------------------------------------------
+  // Manual bookmarks (online-only)
+  // ---------------------------------------------------------------------------
 
-      // Upsert current paragraph
-      const current = await collection
-        .query(Q.where('paragraph_id', paragraphId), Q.where('source_id', sourceId))
-        .fetch();
-      if (current[0]) {
-        await current[0].update((bm) => {
-          bm.isLastRead = true;
-          bm.sourceId = sourceId;
-          bm.userId = userId;
-        });
-      } else {
-        await collection.create((bm) => {
-          bm.userId = userId;
-          bm.sourceId = sourceId;
-          bm.paragraphId = paragraphId;
-          bm.isLastRead = true;
-        });
-      }
-    });
-    logBookmark('setLastRead (after write)', { sourceId, paragraphId });
+  async listManual(sourceId: string): Promise<BookmarkRow[]> {
+    const { data, error } = await getSupabase()
+      .from('app_bookmarks')
+      .select('*')
+      .eq('source_id', sourceId)
+      .eq('is_manual', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async create(sourceId: string, paragraphId: string): Promise<BookmarkRow> {
+    const { data, error } = await getSupabase()
+      .from('app_bookmarks')
+      .insert({
+        source_id: sourceId,
+        paragraph_id: paragraphId,
+        is_last_read: false,
+        is_manual: true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await getSupabase()
+      .from('app_bookmarks')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async toggleManualBookmark(sourceId: string, paragraphId: string): Promise<void> {
+    const { data: existing } = await getSupabase()
+      .from('app_bookmarks')
+      .select('id, is_manual')
+      .eq('source_id', sourceId)
+      .eq('paragraph_id', paragraphId)
+      .eq('is_manual', true)
+      .maybeSingle();
+
+    if (existing) {
+      await BookmarkRepository.delete(existing.id);
+    } else {
+      await BookmarkRepository.create(sourceId, paragraphId);
+    }
   },
 };

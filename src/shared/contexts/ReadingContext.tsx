@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type Paragraph from '@/data/db/models/Paragraph';
+import type { Paragraph } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 
 type ContributionsOverlay = {
@@ -123,11 +123,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
         setTarget((prev) => ({ ...prev, sourceId: id }));
       } else {
         // No last-read source stored — default to the first primary source.
-        const sub = SourceRepository.observePrimary().subscribe((sources) => {
+        void SourceRepository.findPrimary().then((sources) => {
           if (sources.length > 0) {
             setTarget((prev) => prev.sourceId ? prev : { ...prev, sourceId: sources[0].id });
           }
-          sub.unsubscribe();
         });
       }
     });

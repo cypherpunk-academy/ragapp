@@ -15,7 +15,7 @@ import {
 } from '@/shared/theme';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { BookmarkRepository } from '@/data/repositories/BookmarkRepository';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
@@ -23,8 +23,7 @@ import ArbeitstextAttachControl from '@/shared/components/ArbeitstextAttachContr
 
 import { useReading } from '@/shared/contexts/ReadingContext';
 import ParagraphRenderer from '@/shared/components/ParagraphRenderer';
-import type Paragraph from '@/data/db/models/Paragraph';
-import type Note from '@/data/db/models/Note';
+import type { Paragraph } from '@/data/repositories/ParagraphRepository';
 import { paragraphAnchorLabel } from '@/shared/lib/paragraphAnchorLabel';
 import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
 import { resolveSegmentSlug } from '@/shared/lib/segmentSlug';
@@ -104,11 +103,11 @@ export default function ReadScreen() {
   const router = useRouter();
 
   const [menuParagraph, setMenuParagraph] = useState<Paragraph | null>(null);
-  const [menuParagraphNote, setMenuParagraphNote] = useState<Note | null>(null);
+  const [menuParagraphNote, setMenuParagraphNote] = useState<NoteRow | null>(null);
   const [menuNoteReady, setMenuNoteReady] = useState(false);
-  const [previewNote, setPreviewNote] = useState<Note | null>(null);
+  const [previewNote, setPreviewNote] = useState<NoteRow | null>(null);
   const [creatingNoteFor, setCreatingNoteFor] = useState<{ paragraphId?: string; segmentSlug?: string; sourceId?: string; initialContent?: string } | null>(null);
-  const [chapterNote, setChapterNote] = useState<Note | null>(null);
+  const [chapterNote, setChapterNote] = useState<NoteRow | null>(null);
   const [sourceMeta, setSourceMeta] = useState<{ author: string; title: string } | null>(null);
   const allParagraphsRef = useRef<Paragraph[]>([]);
   allParagraphsRef.current = allParagraphs;
@@ -134,11 +133,10 @@ export default function ReadScreen() {
     if (!sourceId) return;
     setLoading(true);
     setAllParagraphs([]);
-    const sub = ParagraphRepository.observeBySource(sourceId).subscribe((ps) => {
+    void ParagraphRepository.findBySource(sourceId).then((ps) => {
       setAllParagraphs(ps);
       setLoading(false);
     });
-    return () => sub.unsubscribe();
   }, [sourceId]);
 
   useEffect(() => {
@@ -159,13 +157,15 @@ export default function ReadScreen() {
   }, [sourceId]);
 
   useEffect(() => {
-    const sub = NoteRepository.observeBySource(sourceId).subscribe((notes) => {
+    let cancelled = false;
+    void NoteRepository.list({ sourceId }).then((notes) => {
+      if (cancelled) return;
       const counts = new Map<string, number>();
       let duplicateParagraphs = 0;
       for (const n of notes) {
-        if (!n.paragraphId) continue;
-        const next = (counts.get(n.paragraphId) ?? 0) + 1;
-        counts.set(n.paragraphId, next);
+        if (!n.paragraph_id) continue;
+        const next = (counts.get(n.paragraph_id) ?? 0) + 1;
+        counts.set(n.paragraph_id, next);
         if (next === 2) duplicateParagraphs += 1;
       }
       setNoteCounts(counts);
@@ -178,14 +178,13 @@ export default function ReadScreen() {
         setWarning(`duplicate-notes-${sourceId}`, null);
       }
     });
-    return () => sub.unsubscribe();
+    return () => { cancelled = true; };
   }, [sourceId, setWarning, t]);
 
   useEffect(() => {
-    const sub = BookmarkRepository.observeManualBookmarks(sourceId).subscribe((bms) => {
-      setBookmarkIds(new Set(bms.map((b) => b.paragraphId)));
+    void BookmarkRepository.listManual(sourceId).then((bms) => {
+      setBookmarkIds(new Set(bms.map((b) => b.paragraph_id)));
     });
-    return () => sub.unsubscribe();
   }, [sourceId]);
 
 
@@ -209,12 +208,12 @@ export default function ReadScreen() {
   const segments = useMemo<Segment[]>(() => {
     const seen = new Map<number, Segment>();
     for (const p of allParagraphs) {
-      if (!seen.has(p.segmentIndex)) {
-        seen.set(p.segmentIndex, {
-          segmentIndex: p.segmentIndex,
-          segmentTitle: p.segmentTitle,
+      if (!seen.has(p.segment_index)) {
+        seen.set(p.segment_index, {
+          segmentIndex: p.segment_index,
+          segmentTitle: p.segment_title,
           // Seed snapshot may lack segment_slug; derive so chapter notes still work.
-          segmentSlug: resolveSegmentSlug(p.segmentSlug, p.segmentTitle, p.segmentIndex),
+          segmentSlug: resolveSegmentSlug(p.segment_slug, p.segment_title, p.segment_index),
         });
       }
     }
@@ -225,13 +224,13 @@ export default function ReadScreen() {
     if (target.segmentIndex !== null) return target.segmentIndex;
     if (target.paragraphId) {
       const hit = allParagraphs.find((p) => p.id === target.paragraphId);
-      if (hit) return hit.segmentIndex;
+      if (hit) return hit.segment_index;
     }
     return segments[0]?.segmentIndex ?? 0;
   }, [target.segmentIndex, target.paragraphId, allParagraphs, segments]);
 
   const chapterParagraphs = useMemo(
-    () => allParagraphs.filter((p) => p.segmentIndex === currentSegmentIndex),
+    () => allParagraphs.filter((p) => p.segment_index === currentSegmentIndex),
     [allParagraphs, currentSegmentIndex],
   );
 
@@ -245,7 +244,7 @@ export default function ReadScreen() {
   useEffect(() => {
     if (!currentSegmentSlug) { setChapterNote(null); return; }
     let cancelled = false;
-    void NoteRepository.findBySegment(sourceId, currentSegmentSlug).then((notes) => {
+    void NoteRepository.list({ sourceId, segmentSlug: currentSegmentSlug }).then((notes) => {
       if (!cancelled) setChapterNote(notes[0] ?? null);
     });
     return () => { cancelled = true; };
@@ -264,7 +263,7 @@ export default function ReadScreen() {
       // eslint-disable-next-line no-console
       console.log('[ReadScreen → BookmarkRepository.setLastRead]', { sourceId: sourceId, paragraphId: pid });
     }
-    void BookmarkRepository.setLastRead(user?.id ?? 'local', sourceIdRef.current, pid);
+    void BookmarkRepository.setLastRead(sourceIdRef.current, pid);
   }, []);
 
   const onViewableItemsChanged = useCallback(
@@ -315,7 +314,7 @@ export default function ReadScreen() {
     lastReadWriteParagraphId.current = null;
     if (target.segmentIndex !== null) {
       // Expliziter Kapitelwechsel (aus Übersicht oder Kapitel-Nav): sofort in DB schreiben
-      void BookmarkRepository.setLastRead(user?.id ?? 'local', sourceId, firstChapterParagraphId);
+      void BookmarkRepository.setLastRead(sourceId, firstChapterParagraphId);
     } else {
       // Impliziter Wechsel: nur wenn Capture aktiv und vorher schon ein Kapitel bekannt
       if (prevSeg === null) return;
@@ -362,12 +361,12 @@ export default function ReadScreen() {
 
     let cancelled = false;
     void (async () => {
-      const row = await BookmarkRepository.findLastRead(sourceId);
+      const lastReadId = await BookmarkRepository.getLastRead(sourceId);
       if (cancelled) return;
-      if (row?.paragraphId) {
-        const hit = allParagraphsRef.current.find((p) => p.id === row.paragraphId);
+      if (lastReadId) {
+        const hit = allParagraphsRef.current.find((p) => p.id === lastReadId);
         if (hit) {
-          navigateToRead({ segmentIndex: null, paragraphId: row.paragraphId, switchTab: false });
+          navigateToRead({ segmentIndex: null, paragraphId: lastReadId, switchTab: false });
           return;
         }
       }
@@ -416,7 +415,7 @@ export default function ReadScreen() {
       if (idx >= 0) {
         // Bei Zitat-Sprung (markerOffset gesetzt) in der zweiten Absatzhälfte: Absatzende statt
         // Absatzanfang an den Viewport binden, damit lange Absätze den Marker sofort sichtbar zeigen.
-        const textLen = chapterParagraphs[idx]?.textRaw?.length ?? 0;
+        const textLen = chapterParagraphs[idx]?.text_raw?.length ?? 0;
         const nearEnd = target.markerOffset != null && textLen > 0 && target.markerOffset / textLen > 0.5;
         listRef.current?.scrollToIndex({
           index: idx,
@@ -462,7 +461,7 @@ export default function ReadScreen() {
     }
     let cancelled = false;
     setMenuNoteReady(false);
-    void NoteRepository.findByParagraph(menuParagraph.id).then((notes) => {
+    void NoteRepository.list({ paragraphId: menuParagraph.id }).then((notes) => {
       if (cancelled) return;
       setMenuParagraphNote(notes[0] ?? null);
       setMenuNoteReady(true);
@@ -480,7 +479,7 @@ export default function ReadScreen() {
     const count = noteCounts.get(paragraphId) ?? 0;
 
     if (count > 1) {
-      void NoteRepository.findByParagraph(paragraphId).then((notes) => {
+      void NoteRepository.list({ paragraphId }).then((notes) => {
         alertMultipleParagraphNotes(notes, (n) => setPreviewNote(n));
       });
       setMenuParagraph(null);
@@ -491,7 +490,7 @@ export default function ReadScreen() {
       if (menuParagraphNote) {
         setPreviewNote(menuParagraphNote);
       } else {
-        void NoteRepository.findByParagraph(paragraphId).then((notes) => {
+        void NoteRepository.list({ paragraphId }).then((notes) => {
           if (notes[0]) setPreviewNote(notes[0]);
         });
       }
@@ -500,10 +499,10 @@ export default function ReadScreen() {
     }
 
     const chapterTitle = currentSegment ? stripSegmentTitleHtml(currentSegment.segmentTitle) : '';
-    const paraLabel = t('common.paragraphNumber', { number: menuParagraph.paragraphNumber });
+    const paraLabel = t('common.paragraphNumber', { number: menuParagraph.paragraph_number });
     setCreatingNoteFor({
       paragraphId,
-      segmentSlug: menuParagraph.segmentSlug ?? undefined,
+      segmentSlug: menuParagraph.segment_slug ?? undefined,
       sourceId,
       initialContent: `# ${chapterTitle ? `${chapterTitle}, ` : ''}${paraLabel}\n\n`,
     });
@@ -512,7 +511,7 @@ export default function ReadScreen() {
 
   const handleToggleBookmarkFromMenu = useCallback(() => {
     if (!menuParagraph) return;
-    void BookmarkRepository.toggleManualBookmark(user?.id ?? 'local', sourceId, menuParagraph.id);
+    void BookmarkRepository.toggleManualBookmark(sourceId, menuParagraph.id);
     setMenuParagraph(null);
   }, [menuParagraph]);
 
@@ -532,12 +531,12 @@ export default function ReadScreen() {
   const handleShowParagraphNote = useCallback((p: Paragraph) => {
     const count = noteCounts.get(p.id) ?? 0;
     if (count > 1) {
-      void NoteRepository.findByParagraph(p.id).then((notes) => {
+      void NoteRepository.list({ paragraphId: p.id }).then((notes) => {
         alertMultipleParagraphNotes(notes, (n) => setPreviewNote(n));
       });
       return;
     }
-    void NoteRepository.findByParagraph(p.id).then((notes) => {
+    void NoteRepository.list({ paragraphId: p.id }).then((notes) => {
       if (notes[0]) setPreviewNote(notes[0]);
     });
   }, [noteCounts]);
@@ -556,7 +555,7 @@ export default function ReadScreen() {
         style={styles.paragraphWrap}
       >
         <ParagraphRenderer
-          text={item.textRaw}
+          text={item.text_raw}
           annotations={item.annotations}
           paragraphId={item.id}
           markerOffset={item.id === marker?.paragraphId ? marker.offset : null}
@@ -564,12 +563,12 @@ export default function ReadScreen() {
           prefix={
             <>
               <Text style={[paragraphNumberStyle, { color: colors.onSurfaceVariant }]}>
-                {item.paragraphNumber}{'| '}
+                {item.paragraph_number}{'| '}
               </Text>
               {isBookmarked ? (
                 <Text
                   onPress={() =>
-                    void BookmarkRepository.toggleManualBookmark(user?.id ?? 'local', sourceId, item.id)
+                    void BookmarkRepository.toggleManualBookmark(sourceId, item.id)
                   }
                   style={styles.inlineContributionHit}
                 >
@@ -779,9 +778,7 @@ export default function ReadScreen() {
         <NoteEditorModal
           visible
           onClose={() => setCreatingNoteFor(null)}
-          userId={user.id}
           paragraphId={creatingNoteFor.paragraphId}
-          segmentSlug={creatingNoteFor.segmentSlug}
           sourceId={creatingNoteFor.sourceId}
           initialContent={creatingNoteFor.initialContent}
           onCreated={(n) => {
