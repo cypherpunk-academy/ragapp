@@ -4,6 +4,10 @@
  * The database is generated at build time via `yarn seed:fetch` and
  * copied from the app bundle into the document directory on first launch.
  *
+ * OTA updates: `checkForUpdate()` compares local PRAGMA user_version
+ * against the server's `/app/corpus-version` and downloads a new DB
+ * in the background when a newer version is available.
+ *
  * All reads are local — no network required.
  */
 import {
@@ -11,6 +15,8 @@ import {
   importDatabaseFromAssetAsync,
   type SQLiteDatabase,
 } from 'expo-sqlite';
+import { Paths, File as ExpoFile, Directory } from 'expo-file-system';
+import { config } from './config';
 
 // metro resolves the .db asset at build time
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -157,4 +163,99 @@ export async function resolveRedirect(id: string): Promise<ResolvedPassage> {
   }
 
   return { found: false, redirect };
+}
+
+// --------------------------------------------------------------------------
+// OTA corpus update
+// --------------------------------------------------------------------------
+
+type CorpusVersionResponse = {
+  version: number;
+  download_url: string | null;
+};
+
+export type UpdateResult =
+  | { updated: true; from: number; to: number }
+  | { updated: false; reason: string };
+
+/**
+ * Check the server for a newer corpus version and download it if available.
+ *
+ * The caller is responsible for scheduling this (e.g. on app foreground).
+ * Reads continue from the current DB while downloading; the swap happens
+ * only after a complete, verified download.
+ */
+export async function checkForUpdate(): Promise<UpdateResult> {
+  if (!config.ragrun.isConfigured) {
+    return { updated: false, reason: 'ragrun not configured' };
+  }
+
+  const localVersion = await getCorpusVersion();
+
+  let remote: CorpusVersionResponse;
+  try {
+    const res = await fetch(`${config.ragrun.baseUrl}/app/corpus-version`);
+    if (!res.ok) return { updated: false, reason: `server ${res.status}` };
+    remote = await res.json() as CorpusVersionResponse;
+  } catch {
+    return { updated: false, reason: 'network error' };
+  }
+
+  if (remote.version <= localVersion) {
+    return { updated: false, reason: 'up to date' };
+  }
+
+  if (!remote.download_url) {
+    return { updated: false, reason: 'no download url' };
+  }
+
+  // Download to a temporary name inside the SQLite directory
+  // (openDatabaseAsync only looks in Documents/SQLite/)
+  const TEMP_DB_NAME = 'books-update.db';
+  const tmpInSqlite = new ExpoFile(Paths.document, 'SQLite', TEMP_DB_NAME);
+  try {
+    if (tmpInSqlite.exists) tmpInSqlite.delete();
+    await ExpoFile.downloadFileAsync(remote.download_url, tmpInSqlite);
+  } catch {
+    return { updated: false, reason: 'download failed' };
+  }
+
+  // Verify the downloaded DB is readable and has the expected version
+  let newDb: SQLiteDatabase;
+  try {
+    newDb = await openDatabaseAsync(TEMP_DB_NAME, { useNewConnection: true });
+    const row = await newDb.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    const dlVersion = row?.user_version ?? 0;
+    if (dlVersion !== remote.version) {
+      await newDb.closeAsync();
+      return { updated: false, reason: `version mismatch: expected ${remote.version}, got ${dlVersion}` };
+    }
+    await newDb.closeAsync();
+  } catch {
+    return { updated: false, reason: 'downloaded db invalid' };
+  }
+
+  // Swap: close current DB, replace downloaded over active
+  if (_db) {
+    await _db.closeAsync();
+    _db = null;
+    _initPromise = null;
+  }
+
+  const targetFile = new ExpoFile(Paths.document, 'SQLite', DB_NAME);
+  try {
+    tmpInSqlite.move(targetFile);
+  } catch {
+    // Re-init from whatever is there
+    _initPromise = null;
+    await getDb();
+    return { updated: false, reason: 'file swap failed' };
+  }
+
+  // Reopen with the new DB
+  const db = await openDatabaseAsync(DB_NAME, { useNewConnection: false });
+  _db = db;
+  _initPromise = Promise.resolve(db);
+
+  return { updated: true, from: localVersion, to: remote.version };
 }

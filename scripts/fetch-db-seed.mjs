@@ -4,7 +4,10 @@
  * assets/seed/books.db (SQLite) for bundling with the app.
  *
  * Run before each release build:
- *   node scripts/fetch-db-seed.mjs
+ *   node scripts/fetch-db-seed.mjs [--version N]
+ *
+ * Options:
+ *   --version N   Set PRAGMA user_version (corpus OTA version). Default: 1
  *
  * Required env vars (in .env or environment):
  *   EXPO_PUBLIC_SUPABASE_URL
@@ -13,7 +16,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import Database from 'better-sqlite3';
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync, mkdirSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -87,6 +90,7 @@ while (true) {
 const outDir  = resolve(ROOT, 'assets/seed');
 const outPath = resolve(outDir, 'books.db');
 mkdirSync(outDir, { recursive: true });
+try { rmSync(outPath); } catch { /* first run */ }
 
 const db = new Database(outPath);
 db.pragma('journal_mode = OFF');
@@ -173,12 +177,21 @@ const insertParagraphs = db.transaction((rows) => {
 insertSources(sourcesData);
 insertParagraphs(paragraphsData);
 
-// Corpus version (increment manually when content changes)
-db.pragma('user_version = 1');
+// Corpus version: set via --version N (default 1).
+// Bump when content changes so the app OTA update detects a newer version.
+const versionFlagIdx = process.argv.indexOf('--version');
+const corpusVersion = versionFlagIdx !== -1 && process.argv[versionFlagIdx + 1]
+  ? Number(process.argv[versionFlagIdx + 1])
+  : 1;
+if (!Number.isInteger(corpusVersion) || corpusVersion < 1) {
+  console.error('--version must be a positive integer');
+  process.exit(1);
+}
+db.pragma(`user_version = ${corpusVersion}`);
 
 db.close();
 
 const { statSync } = await import('fs');
 const bytes = statSync(outPath).size;
 const mb = (bytes / (1024 * 1024)).toFixed(1);
-console.log(`✓ books.db — ${sourcesData.length} sources, ${paragraphsData.length} paragraphs — ${mb} MB`);
+console.log(`✓ books.db v${corpusVersion} — ${sourcesData.length} sources, ${paragraphsData.length} paragraphs — ${mb} MB`);

@@ -9,6 +9,7 @@ import * as Linking from 'expo-linking';
 import { useColorScheme } from 'react-native';
 import { lightColors, darkColors } from '@/shared/theme';
 import { useAppFonts } from '@/shared/hooks/useAppFonts';
+import { useCorpusUpdate } from '@/shared/hooks/useCorpusUpdate';
 import { SettingsProvider } from '@/shared/contexts/SettingsContext';
 import { authService } from '@/data/services/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -21,6 +22,11 @@ export default function RootLayout() {
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
   const [fontsLoaded, fontError] = useAppFonts();
   const { loading: authLoading } = useAuth();
+
+  // Corpus OTA update on mount & foreground
+  useCorpusUpdate((from, to) => {
+    console.log(`[corpus-ota] updated: v${from} → v${to}`);
+  });
 
   // Handle Supabase Magic Link deep links (e.g. ragapp://auth/callback?code=...)
   useEffect(() => {
