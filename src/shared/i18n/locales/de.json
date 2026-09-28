@@ -38,6 +38,23 @@
     "read": "LESEN",
     "search": "KI-SUCHE"
   },
+  "werkstatt": {
+    "title": "Arbeitszimmer",
+    "loginPrompt": "Melde dich an, um das Arbeitszimmer zu nutzen.",
+    "notConnectedTitle": "Claude verbinden",
+    "notConnectedBody": "Verbinde deinen Claude-Account, um Philo als Assistent beim Lesen und Schreiben zu nutzen.",
+    "notConnectedButton": "Verbindung einrichten",
+    "connectedUnusedTitle": "Bereit!",
+    "connectedUnusedBody": "Dein Claude-Account ist verbunden. Starte ein Gespräch mit Philo, indem du beim Lesen auf \"Im Arbeitszimmer vertiefen\" tippst.",
+    "connectedTitle": "Dein Arbeitszimmer",
+    "connectedNewChat": "Neues Gespräch mit Philo",
+    "recentTexts": "Letzte Arbeitstexte",
+    "allTexts": "Alle Arbeitstexte",
+    "emptyTexts": "Noch keine Arbeitstexte vorhanden.",
+    "revokedTitle": "Verbindung getrennt",
+    "revokedBody": "Die Verbindung zu Claude wurde getrennt. Verbinde erneut, um Philo weiter zu nutzen.",
+    "revokedButton": "Erneut verbinden"
+  },
   "filo": {
     "segmentChat": "CHAT",
     "segmentArbeitstext": "ARBEITSTEXT",
@@ -175,7 +192,9 @@
     "paragraphMissing": "Der angeforderte Absatz ist nicht mehr verfügbar — möglicherweise nach einer Textüberarbeitung.",
     "duplicateNotesWarning": "{{count}} Absatz mit mehreren Arbeitstexten — bitte manuell bereinigen.",
     "duplicateNotesWarning_other": "{{count}} Absätze mit mehreren Arbeitstexten — bitte manuell bereinigen.",
-    "initialContentChapter": "# Arbeitstext über das Kapitel {{title}}\n\n"
+    "initialContentChapter": "# Arbeitstext über das Kapitel {{title}}\n\n",
+    "deepenInStudy": "Im Arbeitszimmer vertiefen",
+    "deepenInStudyLogin": "Im Arbeitszimmer vertiefen (bitte einloggen)"
   },
   "overview": {
     "title": "Übersicht",

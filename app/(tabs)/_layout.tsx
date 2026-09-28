@@ -14,7 +14,7 @@ import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
 import ReadScreen from '../../src/features/read/ReadScreen';
-import PlaceholderScreen from '../../src/features/chat/PlaceholderScreen';
+import WerkstattScreen from '../../src/features/werkstatt/WerkstattScreen';
 import ContributionsScreen from '../../src/features/read/ContributionsScreen';
 import ChunkPreviewScreen from '../../src/features/read/ChunkPreviewScreen';
 
@@ -70,7 +70,7 @@ function TabsInner() {
         }}
       >
         <View key="0" style={styles.page}>
-          <PlaceholderScreen />
+          <WerkstattScreen />
         </View>
         <View key="1" style={styles.page}><OverviewScreen /></View>
         <View key="2" style={styles.page}><ReadScreen /></View>

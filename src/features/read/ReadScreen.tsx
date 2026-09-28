@@ -515,6 +515,27 @@ export default function ReadScreen() {
     setMenuParagraph(null);
   }, [menuParagraph]);
 
+  const handleDeepenInStudy = useCallback(async () => {
+    if (!menuParagraph || !user) return;
+    setMenuParagraph(null);
+    try {
+      const { HandoffRepository } = await import('@/data/repositories/HandoffRepository');
+      const { Linking } = await import('react-native');
+      const segSlug = currentSegment?.segmentSlug ?? String(currentSegment?.segmentIndex ?? '');
+      const result = await HandoffRepository.create({
+        paragraphId: menuParagraph.id,
+        sourceId,
+        segmentSlug: segSlug,
+        markedText: menuParagraph.text_raw?.slice(0, 500),
+      });
+      if (!result.ok) return;
+      const url = `https://claude.ai/new?q=${encodeURIComponent(`Handoff ${result.id}`)}`;
+      await Linking.openURL(url);
+    } catch (e) {
+      console.warn('[ReadScreen] handoff error:', e);
+    }
+  }, [menuParagraph, user, sourceId, currentSegment]);
+
   const handleChapterNotePress = useCallback(() => {
     if (!currentSegment) return;
     if (chapterNote) {
@@ -761,6 +782,15 @@ export default function ReadScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={user ? handleDeepenInStudy : () => { setMenuParagraph(null); router.push('/auth/login'); }}
+              >
+                <MaterialIcons name="open-in-new" size={20} color={user ? colors.primary : colors.onSurfaceVariant} />
+                <Text style={[textStyles.contributionsTab, { color: user ? colors.onSurface : colors.onSurfaceVariant }]}>
+                  {user ? t('read.deepenInStudy') : t('read.deepenInStudyLogin')}
+                </Text>
+              </TouchableOpacity>
           </View>
         </View>
       )}

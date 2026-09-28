@@ -38,6 +38,23 @@
     "read": "READ",
     "search": "AI SEARCH"
   },
+  "werkstatt": {
+    "title": "Study",
+    "loginPrompt": "Sign in to use the study.",
+    "notConnectedTitle": "Connect Claude",
+    "notConnectedBody": "Connect your Claude account to use Philo as your reading and writing assistant.",
+    "notConnectedButton": "Set up connection",
+    "connectedUnusedTitle": "Ready!",
+    "connectedUnusedBody": "Your Claude account is connected. Start a conversation with Philo by tapping \"Deepen in study\" while reading.",
+    "connectedTitle": "Your Study",
+    "connectedNewChat": "New conversation with Philo",
+    "recentTexts": "Recent work texts",
+    "allTexts": "All work texts",
+    "emptyTexts": "No work texts yet.",
+    "revokedTitle": "Connection lost",
+    "revokedBody": "The connection to Claude was disconnected. Reconnect to continue using Philo.",
+    "revokedButton": "Reconnect"
+  },
   "filo": {
     "segmentChat": "CHAT",
     "segmentArbeitstext": "WORKING TEXT",
@@ -174,7 +191,9 @@
     "paragraphMissing": "The requested paragraph is no longer available — possibly after a text revision.",
     "duplicateNotesWarning": "{{count}} paragraph with multiple working texts — please clean up manually.",
     "duplicateNotesWarning_other": "{{count}} paragraphs with multiple working texts — please clean up manually.",
-    "initialContentChapter": "# Working text on the chapter {{title}}\n\n"
+    "initialContentChapter": "# Working text on the chapter {{title}}\n\n",
+    "deepenInStudy": "Deepen in study",
+    "deepenInStudyLogin": "Deepen in study (please sign in)"
   },
   "overview": {
     "title": "Overview",
