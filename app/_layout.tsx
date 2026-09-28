@@ -12,6 +12,7 @@ import { useAppFonts } from '@/shared/hooks/useAppFonts';
 import { useCorpusUpdate } from '@/shared/hooks/useCorpusUpdate';
 import { SettingsProvider } from '@/shared/contexts/SettingsContext';
 import { authService } from '@/data/services/authService';
+import { parseDeepLink } from '@/data/services/deepLinkService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import BootLoadingView from '@/shared/components/BootLoadingView';
 
@@ -29,12 +30,17 @@ export default function RootLayout() {
   });
 
   // Handle Supabase Magic Link deep links (e.g. ragapp://auth/callback?code=...)
+  // Passage/text deep links are handled by useDeepLinkHandler in (tabs)/_layout.tsx.
   useEffect(() => {
+    function handleAuthLink(url: string) {
+      if (parseDeepLink(url)) return; // passage/text link — handled elsewhere
+      void authService.handleDeepLink(url);
+    }
     Linking.getInitialURL().then((url) => {
-      if (url) void authService.handleDeepLink(url);
+      if (url) handleAuthLink(url);
     });
     const sub = Linking.addEventListener('url', ({ url }) => {
-      void authService.handleDeepLink(url);
+      handleAuthLink(url);
     });
     return () => sub.remove();
   }, []);

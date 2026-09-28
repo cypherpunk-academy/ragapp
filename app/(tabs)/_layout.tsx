@@ -9,6 +9,7 @@ import {
   ReadingProvider, useReading, TAB_INDEX_OVERVIEW,
 } from '@/shared/contexts/ReadingContext';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useDeepLinkHandler } from '@/shared/hooks/useDeepLinkHandler';
 import { WarningsProvider } from '@/shared/contexts/WarningsContext';
 import SearchScreen from '../../src/features/search/SearchScreen';
 import OverviewScreen from '../../src/features/overview/OverviewScreen';
@@ -24,6 +25,9 @@ function TabsInner() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [activeIndex, setActiveIndex] = useState(0);
   const [authResolved, setAuthResolved] = useState(false);
+
+  // Step 14d: handle passage/text deep links
+  useDeepLinkHandler();
 
   React.useEffect(() => {
     if (authLoading) return;

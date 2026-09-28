@@ -1,0 +1,25 @@
+node_modules/
+.DS_Store
+*.log
+
+.expo/
+dist/
+web-build/
+
+ios/
+android/
+.env
+.env.local
+.env.*.local
+*.bak
+.temp/
+
+.vscode/
+*.swp
+*.swo
+
+.eslintcache
+.tsbuildinfo
+envs/
+
+# Generated at build time via `npm run seed:fetch`

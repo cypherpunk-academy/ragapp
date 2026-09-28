@@ -56,6 +56,9 @@ const config = {
       ? 'berlin.cypherpunkacademy.ragapp.staging'
       : 'berlin.cypherpunkacademy.ragapp',
     usesAppleSignIn: true,
+    associatedDomains: IS_STAGING
+      ? ['applinks:staging.ragxxx.com']
+      : ['applinks:api.ragxxx.com'],
     infoPlist: {
       'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'],
     },
@@ -68,6 +71,25 @@ const config = {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: IS_STAGING ? 'staging.ragxxx.com' : 'api.ragxxx.com',
+            pathPrefix: '/passage/',
+          },
+          {
+            scheme: 'https',
+            host: IS_STAGING ? 'staging.ragxxx.com' : 'api.ragxxx.com',
+            pathPrefix: '/text/',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
   },
