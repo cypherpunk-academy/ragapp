@@ -55,8 +55,8 @@ export default function WerkstattScreen() {
   }, []);
 
   const openNewChat = useCallback(async () => {
-    const url = 'https://claude.ai/new';
-    await Linking.openURL(url);
+    const { openClaudeNewChat } = await import('@/data/services/deepLinkConfig');
+    await openClaudeNewChat();
   }, []);
 
   if (authLoading) {

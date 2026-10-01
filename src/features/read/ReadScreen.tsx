@@ -520,7 +520,7 @@ export default function ReadScreen() {
     setMenuParagraph(null);
     try {
       const { HandoffRepository } = await import('@/data/repositories/HandoffRepository');
-      const { Linking } = await import('react-native');
+      const { openClaudeNewChat } = await import('@/data/services/deepLinkConfig');
       const segSlug = currentSegment?.segmentSlug ?? String(currentSegment?.segmentIndex ?? '');
       const result = await HandoffRepository.create({
         paragraphId: menuParagraph.id,
@@ -529,8 +529,7 @@ export default function ReadScreen() {
         markedText: menuParagraph.text_raw?.slice(0, 500),
       });
       if (!result.ok) return;
-      const url = `https://claude.ai/new?q=${encodeURIComponent(`Handoff ${result.id}`)}`;
-      await Linking.openURL(url);
+      await openClaudeNewChat(`Handoff ${result.id}`);
     } catch (e) {
       console.warn('[ReadScreen] handoff error:', e);
     }
