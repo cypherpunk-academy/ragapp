@@ -6,16 +6,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { navigateToChatWithPendingLink } from '@/shared/lib/chatNavigation';
 import { Ionicons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography, ICONS, ICON_SIZES, getNoteBadgeStyle, NOTE_BADGE_ACCENT } from '@/shared/theme';
 import { colorWithAlpha } from '@/shared/lib/color';
 import { NoteRepository } from '@/data/repositories/NoteRepository';
+import type { NoteRow } from '@/data/repositories/NoteRepository';
 import DocumentPreviewOverlay from '@/shared/components/DocumentPreviewOverlay';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import AppIcon from '@/shared/components/AppIcon';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
-import type Note from '@/data/db/models/Note';
 import i18n, { getDateLocale } from '@/shared/i18n';
 
 function hasDocumentBody(content: string): boolean {
@@ -56,18 +55,18 @@ export default function ArbeitstexteScreen() {
   const noteCard = getNoteBadgeStyle(isDark);
   const noteCardBorder = colorWithAlpha(NOTE_BADGE_ACCENT, isDark ? 0.35 : 0.18);
 
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [previewNote, setPreviewNote] = useState<Note | null>(null);
+  const [previewNote, setPreviewNote] = useState<NoteRow | null>(null);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    const sub = NoteRepository.observeAll().subscribe((ns) => {
-      setNotes(ns);
-      setLoading(false);
-    });
-    return () => sub.unsubscribe();
+    let cancelled = false;
+    void NoteRepository.list().then((ns) => {
+      if (!cancelled) { setNotes(ns); setLoading(false); }
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const filtered = useMemo(() => {
@@ -149,7 +148,7 @@ export default function ArbeitstexteScreen() {
               </Text>
               <View style={styles.dates}>
                 <Text style={[typography.bodySmall, { color: colors.onSurfaceVariant }]}>
-                  {t('arbeitstexte.changed', { when: formatRelativeDate(item.updatedAt) })}
+                  {t('arbeitstexte.changed', { when: formatRelativeDate(new Date(item.updated_at)) })}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -174,10 +173,6 @@ export default function ArbeitstexteScreen() {
         note={previewNote}
         onClose={() => setPreviewNote(null)}
         onDeleted={() => setPreviewNote(null)}
-        onEditInChat={previewNote ? () => {
-          navigateToChatWithPendingLink(previewNote.id);
-          router.back();
-        } : undefined}
       />
     </View>
   );

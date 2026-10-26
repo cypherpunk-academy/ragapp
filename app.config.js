@@ -20,6 +20,18 @@ function resolveGitCommitShort() {
 
 const gitCommitShort = resolveGitCommitShort();
 
+/** Expo SDK major version read from package.json at build time. */
+const expoSdkVersion = (() => {
+  try {
+    const pkg = require('./package.json');
+    const raw = pkg.dependencies?.expo ?? '';
+    const match = raw.match(/\d+/);
+    return match ? match[0] : '';
+  } catch {
+    return '';
+  }
+})();
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
   name: IS_STAGING ? 'Philo (Staging)' : 'Philo von Freisinn',
@@ -37,12 +49,16 @@ const config = {
     backgroundColor: '#ffffff',
   },
   ios: {
+    icon: './assets/icon-ios.png',
     supportsTablet: true,
     requireFullScreen: true,
     bundleIdentifier: IS_STAGING
       ? 'berlin.cypherpunkacademy.ragapp.staging'
       : 'berlin.cypherpunkacademy.ragapp',
     usesAppleSignIn: true,
+    associatedDomains: IS_STAGING
+      ? ['applinks:staging.ragxxx.com']
+      : ['applinks:api.ragxxx.com'],
     infoPlist: {
       'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'],
     },
@@ -55,6 +71,25 @@ const config = {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: IS_STAGING ? 'staging.ragxxx.com' : 'api.ragxxx.com',
+            pathPrefix: '/passage/',
+          },
+          {
+            scheme: 'https',
+            host: IS_STAGING ? 'staging.ragxxx.com' : 'api.ragxxx.com',
+            pathPrefix: '/text/',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
   },
@@ -69,6 +104,8 @@ const config = {
     'expo-apple-authentication',
     'expo-localization',
     'expo-updates',
+    'expo-secure-store',
+    'expo-sqlite',
     [
       'expo-splash-screen',
       {
@@ -90,6 +127,7 @@ const config = {
       || process.env.EAS_BUILD_APP_VERSION_CODE
       || '',
     gitCommitShort,
+    expoSdkVersion,
     eas: {
       projectId: '28c4e815-4398-499c-95e6-67c2d1b87e2d',
     },

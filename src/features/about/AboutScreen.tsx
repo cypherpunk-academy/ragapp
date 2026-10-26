@@ -1,15 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, StyleSheet, useColorScheme, Linking, TouchableOpacity } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import { router } from 'expo-router';
-import { withObservables } from '@nozbe/watermelondb/react';
 import AppBar from '@/shared/components/AppBar';
 import { lightColors, darkColors, spacing, textStyles, typography, fonts } from '@/shared/theme';
 import i18n from '@/shared/i18n';
-import { SourceRepository } from '@/data/repositories/SourceRepository';
-import type Source from '@/data/db/models/Source';
+import { SourceRepository, type Source } from '@/data/repositories/SourceRepository';
 
 /** Marketing version from app.config.js (e.g. 1.0.0). */
 const appVersion = Constants.expoConfig?.version ?? '1.0.0';
@@ -28,6 +26,11 @@ const buildNumber =
 const gitCommitShort =
   (Constants.expoConfig?.extra as { gitCommitShort?: string } | undefined)?.gitCommitShort
   || null;
+
+/** Expo SDK major version baked into the build. */
+const expoSdkVersion =
+  (Constants.expoConfig?.extra as { expoSdkVersion?: string } | undefined)?.expoSdkVersion
+  || '';
 
 /** e.g. "1.0.0 beta-15-77a05a62" */
 function formatAppVersionLabel(): string {
@@ -51,43 +54,38 @@ const bookTitleBold = {
   lineHeight: typography.bodyMedium.lineHeight,
 } as const;
 
-type BookListProps = { sources: Source[] };
-
-function BookListInner({ sources }: BookListProps) {
+function BookList() {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const [sources, setSources] = useState<Source[]>([]);
 
-  // sortOrder 9999 = not in Philo's manifest
-  const assigned = sources.filter((s) => (s.sortOrder ?? 9999) < 9999);
+  useEffect(() => {
+    void SourceRepository.findAll().then(setSources);
+  }, []);
 
+  const assigned = sources.filter((s) => (s.sort_order ?? 9999) < 9999);
   const primary = assigned
-    .filter((s) => s.isPrimary)
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    .filter((s) => s.is_primary === 1)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  if (primary.length === 0) return null;
 
   return (
-    <>
-      {primary.length > 0 && (
-        <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-          <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
-            {t('about.primaryLiterature')}
-          </Text>
-          {primary.map((s) => (
-            <Text key={s.id} style={[bookLine, { color: colors.onSurface }]}>
-              {s.author ? `${s.author}: ` : ''}
-              <Text style={[bookTitleBold, { color: colors.onSurface }]}>{s.title}</Text>
-              {s.year ? ` (${s.year})` : ''}
-            </Text>
-          ))}
-        </View>
-      )}
-    </>
+    <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
+      <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant }]}>
+        {t('about.primaryLiterature')}
+      </Text>
+      {primary.map((s) => (
+        <Text key={s.id} style={[bookLine, { color: colors.onSurface }]}>
+          {s.author ? `${s.author}: ` : ''}
+          <Text style={[bookTitleBold, { color: colors.onSurface }]}>{s.title}</Text>
+          {s.year ? ` (${s.year})` : ''}
+        </Text>
+      ))}
+    </View>
   );
 }
-
-const EnhancedBookList = withObservables([], () => ({
-  sources: SourceRepository.observeAll(),
-}))(BookListInner);
 
 export default function AboutScreen() {
   const { t } = useTranslation();
@@ -126,16 +124,16 @@ export default function AboutScreen() {
             {t('about.version', { label: formatAppVersionLabel() })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.appPlatform')}
+            {t('about.appPlatform', { version: expoSdkVersion })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
             {t('about.server')}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.database')}
+            {t('about.database', { version: '17.6' })}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.onSurface }]}>
-            {t('about.ragDatabase')}
+            {t('about.ragDatabase', { version: '1.18' })}
           </Text>
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/cypherpunk-academy/ragrun')}>
             <Text style={[typography.bodyMedium, { color: colors.primary }]}>
@@ -149,7 +147,7 @@ export default function AboutScreen() {
           </TouchableOpacity>
         </View>
 
-        <EnhancedBookList />
+        <BookList />
 
       </ScrollView>
     </View>

@@ -38,6 +38,23 @@
     "read": "READ",
     "search": "AI SEARCH"
   },
+  "werkstatt": {
+    "title": "Study",
+    "loginPrompt": "Sign in to use the study.",
+    "notConnectedTitle": "Connect Claude",
+    "notConnectedBody": "Connect your Claude account to use Philo as your reading and writing assistant.",
+    "notConnectedButton": "Set up connection",
+    "connectedUnusedTitle": "Ready!",
+    "connectedUnusedBody": "Your Claude account is connected. Start a conversation with Philo by tapping \"Deepen in study\" while reading.",
+    "connectedTitle": "Your Study",
+    "connectedNewChat": "New conversation with Philo",
+    "recentTexts": "Recent work texts",
+    "allTexts": "All work texts",
+    "emptyTexts": "No work texts yet.",
+    "revokedTitle": "Connection lost",
+    "revokedBody": "The connection to Claude was disconnected. Reconnect to continue using Philo.",
+    "revokedButton": "Reconnect"
+  },
   "filo": {
     "segmentChat": "CHAT",
     "segmentArbeitstext": "WORKING TEXT",
@@ -174,7 +191,9 @@
     "paragraphMissing": "The requested paragraph is no longer available — possibly after a text revision.",
     "duplicateNotesWarning": "{{count}} paragraph with multiple working texts — please clean up manually.",
     "duplicateNotesWarning_other": "{{count}} paragraphs with multiple working texts — please clean up manually.",
-    "initialContentChapter": "# Working text on the chapter {{title}}\n\n"
+    "initialContentChapter": "# Working text on the chapter {{title}}\n\n",
+    "deepenInStudy": "Deepen in study",
+    "deepenInStudyLogin": "Deepen in study (please sign in)"
   },
   "overview": {
     "title": "Overview",
@@ -229,7 +248,9 @@
     "general": "General"
   },
   "noteEditor": {
-    "placeholder": "Enter working text..."
+    "placeholder": "Enter working text...",
+    "saving": "Saving ...",
+    "error": "Error"
   },
   "documentPreview": {
     "breadcrumbParagraph": "Paragraph: {{preview}}",
@@ -271,12 +292,6 @@
     "otherEmail": "Other email",
     "sendCode": "Send code",
     "loginTitle": "Sign in",
-    "inviteOnlyTitle": "Participation is by invitation from another participant only.",
-    "inviteOnlyBody": "If you have received an invitation code, you can register with it.",
-    "inviteExpiredTitle": "Your invitation has expired.",
-    "inviteExpiredBody": "Please ask a participant to send you a new invitation. You can then register with the new code.",
-    "inviteCodeExpired": "The invitation code has expired. Please ask for a new invitation.",
-    "enterInviteCode": "Enter invitation code",
     "codeSent": "We sent a code to {{email}}. Please enter the 6-digit code from the email here.",
     "registerTitle": "Create account",
     "registerIntro": "No account exists yet for this email address. Create an account; we will send you a confirmation link.",
@@ -286,17 +301,6 @@
     "nameRequired": "Please enter a name.",
     "sendLink": "Send link",
     "goToApp": "Go to app",
-    "inviteTitle": "Invite participant",
-    "inviteIntro": "Invite a new participant. The person will receive an email with an invitation code.",
-    "inviteeEmailLabel": "Invitee’s email",
-    "sendInvite": "Send invitation",
-    "inviteSent": "Invitation sent to {{email}}.",
-    "anotherInvite": "Another invitation",
-    "redeemTitle": "Redeem invitation",
-    "inviteCodeLabel": "Invitation code (4 digits)",
-    "inviteCodePlaceholder": "1234",
-    "inviteCodeRequired": "Please enter the 4-digit invitation code.",
-    "redeem": "Redeem",
     "welcomeOtpSent": "Welcome! We sent an email to {{email}}. Please enter the code from the email here.",
     "rateLimitSeconds": "Please wait {{seconds}} seconds before trying again.",
     "rateLimitGeneric": "Please wait a moment before trying again."
@@ -312,8 +316,6 @@
     "lastSynced": "Last: {{time}}",
     "neverSynced": "Not synced yet",
     "syncNow": "Sync",
-    "inviteSection": "INVITATION",
-    "inviteParticipant": "Invite new participant",
     "signOut": "Sign out",
     "signOutConfirmTitle": "Sign out",
     "signOutConfirmBody": "Do you really want to sign out?",
@@ -372,9 +374,9 @@
     "primaryLiterature": "PRIMARY LITERATURE",
     "appInfo": "APP INFO",
     "version": "Version: {{label}}",
-    "appPlatform": "App (Android / iOS): Expo 54",
+    "appPlatform": "App (Android / iOS): Expo {{version}}",
     "server": "Server: ragrun on Railway",
-    "database": "Database: Supabase (Postgres)",
-    "ragDatabase": "RAG database: Qdrant Cloud"
+    "database": "Database: Supabase (Postgres {{version}})",
+    "ragDatabase": "RAG database: Qdrant Cloud {{version}}"
   }
 }

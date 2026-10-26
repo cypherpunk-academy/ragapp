@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { lightColors, darkColors, spacing, typography, textStyles } from '@/shared/theme';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
 import {
@@ -16,12 +16,11 @@ import {
   noteSegmentSlug,
   type SegmentMeta,
 } from '@/shared/lib/noteContext';
-import type Note from '@/data/db/models/Note';
-import type Paragraph from '@/data/db/models/Paragraph';
+import type { Paragraph } from '@/data/repositories/ParagraphRepository';
 import { getDateLocale } from '@/shared/i18n';
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit', year: '2-digit' });
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(getDateLocale(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export default function NotesScreen({ sourceId }: { sourceId: string }) {
@@ -29,30 +28,31 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
 
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
   const [paragraphs, setParagraphs] = useState<Paragraph[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editNote, setEditNote] = useState<Note | null>(null);
+  const [editNote, setEditNote] = useState<NoteRow | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
-  useEffect(() => {
-    const sub = NoteRepository.observeBySource(sourceId).subscribe((ns) => {
+  const loadNotes = useCallback(async () => {
+    try {
+      const ns = await NoteRepository.list({ sourceId });
       setNotes(ns);
-      setLoading(false);
-    });
-    return () => sub.unsubscribe();
+    } catch { /* offline */ }
+    setLoading(false);
   }, [sourceId]);
 
+  useEffect(() => { void loadNotes(); }, [loadNotes]);
+
   useEffect(() => {
-    const sub = ParagraphRepository.observeBySource(sourceId).subscribe(setParagraphs);
-    return () => sub.unsubscribe();
+    void ParagraphRepository.findBySource(sourceId).then(setParagraphs);
   }, [sourceId]);
 
   const paragraphById = useMemo(() => buildParagraphById(paragraphs), [paragraphs]);
   const segmentMap = useMemo(() => buildSegmentMap(paragraphs), [paragraphs]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string | null, Note[]>();
+    const map = new Map<string | null, NoteRow[]>();
     for (const note of notes) {
       const slug = noteSegmentSlug(note, paragraphById);
       if (!map.has(slug)) map.set(slug, []);
@@ -68,7 +68,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
     return entries;
   }, [notes, paragraphById, segmentMap]);
 
-  const handleEdit = (note: Note) => {
+  const handleEdit = (note: NoteRow) => {
     setEditNote(note);
     setEditorOpen(true);
   };
@@ -76,9 +76,10 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
   const handleCloseEditor = () => {
     setEditorOpen(false);
     setEditNote(null);
+    void loadNotes();
   };
 
-  const contextLabelForNote = (note: Note): string => {
+  const contextLabelForNote = (note: NoteRow): string => {
     const slug = noteSegmentSlug(note, paragraphById);
     const meta = slug ? segmentMap.get(slug) : null;
     const paraNum = noteParagraphNumber(note, paragraphById);
@@ -155,7 +156,7 @@ export default function NotesScreen({ sourceId }: { sourceId: string }) {
                             {note.content}
                           </Text>
                           <Text style={[typography.labelSmall, { color: colors.onSurfaceVariant }]}>
-                            {formatDate(note.createdAt)}
+                            {formatDate(note.created_at)}
                           </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color={colors.onSurfaceVariant} />

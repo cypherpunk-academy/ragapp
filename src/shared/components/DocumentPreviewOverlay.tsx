@@ -8,33 +8,28 @@ import { overlayStyles } from '@/shared/styles/overlays';
 import AppIcon from '@/shared/components/AppIcon';
 import DocumentMarkdownView from '@/shared/components/DocumentMarkdownView';
 import NoteEditorModal from '@/shared/components/NoteEditorModal';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
+
 import { ParagraphRepository } from '@/data/repositories/ParagraphRepository';
 import { SourceRepository } from '@/data/repositories/SourceRepository';
-import { TalkRepository } from '@/data/repositories/TalkRepository';
 import { documentUndoStack } from '@/data/tools/documentUndoStack';
 import { extractDocumentTitle } from '@/data/lib/documentTree';
 import { classifyOwnContextTier, firstWords } from '@/shared/lib/arbeitstextContext';
 import { stripSegmentTitleHtml } from '@/shared/lib/segmentTitleDisplay';
 import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
 import { useReading } from '@/shared/contexts/ReadingContext';
-import type Note from '@/data/db/models/Note';
 
 type Props = {
-  note: Note | null;
+  note: NoteRow | null;
   onClose: () => void;
-  /** Nicht im Chat selbst — navigiert zum Chat-Tab und verknüpft die Note dort. */
-  onEditInChat?: () => void;
-  /** Aufgerufen nachdem die Note über das Löschen-Icon entfernt wurde. */
   onDeleted?: () => void;
 };
 
 type NoteBreadcrumb = { label: string; onPress: () => void };
 
-/** Löst die Verknüpfungs-Herkunft einer Note auf (Gespräch/Absatz/Kapitel/Buch) — für den Header. */
-function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
+function useNoteBreadcrumb(note: NoteRow | null): NoteBreadcrumb | null {
   const { t } = useTranslation();
-  const { navigateToRead, navigateToChatWithTalk } = useReading();
+  const { navigateToRead } = useReading();
   const [breadcrumb, setBreadcrumb] = useState<NoteBreadcrumb | null>(null);
 
   useEffect(() => {
@@ -46,35 +41,26 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
     const tier = classifyOwnContextTier(note);
 
     (async () => {
-      if (tier === 'paragraph' && note.paragraphId) {
-        const paragraph = await ParagraphRepository.findById(note.paragraphId);
+      if (tier === 'paragraph' && note.paragraph_id) {
+        const paragraph = await ParagraphRepository.findById(note.paragraph_id);
         if (cancelled || !paragraph) return;
         setBreadcrumb({
-          label: t('documentPreview.breadcrumbParagraph', { preview: firstWords(paragraph.textRaw) }),
-          onPress: () => navigateToRead({ sourceId: paragraph.sourceId, segmentIndex: paragraph.segmentIndex, paragraphId: paragraph.id }),
+          label: t('documentPreview.breadcrumbParagraph', { preview: firstWords(paragraph.text_raw) }),
+          onPress: () => navigateToRead({ sourceId: paragraph.source_id, segmentIndex: paragraph.segment_index, paragraphId: paragraph.id }),
         });
-      } else if (tier === 'segment' && note.sourceId && note.segmentSlug) {
-        const paragraph = await ParagraphRepository.findFirstBySegmentSlug(note.sourceId, note.segmentSlug);
+      } else if (tier === 'segment' && note.source_id && note.segment_slug) {
+        const paragraph = await ParagraphRepository.findFirstBySegmentSlug(note.source_id, note.segment_slug);
         if (cancelled || !paragraph) return;
         setBreadcrumb({
-          label: t('documentPreview.breadcrumbChapter', { preview: firstWords(stripSegmentTitleHtml(paragraph.segmentTitle)) }),
-          onPress: () => navigateToRead({ sourceId: paragraph.sourceId, segmentIndex: paragraph.segmentIndex, paragraphId: null }),
+          label: t('documentPreview.breadcrumbChapter', { preview: firstWords(stripSegmentTitleHtml(paragraph.segment_title ?? '')) }),
+          onPress: () => navigateToRead({ sourceId: paragraph.source_id, segmentIndex: paragraph.segment_index, paragraphId: null }),
         });
-      } else if (tier === 'source' && note.sourceId) {
-        const source = await SourceRepository.findById(note.sourceId);
+      } else if (tier === 'source' && note.source_id) {
+        const source = await SourceRepository.findById(note.source_id);
         if (cancelled || !source) return;
         setBreadcrumb({
           label: t('documentPreview.breadcrumbBook', { title: source.title }),
           onPress: () => navigateToRead({ sourceId: source.id, segmentIndex: null, paragraphId: null }),
-        });
-      } else if (note.talkId) {
-        const talk = await TalkRepository.findById(note.talkId);
-        if (cancelled) return;
-        setBreadcrumb({
-          label: t('documentPreview.breadcrumbTalk', {
-            preview: firstWords(talk?.title ?? t('common.conversation')),
-          }),
-          onPress: () => navigateToChatWithTalk(note.talkId!),
         });
       } else {
         setBreadcrumb(null);
@@ -83,16 +69,12 @@ function useNoteBreadcrumb(note: Note | null): NoteBreadcrumb | null {
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id, note?.paragraphId, note?.segmentSlug, note?.sourceId, note?.talkId, t]);
+  }, [note?.id, note?.paragraph_id, note?.segment_slug, note?.source_id, t]);
 
   return breadcrumb;
 }
 
-/**
- * Preview-Overlay (Bottom Sheet, ~55–65 % Höhe): Verknüpfungs-Breadcrumb, gerendertes Markdown,
- * Undo/Bearbeiten. Wird von Chat, Absatz, Kapitel und Buch gemeinsam genutzt.
- */
-export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, onDeleted }: Props) {
+export default function DocumentPreviewOverlay({ note, onClose, onDeleted }: Props) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = colorScheme === 'dark' ? darkColors : lightColors;
@@ -112,21 +94,16 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
   const handleUndo = async () => {
     const entry = documentUndoStack.pop();
     if (!entry || entry.noteId !== note.id) return;
-    await NoteRepository.update(note, entry.previousContent);
+    await NoteRepository.save(note.id, entry.previousContent, note.version);
     setCanUndo(false);
   };
 
   const handleDelete = () => {
     confirmDeleteNote(async () => {
-      await NoteRepository.delete(note);
+      await NoteRepository.delete(note.id);
       onDeleted?.();
       onClose();
     });
-  };
-
-  const handleEditInChat = () => {
-    onEditInChat?.();
-    onClose();
   };
 
   return (
@@ -157,16 +134,6 @@ export default function DocumentPreviewOverlay({ note, onClose, onEditInChat, on
             <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} style={styles.iconBtn}>
               <AppIcon name={ICONS.arbeitstext.edit} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
-            {onEditInChat && (
-              <TouchableOpacity
-                onPress={handleEditInChat}
-                hitSlop={8}
-                style={styles.iconBtn}
-                accessibilityLabel={t('documentPreview.editInChatA11y')}
-              >
-                <AppIcon name={ICONS.arbeitstext.editInChat} size={ICON_SIZES.menu} color={colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity onPress={handleDelete} hitSlop={8} style={styles.iconBtn}>
               <AppIcon name={ICONS.arbeitstext.delete} size={ICON_SIZES.menu} color={colors.error} />
             </TouchableOpacity>

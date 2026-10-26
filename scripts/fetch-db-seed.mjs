@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
  * Fetches a full read-only snapshot from Supabase and writes it to
- * assets/seed/db-snapshot.json for bundling with the app.
+ * assets/seed/books.db (SQLite) for bundling with the app.
  *
  * Run before each release build:
- *   node scripts/fetch-db-seed.mjs
+ *   node scripts/fetch-db-seed.mjs [--version N]
+ *
+ * Options:
+ *   --version N   Set PRAGMA user_version (corpus OTA version). Default: 1
  *
  * Required env vars (in .env or environment):
  *   EXPO_PUBLIC_SUPABASE_URL
@@ -12,7 +15,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import Database from 'better-sqlite3';
+import { readFileSync, mkdirSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -45,28 +49,31 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const toMs = (iso) => iso ? new Date(iso).getTime() : null;
-
-// Query tables directly — pull_changes requires auth.uid() which the service
-// role key does not provide. Direct queries bypass RLS via the service role.
+// ---------------------------------------------------------------------------
+// Fetch sources
+// ---------------------------------------------------------------------------
 console.log('Fetching rag_sources…');
 const { data: sourcesData, error: srcErr } = await supabase
   .from('rag_sources')
-  .select('id, title, author, language, year, book_index, is_primary, sort_order, created_at, updated_at');
+  .select('id, title, author, language, year, book_index, is_primary, sort_order');
 
 if (srcErr) {
   console.error('rag_sources query failed:', srcErr.message);
   process.exit(1);
 }
 
-console.log('Fetching rag_paragraphs…');
+// ---------------------------------------------------------------------------
+// Fetch paragraphs (only non-deprecated)
+// ---------------------------------------------------------------------------
+console.log('Fetching rag_paragraphs (deprecated_at IS NULL)…');
 const paragraphsData = [];
 let from = 0;
 const PAGE = 1000;
 while (true) {
   const { data, error } = await supabase
     .from('rag_paragraphs')
-    .select('id, source_id, language, segment_index, segment_slug, segment_title, paragraph_number, text_raw, annotations, deprecated_at, created_at, updated_at')
+    .select('id, source_id, language, segment_index, segment_slug, segment_title, paragraph_number, text_raw, annotations')
+    .is('deprecated_at', null)
     .range(from, from + PAGE - 1);
   if (error) {
     console.error('rag_paragraphs query failed:', error.message);
@@ -77,70 +84,114 @@ while (true) {
   from += PAGE;
 }
 
-const mapSource = (r) => ({
-  id: r.id,
-  title: r.title,
-  author: r.author ?? '',
-  language: r.language ?? null,
-  year: r.year ?? null,
-  book_index: r.book_index ?? null,
-  is_primary: r.is_primary ?? false,
-  sort_order: r.sort_order ?? 9999,
-  created_at: toMs(r.created_at),
-  updated_at: toMs(r.updated_at),
+// ---------------------------------------------------------------------------
+// Build SQLite database
+// ---------------------------------------------------------------------------
+const outDir  = resolve(ROOT, 'assets/seed');
+const outPath = resolve(outDir, 'books.db');
+mkdirSync(outDir, { recursive: true });
+try { rmSync(outPath); } catch { /* first run */ }
+
+const db = new Database(outPath);
+db.pragma('journal_mode = OFF');
+db.pragma('synchronous = OFF');
+
+db.exec(`
+  CREATE TABLE sources (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL DEFAULT '',
+    language TEXT,
+    year INTEGER,
+    book_index INTEGER,
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 9999
+  );
+
+  CREATE TABLE paragraphs (
+    id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    segment_index INTEGER NOT NULL,
+    segment_slug TEXT,
+    segment_title TEXT,
+    paragraph_number INTEGER NOT NULL,
+    text_raw TEXT NOT NULL,
+    annotations TEXT,
+    language TEXT
+  );
+
+  CREATE TABLE passage_redirect (
+    old_id TEXT PRIMARY KEY,
+    new_id TEXT NOT NULL,
+    corpus_version INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    old_text TEXT
+  );
+
+  CREATE INDEX idx_paragraphs_source ON paragraphs (source_id);
+  CREATE INDEX idx_paragraphs_segment ON paragraphs (source_id, segment_index);
+`);
+
+// Insert sources
+const insertSource = db.prepare(`
+  INSERT INTO sources (id, title, author, language, year, book_index, is_primary, sort_order)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const insertParagraph = db.prepare(`
+  INSERT INTO paragraphs (id, source_id, segment_index, segment_slug, segment_title, paragraph_number, text_raw, annotations, language)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const insertSources = db.transaction((rows) => {
+  for (const r of rows) {
+    insertSource.run(
+      r.id,
+      r.title,
+      r.author ?? '',
+      r.language ?? null,
+      r.year ?? null,
+      r.book_index ?? null,
+      r.is_primary ? 1 : 0,
+      r.sort_order ?? 9999,
+    );
+  }
 });
 
-const mapParagraph = (r) => ({
-  id: r.id,
-  source_id: r.source_id,
-  language: r.language ?? null,
-  segment_index: r.segment_index,
-  segment_slug: r.segment_slug ?? null,
-  segment_title: r.segment_title,
-  paragraph_number: r.paragraph_number,
-  text_raw: r.text_raw,
-  annotations: r.annotations != null ? JSON.stringify(r.annotations) : null,
-  deprecated_at: toMs(r.deprecated_at),
-  created_at: toMs(r.created_at),
-  updated_at: toMs(r.updated_at),
+const insertParagraphs = db.transaction((rows) => {
+  for (const r of rows) {
+    insertParagraph.run(
+      r.id,
+      r.source_id,
+      r.segment_index,
+      r.segment_slug ?? null,
+      r.segment_title ?? null,
+      r.paragraph_number,
+      r.text_raw,
+      r.annotations != null ? JSON.stringify(r.annotations) : null,
+      r.language ?? null,
+    );
+  }
 });
 
-console.log('Fetching app_starter_prompts…');
-const { data: starterData, error: stpErr } = await supabase
-  .from('app_starter_prompts')
-  .select('id, prompt, sort_order, created_at, updated_at')
-  .order('sort_order', { ascending: true });
+insertSources(sourcesData);
+insertParagraphs(paragraphsData);
 
-if (stpErr) {
-  console.error('app_starter_prompts query failed:', stpErr.message);
+// Corpus version: set via --version N (default 1).
+// Bump when content changes so the app OTA update detects a newer version.
+const versionFlagIdx = process.argv.indexOf('--version');
+const corpusVersion = versionFlagIdx !== -1 && process.argv[versionFlagIdx + 1]
+  ? Number(process.argv[versionFlagIdx + 1])
+  : 1;
+if (!Number.isInteger(corpusVersion) || corpusVersion < 1) {
+  console.error('--version must be a positive integer');
   process.exit(1);
 }
+db.pragma(`user_version = ${corpusVersion}`);
 
-const mapStarter = (r) => ({
-  id: r.id,
-  prompt: r.prompt,
-  sort_order: r.sort_order,
-  created_at: toMs(r.created_at),
-  updated_at: toMs(r.updated_at),
-});
+db.close();
 
-// All records go in "created" — this is a full snapshot, not a delta.
-const snapshot = {
-  timestamp: Date.now(),
-  changes: {
-    sources:          { created: sourcesData.map(mapSource),    updated: [], deleted: [] },
-    paragraphs:       { created: paragraphsData.map(mapParagraph), updated: [], deleted: [] },
-    starter_prompts:  { created: (starterData ?? []).map(mapStarter), updated: [], deleted: [] },
-  },
-};
-
-const outDir  = resolve(ROOT, 'assets/seed');
-const outPath = resolve(outDir, 'db-snapshot.json');
-mkdirSync(outDir, { recursive: true });
-writeFileSync(outPath, JSON.stringify(snapshot));
-
-const s  = snapshot.changes.sources.created.length;
-const p  = snapshot.changes.paragraphs.created.length;
-const st = snapshot.changes.starter_prompts.created.length;
-const kb = Math.round(JSON.stringify(snapshot).length / 1024);
-console.log(`✓ db-snapshot.json — ${s} sources, ${p} paragraphs, ${st} starter_prompts — ${kb} KB  (timestamp: ${snapshot.timestamp})`);
+const { statSync } = await import('fs');
+const bytes = statSync(outPath).size;
+const mb = (bytes / (1024 * 1024)).toFixed(1);
+console.log(`✓ books.db v${corpusVersion} — ${sourcesData.length} sources, ${paragraphsData.length} paragraphs — ${mb} MB`);

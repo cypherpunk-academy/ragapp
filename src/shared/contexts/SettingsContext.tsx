@@ -27,7 +27,7 @@ const SettingsContext = createContext<SettingsContextValue>({
 });
 
 function applyColorScheme(pref: ColorSchemePreference) {
-  Appearance.setColorScheme(pref === 'system' ? null : pref);
+  Appearance.setColorScheme(pref === 'system' ? 'unspecified' : pref);
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {

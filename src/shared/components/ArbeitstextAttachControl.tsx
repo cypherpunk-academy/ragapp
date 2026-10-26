@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-
 import { useTranslation } from 'react-i18next';
 import { getNoteBadgeStyle, ICONS, ICON_SIZES, spacing, textStyles, lightColors, darkColors } from '@/shared/theme';
 import AppIcon from '@/shared/components/AppIcon';
-import type Note from '@/data/db/models/Note';
+import type { NoteRow } from '@/data/repositories/NoteRepository';
 
 type Props = {
-  note: Note | null;
+  note: NoteRow | null;
   onPress: () => void;
 };
 

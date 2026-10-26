@@ -1,22 +1,19 @@
-import { Q } from '@nozbe/watermelondb';
-import { database, Source } from '../db/database';
+import * as booksDb from '../lib/booksDb';
 
-const collection = database.get<Source>('sources');
+export type { Source } from '../lib/booksDb';
 
 export const SourceRepository = {
-  observePrimary() {
-    return collection.query(Q.where('is_primary', true), Q.sortBy('sort_order', Q.asc)).observe();
+  async findAll(): Promise<booksDb.Source[]> {
+    return booksDb.getSources();
   },
 
-  observeAll() {
-    return collection.query().observe();
+  async findPrimary(): Promise<booksDb.Source[]> {
+    const all = await booksDb.getSources();
+    return all.filter((s) => s.is_primary === 1);
   },
 
-  async findById(id: string): Promise<Source | null> {
-    try {
-      return await collection.find(id);
-    } catch {
-      return null;
-    }
+  async findById(id: string): Promise<booksDb.Source | null> {
+    const all = await booksDb.getSources();
+    return all.find((s) => s.id === id) ?? null;
   },
 };

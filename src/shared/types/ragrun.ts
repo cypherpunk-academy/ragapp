@@ -1,5 +1,10 @@
-import type { ToolResult } from '@/data/tools';
 import type { DocumentOutline } from '@/data/lib/documentTree';
+
+/** Tool result returned in chat stream `done` events. */
+export type ToolResult = {
+  tool: string;
+  result: unknown;
+};
 
 export type SearchResult = {
   chunk_id: string;

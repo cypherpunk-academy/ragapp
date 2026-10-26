@@ -1,142 +1,173 @@
-import { Q } from '@nozbe/watermelondb';
-import { database, Note } from '../db/database';
+/**
+ * Notes repository — all writes go through Supabase RPC functions
+ * (create_note, save_note, delete_note, undelete_note).
+ * Reads use the standard Supabase client with RLS.
+ */
+import { getSupabase } from '../lib/supabase';
 
-const collection = database.get<Note>('notes');
+export type NoteRow = {
+  id: string;
+  user_id: string;
+  paragraph_id: string | null;
+  segment_slug: string | null;
+  source_id: string | null;
+  title: string | null;
+  content: string;
+  text_type: string;
+  status: string;
+  version: number;
+  conversation_url: string | null;
+  created_by: string;
+  is_public: boolean;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
-export type CreateNoteResult =
-  | { ok: true; note: Note }
-  | { ok: false; reason: 'paragraph_occupied'; existingNote: Note };
+export type NoteVersionRow = {
+  id: string;
+  note_id: string;
+  version: number;
+  title: string | null;
+  content: string;
+  status: string | null;
+  changed_by: string;
+  created_at: string;
+};
 
-export type AttachContextResult =
-  | { ok: true; note: Note }
-  | { ok: false; reason: 'paragraph_occupied'; existingNote: Note };
+type RpcResult = { ok?: boolean; error?: string; [key: string]: unknown };
+
+export type SaveResult =
+  | { ok: true; new_version: number }
+  | { conflict: true; current_version: number; current_content: string; current_title: string | null }
+  | { error: string };
+
+export type CreateResult =
+  | { ok: true; id: string; version: number }
+  | { error: string };
+
+function generateId(): string {
+  // Simple UUID v4
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
 
 export const NoteRepository = {
-  async findByParagraph(paragraphId: string): Promise<Note[]> {
-    return collection.query(Q.where('paragraph_id', paragraphId), Q.sortBy('created_at', Q.desc)).fetch();
+  async get(id: string): Promise<NoteRow | null> {
+    const { data, error } = await getSupabase()
+      .from('app_notes')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   },
 
-  observeAll() {
-    return collection.query(Q.sortBy('created_at', Q.desc)).observe();
+  async list(filter?: { sourceId?: string; segmentSlug?: string; paragraphId?: string }): Promise<NoteRow[]> {
+    let query = getSupabase()
+      .from('app_notes')
+      .select('*')
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false });
+
+    if (filter?.sourceId) query = query.eq('source_id', filter.sourceId);
+    if (filter?.segmentSlug) query = query.eq('segment_slug', filter.segmentSlug);
+    if (filter?.paragraphId) query = query.eq('paragraph_id', filter.paragraphId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data ?? [];
   },
 
-  /** Allgemeine Arbeitstexte: kein source_id, segment_slug oder paragraph_id — sortiert nach Änderungsdatum. */
-  observeGeneral() {
-    return collection
-      .query(
-        Q.where('source_id', null),
-        Q.where('segment_slug', null),
-        Q.where('paragraph_id', null),
-        Q.sortBy('updated_at', Q.desc),
-      )
-      .observe();
+  async listDeleted(): Promise<NoteRow[]> {
+    const { data, error } = await getSupabase()
+      .from('app_notes')
+      .select('*')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
   },
 
-  observeBySource(sourceId: string) {
-    return collection.query(Q.where('source_id', sourceId), Q.sortBy('created_at', Q.desc)).observe();
-  },
-
-  observeByTalk(talkId: string) {
-    return collection.query(Q.where('talk_id', talkId), Q.sortBy('created_at', Q.desc)).observe();
-  },
-
-  async findBySegment(sourceId: string, segmentSlug: string): Promise<Note[]> {
-    return collection
-      .query(
-        Q.where('source_id', sourceId),
-        Q.where('segment_slug', segmentSlug),
-        Q.where('paragraph_id', null),
-        Q.sortBy('created_at', Q.desc),
-      )
-      .fetch();
-  },
-
-  async findBySourceOnly(sourceId: string): Promise<Note[]> {
-    return collection
-      .query(
-        Q.where('source_id', sourceId),
-        Q.where('segment_slug', null),
-        Q.where('paragraph_id', null),
-        Q.sortBy('created_at', Q.desc),
-      )
-      .fetch();
-  },
-
-  async findById(id: string): Promise<Note | null> {
-    try {
-      return await collection.find(id);
-    } catch {
-      return null;
-    }
-  },
-
-  /**
-   * Neu anlegen. Bei gesetzter `paragraphId` schlägt Anlegen fehl, wenn der Absatz
-   * bereits einen Arbeitstext hat — kein stilles Wiederverwenden oder Überschreiben.
-   */
-  async create(data: {
-    userId: string;
-    paragraphId?: string;
-    segmentSlug?: string;
-    sourceId?: string;
-    turnId?: string;
-    talkId?: string;
+  async create(params: {
+    title: string;
     content: string;
-  }): Promise<CreateNoteResult> {
-    if (data.paragraphId) {
-      const existing = (await NoteRepository.findByParagraph(data.paragraphId))[0];
-      if (existing) {
-        return { ok: false, reason: 'paragraph_occupied', existingNote: existing };
-      }
+    textType?: string;
+    paragraphId?: string;
+    conversationUrl?: string;
+    createdBy?: string;
+  }): Promise<CreateResult> {
+    const id = generateId();
+    const { data, error } = await getSupabase().rpc('create_note', {
+      p_id: id,
+      p_title: params.title,
+      p_content: params.content,
+      p_text_type: params.textType ?? 'note',
+      p_paragraph_id: params.paragraphId ?? null,
+      p_conversation_url: params.conversationUrl ?? null,
+      p_created_by: params.createdBy ?? 'user',
+    });
+    if (error) throw error;
+    const result = data as RpcResult;
+    if (result.error) return { error: result.error as string };
+    return { ok: true, id: result.id as string, version: result.version as number };
+  },
+
+  async save(
+    id: string,
+    content: string,
+    expectedVersion: number,
+    changedBy?: string,
+    title?: string,
+    status?: string,
+  ): Promise<SaveResult> {
+    const { data, error } = await getSupabase().rpc('save_note', {
+      p_id: id,
+      p_content: content,
+      p_expected_version: expectedVersion,
+      p_changed_by: changedBy ?? 'user',
+      p_title: title ?? null,
+      p_status: status ?? null,
+    });
+    if (error) throw error;
+    const result = data as RpcResult;
+    if (result.error === 'conflict') {
+      return {
+        conflict: true,
+        current_version: result.current_version as number,
+        current_content: result.current_content as string,
+        current_title: (result.current_title as string | null) ?? null,
+      };
     }
-
-    const note = await database.write(async () =>
-      collection.create((n) => {
-        n.userId = data.userId;
-        n.paragraphId = data.paragraphId ?? null;
-        n.segmentSlug = data.segmentSlug ?? null;
-        n.sourceId = data.sourceId ?? null;
-        n.turnId = data.turnId ?? null;
-        n.talkId = data.talkId ?? null;
-        n.content = data.content;
-        n.isPublic = false;
-      }),
-    );
-
-    return { ok: true, note };
+    if (result.error) return { error: result.error as string };
+    return { ok: true, new_version: result.new_version as number };
   },
 
-  async update(note: Note, content: string): Promise<Note> {
-    return database.write(async () => note.update((n) => { n.content = content; }));
+  async delete(id: string): Promise<{ ok: boolean; error?: string }> {
+    const { data, error } = await getSupabase().rpc('delete_note', { p_id: id });
+    if (error) throw error;
+    const result = data as RpcResult;
+    if (result.error) return { ok: false, error: result.error as string };
+    return { ok: true };
   },
 
-  async attachToTalk(note: Note, talkId: string | null): Promise<Note> {
-    return database.write(async () => note.update((n) => { n.talkId = talkId; }));
+  async undelete(id: string): Promise<{ ok: boolean; error?: string }> {
+    const { data, error } = await getSupabase().rpc('undelete_note', { p_id: id });
+    if (error) throw error;
+    const result = data as RpcResult;
+    if (result.error) return { ok: false, error: result.error as string };
+    return { ok: true };
   },
 
-  async attachToContext(
-    note: Note,
-    context: { talkId?: string | null; paragraphId?: string | null; segmentSlug?: string | null; sourceId?: string | null },
-  ): Promise<AttachContextResult> {
-    if ('paragraphId' in context && context.paragraphId) {
-      const occupied = (await NoteRepository.findByParagraph(context.paragraphId))[0];
-      if (occupied && occupied.id !== note.id) {
-        return { ok: false, reason: 'paragraph_occupied', existingNote: occupied };
-      }
-    }
-
-    const updated = await database.write(async () =>
-      note.update((n) => {
-        if ('talkId' in context) n.talkId = context.talkId ?? null;
-        if ('paragraphId' in context) n.paragraphId = context.paragraphId ?? null;
-        if ('segmentSlug' in context) n.segmentSlug = context.segmentSlug ?? null;
-        if ('sourceId' in context) n.sourceId = context.sourceId ?? null;
-      }),
-    );
-    return { ok: true, note: updated };
-  },
-
-  async delete(note: Note): Promise<void> {
-    return database.write(async () => note.markAsDeleted());
+  async history(noteId: string): Promise<NoteVersionRow[]> {
+    const { data, error } = await getSupabase()
+      .from('app_note_versions')
+      .select('*')
+      .eq('note_id', noteId)
+      .order('version', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
   },
 };

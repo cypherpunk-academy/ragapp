@@ -9,34 +9,32 @@ import { useTranslation } from 'react-i18next';
 import { lightColors, darkColors, spacing, textStyles } from '../theme';
 import { overlayStyles } from '../styles/overlays';
 import { useContentScale, scaleContentStyle } from '../hooks/useContentScale';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
 import { confirmDeleteNote } from '@/shared/lib/confirmDeleteNote';
 import { alertParagraphOccupied } from '@/shared/lib/paragraphOccupiedAlert';
-import type Note from '@/data/db/models/Note';
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  userId?: string;
-  /** Label shown above the input, e.g. “Absatz 3 · Kapitel I” */
+  /** Label shown above the input, e.g. "Absatz 3 · Kapitel I" */
   contextLabel?: string | null;
   paragraphId?: string | null;
-  segmentSlug?: string | null;
   sourceId?: string | null;
-  talkId?: string | null;
   /** Pre-existing note to edit (omit for new note) */
-  note?: Note | null;
-  /** Vorbelegter Inhalt für neue Arbeitstexte, z. B. eine kontextuelle „# …”-Überschrift. */
+  note?: NoteRow | null;
+  /** Vorbelegter Inhalt für neue Arbeitstexte, z. B. eine kontextuelle "# …"-Überschrift. */
   initialContent?: string;
   /** Feuert nach dem Anlegen eines neuen Arbeitstexts (nicht beim Bearbeiten). */
-  onCreated?: (note: Note) => void;
+  onCreated?: (note: NoteRow) => void;
   /** Vorhandener Absatz-Arbeitstext — z. B. Vorschau öffnen statt neu anlegen. */
-  onOpenExisting?: (note: Note) => void;
+  onOpenExisting?: (note: NoteRow) => void;
   onDeleted?: () => void;
 };
 
 export default function NoteEditorModal({
-  visible, onClose, userId, contextLabel, paragraphId, segmentSlug, sourceId, talkId, note, initialContent, onCreated, onOpenExisting, onDeleted,
+  visible, onClose, contextLabel, paragraphId, sourceId, note, initialContent, onCreated, onOpenExisting, onDeleted,
 }: Props) {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
@@ -46,45 +44,68 @@ export default function NoteEditorModal({
   const { height: windowHeight } = useWindowDimensions();
   const inputMaxHeight = Math.round(windowHeight * 0.45);
   const [content, setContent] = useState('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   useEffect(() => {
-    if (visible) setContent(note?.content ?? initialContent ?? '');
+    if (visible) {
+      setContent(note?.content ?? initialContent ?? '');
+      setSaveStatus('idle');
+    }
   }, [visible, note, initialContent]);
 
   const handleSave = async () => {
     const trimmed = content.trim();
     if (!trimmed) { onClose(); return; }
-    if (note) {
-      await NoteRepository.update(note, trimmed);
-    } else {
-      const result = await NoteRepository.create({
-        userId: userId ?? 'local',
-        paragraphId: paragraphId ?? undefined,
-        segmentSlug: segmentSlug ?? undefined,
-        sourceId: sourceId ?? undefined,
-        talkId: talkId ?? undefined,
-        content: trimmed,
-      });
-      if (!result.ok) {
-        alertParagraphOccupied(result.existingNote, {
-          onOpen: onOpenExisting
-            ? (existing) => {
-                onOpenExisting(existing);
-                onClose();
-              }
-            : undefined,
+    setSaveStatus('saving');
+    try {
+      if (note) {
+        const result = await NoteRepository.save(note.id, trimmed, note.version);
+        if ('conflict' in result && result.conflict) {
+          setSaveStatus('error');
+          return;
+        }
+        if ('error' in result) {
+          setSaveStatus('error');
+          return;
+        }
+        setSaveStatus('saved');
+      } else {
+        // Check if paragraph already has a note
+        if (paragraphId) {
+          const existing = await NoteRepository.list({ paragraphId });
+          if (existing.length > 0) {
+            alertParagraphOccupied(existing[0], {
+              onOpen: onOpenExisting
+                ? (ex) => { onOpenExisting(ex); onClose(); }
+                : undefined,
+            });
+            setSaveStatus('idle');
+            return;
+          }
+        }
+        const result = await NoteRepository.create({
+          title: '',
+          content: trimmed,
+          paragraphId: paragraphId ?? undefined,
         });
-        return;
+        if ('error' in result) {
+          setSaveStatus('error');
+          return;
+        }
+        setSaveStatus('saved');
+        const created = await NoteRepository.get(result.id);
+        if (created) onCreated?.(created);
       }
-      onCreated?.(result.note);
+      onClose();
+    } catch {
+      setSaveStatus('error');
     }
-    onClose();
   };
 
   const handleDelete = () => {
     if (!note) return;
     confirmDeleteNote(async () => {
-      await NoteRepository.delete(note);
+      await NoteRepository.delete(note.id);
       onDeleted?.();
       onClose();
     });
@@ -111,6 +132,9 @@ export default function NoteEditorModal({
   if (!visible) return null;
 
   const label = contextLabel ?? (note ? t('common.editArbeitstext') : t('common.newArbeitstext'));
+  const statusLabel = saveStatus === 'saving' ? t('noteEditor.saving')
+    : saveStatus === 'error' ? t('noteEditor.error')
+    : null;
 
   return (
     <View style={overlayStyles.sheetLayer} pointerEvents="box-none">
@@ -118,9 +142,21 @@ export default function NoteEditorModal({
         <Animated.View style={noteKbStyle}>
         <Pressable style={styles.overlay} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.surfaceContainer }]}>
-          <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, marginBottom: spacing.xs, textTransform: 'none' }]}>
-            {label}
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={[textStyles.contributionsBreadcrumb, { color: colors.onSurfaceVariant, textTransform: 'none', flex: 1 }]}>
+              {label}
+            </Text>
+            {statusLabel && (
+              <Text style={[textStyles.contributionsBreadcrumb, { color: saveStatus === 'error' ? colors.error : colors.onSurfaceVariant }]}>
+                {statusLabel}
+              </Text>
+            )}
+            {note && (
+              <Text style={[textStyles.contributionsBreadcrumb, { color: colors.outline }]}>
+                v{note.version}
+              </Text>
+            )}
+          </View>
           <TextInput
             style={[
               scaledNoteBody,
@@ -154,6 +190,7 @@ export default function NoteEditorModal({
             <TouchableOpacity
               style={[styles.btn, styles.btnFilled, { backgroundColor: colors.primary }]}
               onPress={handleSave}
+              disabled={saveStatus === 'saving'}
             >
               <Text style={[textStyles.contributionsTab, { color: colors.onPrimary }]}>{t('common.save')}</Text>
             </TouchableOpacity>
@@ -174,6 +211,12 @@ const styles = StyleSheet.create({
     padding: spacing.m,
     paddingBottom: spacing.xl,
     gap: spacing.s,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    marginBottom: spacing.xs,
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,

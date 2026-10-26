@@ -1,4 +1,4 @@
-import type Note from '@/data/db/models/Note';
+import type { NoteRow } from '@/data/repositories/NoteRepository';
 import i18n from '@/shared/i18n';
 
 /**
@@ -53,9 +53,9 @@ export type ArbeitstextReadingSnapshot = {
 };
 
 type ArbeitstextNoteContext = {
-  sourceId: string | null;
-  segmentSlug: string | null;
-  paragraphId: string | null;
+  source_id: string | null;
+  segment_slug: string | null;
+  paragraph_id: string | null;
 };
 
 /**
@@ -66,17 +66,17 @@ export function classifyArbeitstextContext(
   note: ArbeitstextNoteContext,
   reading: ArbeitstextReadingSnapshot | null,
 ): ArbeitstextContextTier {
-  const isGeneral = !note.sourceId && !note.segmentSlug && !note.paragraphId;
+  const isGeneral = !note.source_id && !note.segment_slug && !note.paragraph_id;
   if (isGeneral) return 'general';
 
   if (reading) {
-    if (note.paragraphId && note.paragraphId === reading.paragraphId) return 'paragraph';
-    if (note.sourceId === reading.sourceId && note.segmentSlug && note.segmentSlug === reading.segmentSlug) {
+    if (note.paragraph_id && note.paragraph_id === reading.paragraphId) return 'paragraph';
+    if (note.source_id === reading.sourceId && note.segment_slug && note.segment_slug === reading.segmentSlug) {
       return 'segment';
     }
   }
 
-  if (note.sourceId) return 'source';
+  if (note.source_id) return 'source';
   return 'general';
 }
 
@@ -85,9 +85,9 @@ export function classifyArbeitstextContext(
  * von der aktuellen Leseposition. Für den Verknüpfungs-Breadcrumb (DocumentPreviewOverlay).
  */
 export function classifyOwnContextTier(note: ArbeitstextNoteContext): ArbeitstextContextTier {
-  if (note.paragraphId) return 'paragraph';
-  if (note.segmentSlug) return 'segment';
-  if (note.sourceId) return 'source';
+  if (note.paragraph_id) return 'paragraph';
+  if (note.segment_slug) return 'segment';
+  if (note.source_id) return 'source';
   return 'general';
 }
 
@@ -99,10 +99,10 @@ export function firstWords(text: string, count = 6): string {
 }
 
 export function filterByContextTier(
-  notes: Note[],
+  notes: NoteRow[],
   tier: ArbeitstextContextTier,
   reading: ArbeitstextReadingSnapshot | null,
-): Note[] {
+): NoteRow[] {
   return notes.filter((n) => classifyArbeitstextContext(n, reading) === tier);
 }
 
@@ -112,11 +112,11 @@ export function filterByContextTier(
  * Stufe, sortiert nach `updated_at`.
  */
 export function sortArbeitstexte(
-  notes: Note[],
+  notes: NoteRow[],
   reading: ArbeitstextReadingSnapshot | null,
   activeTier: ArbeitstextContextTier | null,
-): Note[] {
-  const byUpdatedDesc = (a: Note, b: Note) => b.updatedAt.getTime() - a.updatedAt.getTime();
+): NoteRow[] {
+  const byUpdatedDesc = (a: NoteRow, b: NoteRow) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
 
   if (activeTier) {
     return filterByContextTier(notes, activeTier, reading).sort(byUpdatedDesc);

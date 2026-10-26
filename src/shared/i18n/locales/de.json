@@ -38,6 +38,23 @@
     "read": "LESEN",
     "search": "KI-SUCHE"
   },
+  "werkstatt": {
+    "title": "Arbeitszimmer",
+    "loginPrompt": "Melde dich an, um das Arbeitszimmer zu nutzen.",
+    "notConnectedTitle": "Claude verbinden",
+    "notConnectedBody": "Verbinde deinen Claude-Account, um Philo als Assistent beim Lesen und Schreiben zu nutzen.",
+    "notConnectedButton": "Verbindung einrichten",
+    "connectedUnusedTitle": "Bereit!",
+    "connectedUnusedBody": "Dein Claude-Account ist verbunden. Starte ein Gespräch mit Philo, indem du beim Lesen auf \"Im Arbeitszimmer vertiefen\" tippst.",
+    "connectedTitle": "Dein Arbeitszimmer",
+    "connectedNewChat": "Neues Gespräch mit Philo",
+    "recentTexts": "Letzte Arbeitstexte",
+    "allTexts": "Alle Arbeitstexte",
+    "emptyTexts": "Noch keine Arbeitstexte vorhanden.",
+    "revokedTitle": "Verbindung getrennt",
+    "revokedBody": "Die Verbindung zu Claude wurde getrennt. Verbinde erneut, um Philo weiter zu nutzen.",
+    "revokedButton": "Erneut verbinden"
+  },
   "filo": {
     "segmentChat": "CHAT",
     "segmentArbeitstext": "ARBEITSTEXT",
@@ -175,7 +192,9 @@
     "paragraphMissing": "Der angeforderte Absatz ist nicht mehr verfügbar — möglicherweise nach einer Textüberarbeitung.",
     "duplicateNotesWarning": "{{count}} Absatz mit mehreren Arbeitstexten — bitte manuell bereinigen.",
     "duplicateNotesWarning_other": "{{count}} Absätze mit mehreren Arbeitstexten — bitte manuell bereinigen.",
-    "initialContentChapter": "# Arbeitstext über das Kapitel {{title}}\n\n"
+    "initialContentChapter": "# Arbeitstext über das Kapitel {{title}}\n\n",
+    "deepenInStudy": "Im Arbeitszimmer vertiefen",
+    "deepenInStudyLogin": "Im Arbeitszimmer vertiefen (bitte einloggen)"
   },
   "overview": {
     "title": "Übersicht",
@@ -230,7 +249,9 @@
     "general": "Allgemein"
   },
   "noteEditor": {
-    "placeholder": "Arbeitstext eingeben..."
+    "placeholder": "Arbeitstext eingeben...",
+    "saving": "Speichert ...",
+    "error": "Fehler"
   },
   "documentPreview": {
     "breadcrumbParagraph": "Absatz: {{preview}}",
@@ -272,12 +293,6 @@
     "otherEmail": "Andere E-Mail",
     "sendCode": "Code senden",
     "loginTitle": "Anmelden",
-    "inviteOnlyTitle": "Die Teilnahme ist nur auf Einladung durch einen anderen Teilnehmer möglich.",
-    "inviteOnlyBody": "Wenn du einen Einladungscode erhalten hast, kannst du dich damit registrieren.",
-    "inviteExpiredTitle": "Deine Einladung ist abgelaufen.",
-    "inviteExpiredBody": "Bitte lass dir von einem Teilnehmer eine neue Einladung schicken. Danach kannst du dich mit dem neuen Code registrieren.",
-    "inviteCodeExpired": "Der Einladungscode ist abgelaufen. Bitte lass dir eine neue Einladung schicken.",
-    "enterInviteCode": "Einladungscode eingeben",
     "codeSent": "Wir haben einen Code an {{email}} gesendet. Bitte gib den 6-stelligen Code aus der E-Mail hier ein.",
     "registerTitle": "Konto anlegen",
     "registerIntro": "Für diese E-Mail-Adresse existiert noch kein Konto. Legen Sie ein Konto an; wir senden Ihnen einen Link zur Bestätigung.",
@@ -287,17 +302,6 @@
     "nameRequired": "Bitte einen Namen eingeben.",
     "sendLink": "Link senden",
     "goToApp": "Zur App",
-    "inviteTitle": "Teilnehmer einladen",
-    "inviteIntro": "Laden Sie einen neuen Teilnehmer ein. Die Person erhält eine E-Mail mit einem Einladungscode.",
-    "inviteeEmailLabel": "E-Mail des Eingeladenen",
-    "sendInvite": "Einladung senden",
-    "inviteSent": "Einladung an {{email}} gesendet.",
-    "anotherInvite": "Weitere Einladung",
-    "redeemTitle": "Einladung einlösen",
-    "inviteCodeLabel": "Einladungscode (4 Ziffern)",
-    "inviteCodePlaceholder": "1234",
-    "inviteCodeRequired": "Bitte den 4-stelligen Einladungscode eingeben.",
-    "redeem": "Einlösen",
     "welcomeOtpSent": "Willkommen! Wir haben eine E-Mail an {{email}} gesendet. Bitte den Code aus der Mail hier eingeben.",
     "rateLimitSeconds": "Bitte {{seconds}} Sekunden warten, bevor du es erneut versuchst.",
     "rateLimitGeneric": "Bitte einen Moment warten, bevor du es erneut versuchst."
@@ -313,8 +317,6 @@
     "lastSynced": "Zuletzt: {{time}}",
     "neverSynced": "Noch nicht synchronisiert",
     "syncNow": "Synchronisieren",
-    "inviteSection": "EINLADUNG",
-    "inviteParticipant": "Neuen Teilnehmer einladen",
     "signOut": "Abmelden",
     "signOutConfirmTitle": "Abmelden",
     "signOutConfirmBody": "Möchten Sie sich wirklich abmelden?",
@@ -373,9 +375,9 @@
     "primaryLiterature": "PRIMÄRLITERATUR",
     "appInfo": "APP-INFO",
     "version": "Version: {{label}}",
-    "appPlatform": "App (Android / iOS): Expo 54",
+    "appPlatform": "App (Android / iOS): Expo {{version}}",
     "server": "Server: ragrun bei Railway",
-    "database": "Datenbank: Supabase (Postgres)",
-    "ragDatabase": "RAG-Datenbank: Qdrant Cloud"
+    "database": "Datenbank: Supabase (Postgres {{version}})",
+    "ragDatabase": "RAG-Datenbank: Qdrant Cloud {{version}}"
   }
 }

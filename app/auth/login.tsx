@@ -16,7 +16,6 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService, authErrorSuggestsNewAccount } from '@/data/services/authService';
-import { lookupEmail } from '@/data/services/invitationService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import i18n from '@/shared/i18n';
 import { darkColors, lightColors, spacing, textStyles, typography } from '@/shared/theme';
@@ -27,8 +26,6 @@ function errorMessage(err: unknown): string {
   }
   return i18n.t('auth.genericError');
 }
-
-type InviteGate = 'none' | 'inviteOnly' | 'inviteExpired';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -41,13 +38,11 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
-  const [inviteGate, setInviteGate] = useState<InviteGate>('none');
 
   const trimmed = email.trim();
 
   const handleSend = async () => {
     setError(null);
-    setInviteGate('none');
     if (!trimmed || !trimmed.includes('@')) {
       setError(t('auth.invalidEmail'));
       return;
@@ -58,16 +53,18 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
+      // Existing user → OTP code; new user → falls through to signUp
       await authService.signInWithMagicLinkExistingUser(trimmed);
       setSent(true);
       setOtp('');
     } catch (e) {
       if (authErrorSuggestsNewAccount(e)) {
         try {
-          const { invitation_status } = await lookupEmail(trimmed);
-          setInviteGate(invitation_status === 'expired' ? 'inviteExpired' : 'inviteOnly');
-        } catch {
-          setInviteGate('inviteOnly');
+          await authService.signUpWithMagicLink(trimmed, '');
+          setSent(true);
+          setOtp('');
+        } catch (e2) {
+          setError(errorMessage(e2));
         }
       } else {
         setError(errorMessage(e));
@@ -119,30 +116,7 @@ export default function LoginScreen() {
           </Text>
         ) : null}
 
-        {inviteGate !== 'none' ? (
-          <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
-            <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
-              {t(inviteGate === 'inviteExpired' ? 'auth.inviteExpiredTitle' : 'auth.inviteOnlyTitle')}
-            </Text>
-            <Text style={[typography.bodyMedium, { color: colors.onSurfaceVariant }]}>
-              {t(inviteGate === 'inviteExpired' ? 'auth.inviteExpiredBody' : 'auth.inviteOnlyBody')}
-            </Text>
-            {inviteGate === 'inviteOnly' ? (
-              <TouchableOpacity
-                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-                onPress={() => router.push({ pathname: '/auth/redeem-invitation', params: { email: trimmed } })}
-              >
-                <Text style={[textStyles.continueCta, { color: colors.onPrimary }]}>{t('auth.enterInviteCode')}</Text>
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.surfaceContainerHighest }]}
-              onPress={() => { setInviteGate('none'); setError(null); }}
-            >
-              <Text style={[textStyles.continueCta, { color: colors.onSurface }]}>{t('auth.otherEmail')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : sent ? (
+        {sent ? (
           <View style={[styles.card, { backgroundColor: colors.surfaceContainer }]}>
             <Text style={[textStyles.contributionsTab, { color: colors.onSurface }]}>
               {t('auth.codeSent', { email: trimmed })}

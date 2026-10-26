@@ -1,42 +1,24 @@
-import { useEffect, useState } from 'react';
-import type Note from '@/data/db/models/Note';
-import { NoteRepository } from '@/data/repositories/NoteRepository';
+import { useState, useCallback, useEffect } from 'react';
+import { NoteRepository, type NoteRow } from '@/data/repositories/NoteRepository';
 
-export function useNotes(paragraphId?: string) {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+export type NotesStatus = 'loading' | 'ready' | 'error';
 
-  useEffect(() => {
-    if (!paragraphId) {
-      const subscription = NoteRepository.observeAll().subscribe({
-        next: (items) => {
-          setNotes(items);
-          setLoading(false);
-        },
-        error: () => setLoading(false),
-      });
-      return () => subscription.unsubscribe();
+export function useNotes(filter?: { sourceId?: string; segmentSlug?: string; paragraphId?: string }) {
+  const [data, setData] = useState<NoteRow[]>([]);
+  const [status, setStatus] = useState<NotesStatus>('loading');
+
+  const refresh = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const notes = await NoteRepository.list(filter);
+      setData(notes);
+      setStatus('ready');
+    } catch {
+      setStatus('error');
     }
+  }, [filter?.sourceId, filter?.segmentSlug, filter?.paragraphId]);
 
-    let active = true;
-    NoteRepository.findByParagraph(paragraphId)
-      .then((items) => {
-        if (active) setNotes(items);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+  useEffect(() => { void refresh(); }, [refresh]);
 
-    return () => {
-      active = false;
-    };
-  }, [paragraphId]);
-
-  return {
-    notes,
-    loading,
-    create: NoteRepository.create,
-    update: NoteRepository.update,
-    remove: NoteRepository.delete,
-  };
+  return { data, status, refresh };
 }
